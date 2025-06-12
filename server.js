@@ -22,7 +22,8 @@ import cron from 'node-cron';
 import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugefügt für WebAuthn
 
 // --- Eigene Module (mit .js-Endung!) ---
-import { REFRESH_SECRET } from './config/env.js';
+import { REFRESH_TOKEN_SECRET } from './config/env.js';
+
 
 // --- Initialisierung ---
 const app = express();
