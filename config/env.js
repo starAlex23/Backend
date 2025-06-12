@@ -1,38 +1,28 @@
 // config/env.js
-import dotenv from 'dotenv';
-dotenv.config();
 
-// Pflicht-Checks
-const required = (key) => {
-  if (!process.env[key]) {
-    throw new Error(`${key} fehlt in den Umgebungsvariablen (.env oder Render)!`);
-  }
-};
+// Prüfung: wichtige Umgebungsvariablen müssen gesetzt sein
+if (!process.env.ACCESS_TOKEN_SECRET) throw new Error("ACCESS_TOKEN_SECRET fehlt!");
+if (!process.env.REFRESH_TOKEN_SECRET) throw new Error("REFRESH_TOKEN_SECRET fehlt!");
+if (!process.env.DB_USER) throw new Error("DB_USER fehlt!");
+if (!process.env.DB_PASSWORD) throw new Error("DB_PASSWORD fehlt!");
+if (!process.env.DB_DATABASE) throw new Error("DB_DATABASE fehlt!");
 
-// Kritische Variablen prüfen
-['ACCESS_TOKEN_SECRET', 'REFRESH_TOKEN_SECRET', 'DB_USER', 'DB_PASSWORD', 'DB_DATABASE', 'JWT_ISSUER', 'CORS_ORIGIN'].forEach(required);
+export const PORT = process.env.PORT || 3000;
+export const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Export: Tokens
+export const DB_HOST = process.env.DB_HOST || 'localhost';
+export const DB_PORT = process.env.DB_PORT || 5432;
+export const DB_USER = process.env.DB_USER;
+export const DB_PASSWORD = process.env.DB_PASSWORD;
+export const DB_DATABASE = process.env.DB_DATABASE;
+
 export const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 export const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
 
-// Export: Datenbank
-export const DB_HOST = process.env.DB_HOST || 'localhost';
-export const DB_PORT = parseInt(process.env.DB_PORT) || 5432;
-export const DB_USER = process.env.DB_USER;
-export const DB_PASSWORD = process.env.DB_PASSWORD;
-export const DB_NAME = process.env.DB_DATABASE;
+export const JWT_ISSUER = process.env.JWT_ISSUER || 'localhost';
+export const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
-// Export: Sicherheit & Auth
-export const JWT_ISSUER = process.env.JWT_ISSUER;
-export const CORS_ORIGIN = process.env.CORS_ORIGIN;
+export const HTTPS_KEY_PATH = process.env.HTTPS_KEY_PATH || './ssl/privkey.pem';
+export const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || './ssl/fullchain.pem';
 
-// Export: Server
-export const PORT = parseInt(process.env.PORT) || 3000;
-export const NODE_ENV = process.env.NODE_ENV || 'development';
-export const IS_RENDER = process.env.RENDER !== undefined;
-
-// Export: HTTPS (optional, nur wenn lokal mit SSL)
-export const HTTPS_KEY_PATH = process.env.HTTPS_KEY_PATH || null;
-export const HTTPS_CERT_PATH = process.env.HTTPS_CERT_PATH || null;
 
