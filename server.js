@@ -23,7 +23,7 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugef
 
 // --- Eigene Module (mit .js-Endung!) ---
 import { REFRESH_TOKEN_SECRET } from './config/env.js';
-
+import { DATABASE_URL } from './config/env.js'
 
 // --- Initialisierung ---
 const app = express();
@@ -81,11 +81,8 @@ validateEnv();
 // --- Pool Konfiguration für PostgreSQL ---
 // Hier werden die Datenbankverbindungseinstellungen aus den Umgebungsvariablen gelesen.
 const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_DATABASE,
-    password: process.env.DB_PASSWORD,
-    port: parseInt(process.env.DB_PORT, 10),
+  connectionString: DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
