@@ -313,13 +313,17 @@ initDb();
 app.post('/api/validate-qr', async (req, res) => {
     const { qr } = req.body;
     if (!qr) return sendError(res, 400, 'QR fehlt');
-    console.log('Eingehender QR-Code (mit Länge):', `"${qr}"`, qr.length);
     try {
         const gespeichertesPasswort = await getQrPassword();
-        if (qr === gespeichertesPasswort) {
+
+        const cleanQr = qr.trim().replace(/\s+/g, '');
+        const cleanPw = gespeichertesPasswort.trim().replace(/\s+/g, '');
+
+        console.log(`Vergleiche QR "${cleanQr}" (${cleanQr.length}) mit "${cleanPw}" (${cleanPw.length})`);
+
+        if (cleanQr === cleanPw) {
             return res.json({ valid: true });
         } else {
-            console.log('Ungültiger QR-Code - Vergleich fehlgeschlagen');
             return sendError(res, 401, 'Ungültiger QR-Code');
         }
     } catch (err) {
@@ -327,6 +331,7 @@ app.post('/api/validate-qr', async (req, res) => {
         return sendError(res, 500, 'Serverfehler');
     }
 });
+
 
 
 // Route zum Setzen des QR-Passworts (Admin-Zugriff erforderlich)
