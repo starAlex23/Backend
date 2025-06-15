@@ -85,6 +85,14 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
+app.use(cors({
+  origin: 'https://nochmal-neu.vercel.app',
+  credentials: true, // notwendig für Cookies oder Auth-Header
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
+
+
 const JWT_SECRET = process.env.JWT_SECRET;
 
 // --- Middleware Setup ---
