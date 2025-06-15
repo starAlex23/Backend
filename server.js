@@ -87,10 +87,9 @@ const pool = new Pool({
 
 app.use(cors({
   origin: 'https://nochmal-neu.vercel.app',
-  credentials: true, // notwendig für Cookies oder Auth-Header
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+  credentials: true
 }));
+
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
@@ -494,12 +493,14 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         setAuthCookies(res, accessToken, csrfToken); // Verwendet die Hilfsfunktion
 
         // Refresh Token als HttpOnly-Cookie setzen, mit spezifischem Pfad
-      res.cookie('refreshToken', refreshToken, {
+    res.cookie('refreshToken', refreshToken, {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: true,
   sameSite: 'None',
+  path: '/', // wichtig!
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
+
 
 
         res.json({ message: 'Login erfolgreich', csrfToken });
