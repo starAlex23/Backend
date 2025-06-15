@@ -497,7 +497,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   httpOnly: true,
   secure: true,
   sameSite: 'None',
-  path: '/', // wichtig!
+  path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
 
@@ -743,21 +743,20 @@ app.post('/api/admin-login', loginLimiter, async (req, res) => {
         const csrfToken = crypto.randomBytes(32).toString('hex'); // CSRF Token generieren
 
         // Cookies setzen
-        res.cookie('token', accessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'None',
-            maxAge: 15 * 60 * 1000, // 15 Minuten
-        });
+       res.cookie('token', accessToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'None',
+  maxAge: 15 * 60 * 1000,
+});
 
         res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'None',
-            path: '/api/refresh',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Tage
-        });
-
+  httpOnly: true,
+  secure: true,
+  sameSite: 'None',
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
         res.cookie('csrf', csrfToken, {
             httpOnly: false, // Für Client-Zugriff
             secure: process.env.NODE_ENV === 'production',
