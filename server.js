@@ -494,13 +494,13 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         setAuthCookies(res, accessToken, csrfToken); // Verwendet die Hilfsfunktion
 
         // Refresh Token als HttpOnly-Cookie setzen, mit spezifischem Pfad
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'None',
-            path: '/api/refresh', // Wichtig: Pfad nur für Refresh-Endpoint
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
+      res.cookie('refreshToken', refreshToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'None',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+});
+
 
         res.json({ message: 'Login erfolgreich', csrfToken });
     } catch (err) {
