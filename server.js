@@ -508,16 +508,23 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
 
 
-   res.json({
-  accessToken,
-  csrfToken,
-  user: {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    rolle: user.rolle,
+    res.json({
+      accessToken,
+      csrfToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        rolle: user.rolle,
+      }
+    });
+
+  } catch (err) {
+    console.error('Login Error:', err);
+    sendError(res, 500, 'Interner Serverfehler beim Login.');
   }
-});
+}); // ⬅️ DIESE schließende Klammer hat gefehlt!
+
 
 
 
