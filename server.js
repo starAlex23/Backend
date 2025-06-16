@@ -35,6 +35,7 @@ export default router;
 // Sie sind notwendig, um relative Pfade korrekt aufzulösen, da __dirname in ES-Modulen nicht direkt verfügbar ist.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const SALT_ROUNDS = 12;
 
 // --- Umgebungsvariablen validieren ---
 // Diese Funktion prüft, ob alle notwendigen Umgebungsvariablen gesetzt sind.
