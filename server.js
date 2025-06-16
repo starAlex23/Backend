@@ -508,12 +508,17 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
 
 
-        res.json({ message: 'Login erfolgreich', csrfToken });
-    } catch (err) {
-        console.error('Login Error:', err);
-        sendError(res, 500, 'Interner Serverfehler beim Login.');
-    }
+   res.json({
+  accessToken,
+  csrfToken,
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    rolle: user.rolle,
+  }
 });
+
 
 
 // Route für die Benutzerinformationen
