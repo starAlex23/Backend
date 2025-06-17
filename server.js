@@ -667,18 +667,17 @@ async function authMiddleware(req, res, next) {
 
 // CSRF Middleware: Prüft CSRF-Token in Cookies und Headern
 function csrfMiddleware(req, res, next) {
-    // Nur für POST, PUT, DELETE prüfen
-    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-        return next();
-    }
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
 
-    const csrfCookie = req.cookies?.csrf;
-    const csrfHeader = req.headers['x-csrf-token'];
+  const csrfCookie = req.cookies?.csrfToken; // Wichtig: Name genau wie beim Setzen!
+  const csrfHeader = req.headers['x-csrf-token'];
 
-    if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
-        return sendError(res, 403, 'CSRF-Token fehlt oder stimmt nicht überein');
-    }
-    next();
+  if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
+    return sendError(res, 403, 'CSRF-Token fehlt oder stimmt nicht überein');
+  }
+  next();
 }
 
 
