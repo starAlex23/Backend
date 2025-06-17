@@ -132,13 +132,7 @@ app.use((err, req, res, next) => {
   }
   next(err);
 });
-// Error Handling Middleware (optional, aber hilfreich)
-app.use((err, req, res, next) => {
-  if (err.message === 'Nicht erlaubte Origin') {
-    return res.status(403).json({ error: err.message });
-  }
-  next(err);
-});
+
 
 
 // --- Rate Limiter für Login (Schutz vor Brute Force) ---
