@@ -115,14 +115,23 @@ app.use(cookieParser());
 // --- Sichere CORS-Konfiguration ---
 // Cross-Origin Resource Sharing (CORS) Einstellungen, um Anfragen von bestimmten Origins zu erlauben.
 // 'secure' und 'sameSite: 'None'' sind wichtig für die Verwendung von Cookies über verschiedene Domains hinweg.
+const allowedOrigins = ['https://nochmal-neu.vercel.app', 'https://andere-domain.de'];
+
 const corsOptions = {
-    origin: [process.env.CORS_ORIGIN], // Erlaubt nur Anfragen von dieser Origin
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true, // Erlaubt das Senden von Cookies mit der Anfrage
-    optionsSuccessStatus: 200,
+  origin: function(origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Nicht erlaubte Origin'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  optionsSuccessStatus: 200,
 };
+
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // Preflight-Anfragen behandeln
+app.options('*', cors(corsOptions));
 
 // --- Rate Limiter für Login (Schutz vor Brute Force) ---
 // Begrenzt die Anzahl der Login-Versuche pro IP-Adresse innerhalb eines bestimmten Zeitfensters, um Brute-Force-Angriffe zu verhindern.
