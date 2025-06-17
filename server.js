@@ -126,12 +126,22 @@ const corsOptions = {
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'], // wichtig
   credentials: true,
   optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
+
+// Error Handling Middleware (optional, aber hilfreich)
+app.use((err, req, res, next) => {
+  if (err.message === 'Nicht erlaubte Origin') {
+    return res.status(403).json({ error: err.message });
+  }
+  next(err);
+});
+
 
 // --- Rate Limiter für Login (Schutz vor Brute Force) ---
 // Begrenzt die Anzahl der Login-Versuche pro IP-Adresse innerhalb eines bestimmten Zeitfensters, um Brute-Force-Angriffe zu verhindern.
