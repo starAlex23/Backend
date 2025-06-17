@@ -872,7 +872,6 @@ app.post('/api/sichere-aktion', authMiddleware, csrfMiddleware, async (req, res)
 
 // Refresh Token Endpoint
 app.post('/api/refresh', async (req, res) => {
-    // Der Origin-Check ist wichtig, um sicherzustellen, dass nur erlaubte Clients Tokens anfordern.
     const allowedOrigin = process.env.CORS_ORIGIN;
     const origin = req.get('Origin');
     if (!origin || origin !== allowedOrigin) {
@@ -883,7 +882,6 @@ app.post('/api/refresh', async (req, res) => {
     if (!refreshToken) return sendError(res, 401, 'Kein Refresh-Token gefunden.');
 
     try {
-        // Refresh Token in der Datenbank prüfen und Verfallsdatum checken
         const result = await pool.query(
             `SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()`,
             [refreshToken]
@@ -891,27 +889,24 @@ app.post('/api/refresh', async (req, res) => {
 
         const entry = result.rows[0];
         if (!entry) {
-            clearAuthCookies(res); // Ungültigen Refresh Token löschen
+            clearAuthCookies(res);
             return sendError(res, 403, 'Ungültiger oder abgelaufener Refresh-Token.');
         }
 
-        // Benutzerdetails für den neuen Access Token abrufen
         const userResult = await pool.query(
             `SELECT id, rolle FROM users WHERE id = $1`,
             [entry.user_id]
         );
         const user = userResult.rows[0];
         if (!user) {
-            clearAuthCookies(res); // Ungültige User-ID im Refresh Token
+            clearAuthCookies(res);
             return sendError(res, 403, 'Benutzer nicht gefunden.');
         }
 
         const issuedAt = Math.floor(Date.now() / 1000);
-        const expiresAt = issuedAt + 15 * 60; // 15 Minuten Gültigkeit für den neuen Access Token
+        const expiresAt = issuedAt + 15 * 60;
+        const jti = uuidv4();
 
-        const jti = uuidv4(); // Neue, eindeutige Token-ID für den Access Token
-
-        // Neuen Access Token erstellen
         const newAccessToken = jwt.sign(
             {
                 id: user.id,
@@ -924,17 +919,17 @@ app.post('/api/refresh', async (req, res) => {
             { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
         );
 
-        // Alte Access Tokens bereinigen
         await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
-
-        // Neue Token-ID in DB speichern
         await pool.query(
             `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at)
              VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
             [newAccessToken, user.id, jti, issuedAt, expiresAt]
         );
 
-        // Neuen Access Token als HttpOnly-Cookie setzen
+        // ✅ Neuen CSRF-Token generieren
+        const newCsrfToken = crypto.randomBytes(32).toString('hex');
+
+        // ✅ Access Token als HttpOnly-Cookie setzen
         res.cookie('token', newAccessToken, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
@@ -942,13 +937,28 @@ app.post('/api/refresh', async (req, res) => {
             maxAge: 15 * 60 * 1000,
         });
 
-        res.json({ success: true, message: 'Access Token erfolgreich erneuert.' });
+        // ✅ CSRF-Token als Nicht-HttpOnly-Cookie (für Frontend-Zugriff)
+        res.cookie('csrfToken', newCsrfToken, {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Lax',
+            maxAge: 15 * 60 * 1000,
+        });
+
+        // ✅ Rückgabe an Frontend
+        res.json({
+            accessToken: newAccessToken,
+            csrfToken: newCsrfToken,
+            success: true,
+            message: 'Access Token erfolgreich erneuert.'
+        });
     } catch (err) {
         console.error('Fehler beim Token-Refresh:', err);
-        clearAuthCookies(res); // Bei Fehlern alle Cookies löschen, um Sicherheit zu gewährleisten
+        clearAuthCookies(res);
         sendError(res, 500, 'Fehler beim Token-Refresh.');
     }
 });
+
 
 // zeiten abrufen (Admin)
 app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
