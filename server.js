@@ -432,94 +432,98 @@ app.post('/api/register', async (req, res) => {
 
 // Route für den normalen Login
 app.post('/api/login', loginLimiter, async (req, res) => {
-    // Alte Cookies löschen (um sicherzustellen, dass keine alten Tokens im Umlauf sind)
-    clearAuthCookies(res);
+  clearAuthCookies(res);
 
-    const { email, passwort } = req.body;
-    if (!email || !passwort) return sendError(res, 400, 'Alle Felder sind Pflicht.');
+  const { email, passwort } = req.body;
+  if (!email || !passwort) return sendError(res, 400, 'Alle Felder sind Pflicht.');
 
-    try {
-        const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
-        const user = result.rows[0];
-        if (!user) return sendError(res, 401, 'Nutzer nicht gefunden.');
+  try {
+    const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
+    const user = result.rows[0];
+    if (!user) return sendError(res, 401, 'Nutzer nicht gefunden.');
 
-        // Konto gesperrt?
-        if (user.gesperrt_bis && new Date(user.gesperrt_bis) > new Date()) {
-            const minuten = Math.ceil((new Date(user.gesperrt_bis).getTime() - new Date().getTime()) / 60000);
-            return sendError(res, 403, `Konto gesperrt. Versuche es in ${minuten} Minuten.`);
-        }
+    if (user.gesperrt_bis && new Date(user.gesperrt_bis) > new Date()) {
+      const minuten = Math.ceil((new Date(user.gesperrt_bis).getTime() - new Date().getTime()) / 60000);
+      return sendError(res, 403, `Konto gesperrt. Versuche es in ${minuten} Minuten.`);
+    }
 
-        const match = await bcrypt.compare(passwort, user.passwort);
-        if (!match) {
-            // Passwort falsch: Fehlversuche erhöhen und ggf. sperren
-            const neueFehlversuche = user.fehlversuche + 1;
-            const istGesperrt = neueFehlversuche >= 5;
-            const sperrzeit = istGesperrt ? new Date(Date.now() + 15 * 60 * 1000) : null; // 15 Min Sperre
+    const match = await bcrypt.compare(passwort, user.passwort);
+    if (!match) {
+      const neueFehlversuche = user.fehlversuche + 1;
+      const istGesperrt = neueFehlversuche >= 5;
+      const sperrzeit = istGesperrt ? new Date(Date.now() + 15 * 60 * 1000) : null;
 
-            await pool.query(
-                `UPDATE users SET fehlversuche = $1, gesperrt_bis = $2 WHERE id = $3`,
-                [neueFehlversuche, sperrzeit, user.id]
-            );
+      await pool.query(
+        `UPDATE users SET fehlversuche = $1, gesperrt_bis = $2 WHERE id = $3`,
+        [neueFehlversuche, sperrzeit, user.id]
+      );
 
-            return sendError(
-                res,
-                401,
-                istGesperrt ? 'Zu viele Fehlversuche. Konto gesperrt für 15 Minuten.' : 'Falsches Passwort.'
-            );
-        }
+      return sendError(
+        res,
+        401,
+        istGesperrt ? 'Zu viele Fehlversuche. Konto gesperrt für 15 Minuten.' : 'Falsches Passwort.'
+      );
+    }
 
-        // Login erfolgreich: Fehlversuche zurücksetzen
-        await pool.query(`UPDATE users SET fehlversuche = 0, gesperrt_bis = NULL WHERE id = $1`, [user.id]);
+    await pool.query(`UPDATE users SET fehlversuche = 0, gesperrt_bis = NULL WHERE id = $1`, [user.id]);
 
-        const issuedAt = Math.floor(Date.now() / 1000);
-        const expiresAt = issuedAt + 15 * 60; // Access Token gültig für 15 Minuten
-        const jti = uuidv4(); // Einzigartige JWT-ID für den Access Token
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const expiresAt = issuedAt + 15 * 60;
+    const jti = uuidv4();
 
-        // Access Token erstellen
-        const accessToken = jwt.sign(
-            { id: user.id, rolle: user.rolle, jti, iat: issuedAt, nbf: issuedAt },
-            JWT_SECRET,
-            { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
-        );
+    const accessToken = jwt.sign(
+      { id: user.id, rolle: user.rolle, jti, iat: issuedAt, nbf: issuedAt },
+      JWT_SECRET,
+      { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
+    );
 
-        // Refresh Token erstellen
-        const refreshToken = jwt.sign(
-            { userId: user.id },
-            REFRESH_SECRET,
-            { expiresIn: '7d' } // Refresh Token gültig für 7 Tage
-        );
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      REFRESH_SECRET,
+      { expiresIn: '7d' }
+    );
 
-        // Access Token in active_tokens Tabelle speichern (für Invalidierung)
-        await pool.query(
-            `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at) VALUES($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
-            [accessToken, user.id, jti, issuedAt, expiresAt]
-        );
+    await pool.query(
+      `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at) VALUES($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
+      [accessToken, user.id, jti, issuedAt, expiresAt]
+    );
 
-        // Abgelaufene Active Tokens bereinigen
-        await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
+    await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
 
-        // Refresh Token in refresh_tokens Tabelle speichern
-        const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 Tage in Millisekunden
-        await pool.query(
-            `INSERT INTO refresh_tokens(user_id, token, expires_at) VALUES($1, $2, $3)`,
-            [user.id, refreshToken, refreshExpiresAt]
-        );
+    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await pool.query(
+      `INSERT INTO refresh_tokens(user_id, token, expires_at) VALUES($1, $2, $3)`,
+      [user.id, refreshToken, refreshExpiresAt]
+    );
 
-        const csrfToken = crypto.randomBytes(32).toString('hex'); // CSRF Token generieren
+    // CSRF-Token generieren
+    const csrfToken = crypto.randomBytes(32).toString('hex');
 
-        // Cookies setzen
-        setAuthCookies(res, accessToken, csrfToken); // Verwendet die Hilfsfunktion
+    // Access-Token und CSRF-Token im Cookie setzen
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
 
-        // Refresh Token als HttpOnly-Cookie setzen, mit spezifischem Pfad
+    // WICHTIG: CSRF-Cookie NICHT httpOnly, sonst kann JS es nicht lesen
+    res.cookie('csrfToken', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
+
     res.cookie('refreshToken', refreshToken, {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'None',
-  path: '/',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-});
-
-
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     res.json({
       accessToken,
@@ -536,7 +540,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     console.error('Login Error:', err);
     sendError(res, 500, 'Interner Serverfehler beim Login.');
   }
-}); // ⬅️ DIESE schließende Klammer hat gefehlt!
+});
+
 
 
 
@@ -671,7 +676,7 @@ function csrfMiddleware(req, res, next) {
     return next();
   }
 
-  const csrfCookie = req.cookies?.csrfToken; // Wichtig: Name genau wie beim Setzen!
+  const csrfCookie = req.cookies?.csrfToken;
   const csrfHeader = req.headers['x-csrf-token'];
 
   if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
