@@ -337,12 +337,14 @@ initDb();
 
 // Route zur Validierung des QR-Codes
 app.post('/api/validate-qr', async (req, res) => {
+  console.log('Body:', req.body);  // Zum Debuggen
+
   const { qr } = req.body;
   if (!qr) return sendError(res, 400, 'QR fehlt');
   try {
     const gespeichertesPasswort = await getQrPassword();
 
-    console.log('🔍 Vergleich:', `"${qr}"`,'vs.',`"${gespeichertesPasswort}"`);
+    console.log('🔍 Vergleich:', `"${qr}"`, 'vs.', `"${gespeichertesPasswort}"`);
     console.log('Längen:', qr.length, gespeichertesPasswort.length);
     console.log('Codes:', [...qr].map(c => c.charCodeAt(0)), 'vs', [...gespeichertesPasswort].map(c => c.charCodeAt(0)));
 
