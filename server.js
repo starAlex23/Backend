@@ -430,7 +430,7 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Route für den normalen Login
+//login normale nutzer
 app.post('/api/login', loginLimiter, async (req, res) => {
   clearAuthCookies(res);
 
@@ -499,7 +499,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     // CSRF-Token generieren
     const csrfToken = crypto.randomBytes(32).toString('hex');
 
-    // Access-Token und CSRF-Token im Cookie setzen
+    // AccessToken als HttpOnly Cookie
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -508,7 +508,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       maxAge: 15 * 60 * 1000,
     });
 
-    // WICHTIG: CSRF-Cookie NICHT httpOnly, sonst kann JS es nicht lesen
+    // CSRF-Token als nicht-HttpOnly Cookie
     res.cookie('csrfToken', csrfToken, {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
@@ -517,6 +517,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       maxAge: 15 * 60 * 1000,
     });
 
+    // RefreshToken als HttpOnly Cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -525,8 +526,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    // Antwort ohne AccessToken (nur csrfToken und User-Daten)
     res.json({
-      accessToken,
       csrfToken,
       user: {
         id: user.id,
