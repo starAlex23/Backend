@@ -930,28 +930,26 @@ app.post('/api/refresh', async (req, res) => {
         const newCsrfToken = crypto.randomBytes(32).toString('hex');
 
         // ✅ Access Token als HttpOnly-Cookie setzen
-        res.cookie('token', newAccessToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'None',
-            maxAge: 15 * 60 * 1000,
-        });
+    res.cookie('token', newAccessToken, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'None', // Für Cross-Origin-Requests erforderlich
+  maxAge: 15 * 60 * 1000,
+});
 
-        // ✅ CSRF-Token als Nicht-HttpOnly-Cookie (für Frontend-Zugriff)
-        res.cookie('csrfToken', newCsrfToken, {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Lax',
-            maxAge: 15 * 60 * 1000,
-        });
+res.cookie('csrfToken', newCsrfToken, {
+  httpOnly: false,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'None', // Für Cross-Origin, falls Frontend andersherum
+  maxAge: 15 * 60 * 1000,
+});
 
-        // ✅ Rückgabe an Frontend
-        res.json({
-            accessToken: newAccessToken,
-            csrfToken: newCsrfToken,
-            success: true,
-            message: 'Access Token erfolgreich erneuert.'
-        });
+res.json({
+  accessToken: newAccessToken, // Falls Frontend den Token im Storage haben will
+  csrfToken: newCsrfToken,
+  success: true,
+  message: 'Access Token erfolgreich erneuert.'
+});
     } catch (err) {
         console.error('Fehler beim Token-Refresh:', err);
         clearAuthCookies(res);
