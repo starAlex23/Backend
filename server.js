@@ -90,11 +90,6 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 });
 
-app.use(cors({
-  origin: 'https://nochmal-neu.vercel.app',
-  credentials: true
-}));
-
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
@@ -119,21 +114,24 @@ const allowedOrigins = ['https://nochmal-neu.vercel.app', 'https://andere-domain
 
 const corsOptions = {
   origin: function(origin, callback) {
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Nicht erlaubte Origin'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'], // wichtig
-  credentials: true,
-  optionsSuccessStatus: 200,
+  credentials: true
 };
 
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 
+app.use((err, req, res, next) => {
+  if (err.message === 'Nicht erlaubte Origin') {
+    return res.status(403).json({ error: err.message });
+  }
+  next(err);
+});
 // Error Handling Middleware (optional, aber hilfreich)
 app.use((err, req, res, next) => {
   if (err.message === 'Nicht erlaubte Origin') {
