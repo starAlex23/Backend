@@ -172,7 +172,7 @@ function setAuthCookies(res, token, csrfToken) {
         maxAge: 24 * 60 * 60 * 1000,
     };
 
-    res.cookie('token', token, cookieOptionsHttpOnly);
+    res.cookie('accessToken', token, cookieOptionsHttpOnly);
     res.cookie('csrf', csrfToken, cookieOptionsJsAccessible);
 }
 
