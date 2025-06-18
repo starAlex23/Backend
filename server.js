@@ -431,9 +431,9 @@ app.post('/api/register', async (req, res) => {
 });
 
 //login normale nutzer
+// Vereinheitlichte Login-Route
 app.post('/api/login', loginLimiter, async (req, res) => {
   clearAuthCookies(res);
-
   const { email, passwort } = req.body;
   if (!email || !passwort) return sendError(res, 400, 'Alle Felder sind Pflicht.');
 
@@ -477,11 +477,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
     );
 
-    const refreshToken = jwt.sign(
-      { userId: user.id },
-      REFRESH_SECRET,
-      { expiresIn: '7d' }
-    );
+    const refreshToken = uuidv4();
+    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
     await pool.query(
       `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at) VALUES($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
@@ -490,58 +487,49 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
     await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
 
-    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await pool.query(
-      `INSERT INTO refresh_tokens(user_id, token, expires_at) VALUES($1, $2, $3)`,
-      [user.id, refreshToken, refreshExpiresAt]
+      `INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)`,
+      [refreshToken, user.id, refreshExpiresAt]
     );
 
-    // CSRF-Token generieren
     const csrfToken = crypto.randomBytes(32).toString('hex');
 
-    // AccessToken als HttpOnly Cookie
-    res.cookie('accessToken', accessToken, {
+    res.cookie('token', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'None',
-      path: '/',
-      maxAge: 15 * 60 * 1000,
+      maxAge: 15 * 60 * 1000
     });
 
-    // CSRF-Token als nicht-HttpOnly Cookie
-    res.cookie('csrfToken', csrfToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'None',
-      path: '/',
-      maxAge: 15 * 60 * 1000,
-    });
-
-    // RefreshToken als HttpOnly Cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'None',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
-    // Antwort ohne AccessToken (nur csrfToken und User-Daten)
+    res.cookie('csrfToken', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'None',
+      maxAge: 15 * 60 * 1000
+    });
+
     res.json({
       csrfToken,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
-        rolle: user.rolle,
+        rolle: user.rolle
       }
     });
-
   } catch (err) {
     console.error('Login Error:', err);
     sendError(res, 500, 'Interner Serverfehler beim Login.');
   }
 });
+
 
 
 
@@ -631,44 +619,41 @@ app.post('/change-password', authMiddleware, async (req, res) => {
 
 // Auth Middleware: Prüft Access Token in Cookies oder Authorization-Header
 async function authMiddleware(req, res, next) {
-    try {
-        let token;
+  try {
+    let token;
 
-        // Versucht, Token aus HttpOnly-Cookie zu lesen
-        if (req.cookies?.token) {
-            token = req.cookies.token;
-        }
-        // Fallback: Versucht, Token aus Authorization-Header zu lesen (Bearer Token)
-        else if (req.headers.authorization?.startsWith('Bearer ')) {
-            token = req.headers.authorization.slice(7);
-        }
-
-        if (!token) {
-            return sendError(res, 401, 'Kein Token gefunden');
-        }
-
-        // Token verifizieren
-        const payload = jwt.verify(token, JWT_SECRET);
-
-        // Prüfe, ob Token jti (JWT ID) in active_tokens existiert (für Invalidierung)
-        const jti = payload.jti;
-        if (!jti) {
-            return sendError(res, 401, 'Token ohne jti');
-        }
-
-        const dbRes = await pool.query('SELECT 1 FROM active_tokens WHERE jti = $1', [jti]);
-        if (dbRes.rowCount === 0) {
-            return sendError(res, 401, 'Token nicht aktiv oder abgelaufen');
-        }
-
-        req.user = payload; // Fügt Benutzerdaten zum Request-Objekt hinzu
-        req.token = token;
-        req.jti = jti; // Fügt JWT ID zum Request-Objekt hinzu
-        next(); // Weiter zur nächsten Middleware/Route
-    } catch (err) {
-        console.error('Auth Middleware Error:', err);
-        return sendError(res, 401, 'Token ungültig oder abgelaufen');
+    // Bevorzugt das HttpOnly-Cookie
+    if (req.cookies?.token) {
+      token = req.cookies.token;
     }
+    // Fallback: Authorization-Header (z. B. bei API-Tools oder Admin-Login)
+    else if (req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.slice(7);
+    }
+
+    if (!token) {
+      return sendError(res, 401, 'Kein Token vorhanden');
+    }
+
+    // Token prüfen
+    const payload = jwt.verify(token, JWT_SECRET);
+
+    // Optional: jti gegen active_tokens prüfen (für Blacklisting/Invalidierung)
+    if (payload.jti) {
+      const dbRes = await pool.query('SELECT 1 FROM active_tokens WHERE jti = $1', [payload.jti]);
+      if (dbRes.rowCount === 0) {
+        return sendError(res, 401, 'Token nicht aktiv oder abgelaufen');
+      }
+      req.jti = payload.jti;
+    }
+
+    req.user = payload;
+    req.token = token;
+    next();
+  } catch (err) {
+    console.error('Auth Middleware Error:', err);
+    return sendError(res, 401, 'Token ungültig oder abgelaufen');
+  }
 }
 
 // CSRF Middleware: Prüft CSRF-Token in Cookies und Headern
@@ -877,90 +862,91 @@ app.post('/api/sichere-aktion', authMiddleware, csrfMiddleware, async (req, res)
 
 // Refresh Token Endpoint
 app.post('/api/refresh', async (req, res) => {
-    const allowedOrigin = process.env.CORS_ORIGIN;
-    const origin = req.get('Origin');
-    if (!origin || origin !== allowedOrigin) {
-        return sendError(res, 403, 'Ungültiger Origin');
+  const allowedOrigin = process.env.CORS_ORIGIN;
+  const origin = req.get('Origin');
+  if (!origin || origin !== allowedOrigin) {
+    return sendError(res, 403, 'Ungültiger Origin');
+  }
+
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) return sendError(res, 401, 'Kein Refresh-Token gefunden.');
+
+  try {
+    const result = await pool.query(
+      `SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()`,
+      [refreshToken]
+    );
+
+    const entry = result.rows[0];
+    if (!entry) {
+      clearAuthCookies(res);
+      return sendError(res, 403, 'Ungültiger oder abgelaufener Refresh-Token.');
     }
 
-    const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) return sendError(res, 401, 'Kein Refresh-Token gefunden.');
-
-    try {
-        const result = await pool.query(
-            `SELECT * FROM refresh_tokens WHERE token = $1 AND expires_at > NOW()`,
-            [refreshToken]
-        );
-
-        const entry = result.rows[0];
-        if (!entry) {
-            clearAuthCookies(res);
-            return sendError(res, 403, 'Ungültiger oder abgelaufener Refresh-Token.');
-        }
-
-        const userResult = await pool.query(
-            `SELECT id, rolle FROM users WHERE id = $1`,
-            [entry.user_id]
-        );
-        const user = userResult.rows[0];
-        if (!user) {
-            clearAuthCookies(res);
-            return sendError(res, 403, 'Benutzer nicht gefunden.');
-        }
-
-        const issuedAt = Math.floor(Date.now() / 1000);
-        const expiresAt = issuedAt + 15 * 60;
-        const jti = uuidv4();
-
-        const newAccessToken = jwt.sign(
-            {
-                id: user.id,
-                rolle: user.rolle,
-                jti,
-                iat: issuedAt,
-                nbf: issuedAt
-            },
-            JWT_SECRET,
-            { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
-        );
-
-        await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
-        await pool.query(
-            `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at)
-             VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
-            [newAccessToken, user.id, jti, issuedAt, expiresAt]
-        );
-
-        // ✅ Neuen CSRF-Token generieren
-        const newCsrfToken = crypto.randomBytes(32).toString('hex');
-
-        // ✅ Access Token als HttpOnly-Cookie setzen
-    res.cookie('token', newAccessToken, {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'None', // Für Cross-Origin-Requests erforderlich
-  maxAge: 15 * 60 * 1000,
-});
-
-res.cookie('csrfToken', newCsrfToken, {
-  httpOnly: false,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'None', // Für Cross-Origin, falls Frontend andersherum
-  maxAge: 15 * 60 * 1000,
-});
-
-res.json({
-  accessToken: newAccessToken, // Falls Frontend den Token im Storage haben will
-  csrfToken: newCsrfToken,
-  success: true,
-  message: 'Access Token erfolgreich erneuert.'
-});
-    } catch (err) {
-        console.error('Fehler beim Token-Refresh:', err);
-        clearAuthCookies(res);
-        sendError(res, 500, 'Fehler beim Token-Refresh.');
+    const userResult = await pool.query(
+      `SELECT * FROM users WHERE id = $1`,
+      [entry.user_id]
+    );
+    const user = userResult.rows[0];
+    if (!user) {
+      clearAuthCookies(res);
+      return sendError(res, 403, 'Benutzer nicht gefunden.');
     }
+
+    const issuedAt = Math.floor(Date.now() / 1000);
+    const expiresAt = issuedAt + 15 * 60;
+    const jti = uuidv4();
+
+    const newAccessToken = jwt.sign(
+      {
+        id: user.id,
+        rolle: user.rolle,
+        jti,
+        iat: issuedAt,
+        nbf: issuedAt
+      },
+      JWT_SECRET,
+      { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
+    );
+
+    await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
+    await pool.query(
+      `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at)
+       VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
+      [newAccessToken, user.id, jti, issuedAt, expiresAt]
+    );
+
+    const newCsrfToken = crypto.randomBytes(32).toString('hex');
+
+    res.cookie('accessToken', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'None',
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie('csrfToken', newCsrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'None',
+      path: '/',
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.json({
+      accessToken: newAccessToken,
+      csrfToken: newCsrfToken,
+      success: true,
+      message: 'Access Token erfolgreich erneuert.'
+    });
+  } catch (err) {
+    console.error('Fehler beim Token-Refresh:', err);
+    clearAuthCookies(res);
+    sendError(res, 500, 'Fehler beim Token-Refresh.');
+  }
 });
+
 
 
 // zeiten abrufen (Admin)
