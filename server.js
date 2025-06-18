@@ -161,13 +161,13 @@ function sendError(res, code, message) {
 function setAuthCookies(res, token, csrfToken) {
     const cookieOptionsHttpOnly = {
         httpOnly: true, // Cookie ist nicht über Client-seitiges JavaScript zugänglich
-        secure: process.env.NODE_ENV === 'production', // Nur über HTTPS senden
+        secure: true, // Nur über HTTPS senden
         sameSite: 'None', // Erlaubt Cross-Site-Verwendung
         maxAge: 24 * 60 * 60 * 1000, // 1 Tag
     };
     const cookieOptionsJsAccessible = {
         httpOnly: false, // Cookie ist über Client-seitiges JavaScript zugänglich (für CSRF-Token)
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'None',
         maxAge: 24 * 60 * 60 * 1000,
     };
@@ -180,12 +180,12 @@ function setAuthCookies(res, token, csrfToken) {
 function clearAuthCookies(res) {
     const cookieOptions = {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'None',
     };
     const cookieOptionsJsAccessible = { // Für CSRF, da es auch JS-zugänglich sein muss
         httpOnly: false,
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         sameSite: 'None',
     };
 
@@ -496,21 +496,21 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
     res.cookie('token', accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'None',
       maxAge: 15 * 60 * 1000
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'None',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
     res.cookie('csrfToken', csrfToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'None',
       maxAge: 15 * 60 * 1000
     });
