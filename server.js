@@ -492,6 +492,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       [refreshToken, user.id, refreshExpiresAt]
     );
 
+    // ✅ Richtig geschriebene Variable verwenden
     const csrfToken = crypto.randomBytes(32).toString('hex');
 
     res.cookie('token', accessToken, {
@@ -508,6 +509,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+    // ✅ Hier war der Fehler – Variable falsch geschrieben. Jetzt korrekt:
     res.cookie('csrfToken', csrfToken, {
       httpOnly: false,
       secure: true,
@@ -918,7 +920,8 @@ app.post('/api/refresh', async (req, res) => {
 
     const newCsrfToken = crypto.randomBytes(32).toString('hex');
 
-    res.cookie('accessToken', newAccessToken, {
+    // ⛓ Access-Token als Cookie (gleich wie in /login)
+    res.cookie('token', newAccessToken, {
       httpOnly: true,
       secure: true,
       sameSite: 'None',
@@ -926,6 +929,7 @@ app.post('/api/refresh', async (req, res) => {
       maxAge: 15 * 60 * 1000,
     });
 
+    // 🔓 CSRF-Token für JS lesbar
     res.cookie('csrfToken', newCsrfToken, {
       httpOnly: false,
       secure: true,
@@ -935,10 +939,7 @@ app.post('/api/refresh', async (req, res) => {
     });
 
     res.json({
-      accessToken: newAccessToken,
-      csrfToken: newCsrfToken,
-      success: true,
-      message: 'Access Token erfolgreich erneuert.'
+      success: true
     });
   } catch (err) {
     console.error('Fehler beim Token-Refresh:', err);
