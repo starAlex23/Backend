@@ -779,7 +779,7 @@ app.post('/api/admin-login', loginLimiter, async (req, res) => {
 });
         res.cookie('csrf', csrfToken, {
             httpOnly: false, // Für Client-Zugriff
-            secure: process.env.NODE_ENV === 'production',
+            secure: true,
             sameSite: 'None',
             maxAge: 15 * 60 * 1000, // 15 Minuten
         });
@@ -920,7 +920,7 @@ app.post('/api/refresh', async (req, res) => {
 
     res.cookie('accessToken', newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'None',
       path: '/',
       maxAge: 15 * 60 * 1000,
@@ -928,7 +928,7 @@ app.post('/api/refresh', async (req, res) => {
 
     res.cookie('csrfToken', newCsrfToken, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       sameSite: 'None',
       path: '/',
       maxAge: 15 * 60 * 1000,
