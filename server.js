@@ -518,18 +518,20 @@ res.cookie('csrfToken', csrfToken, {
 });
 
  res.json({
-    message: 'Login erfolgreich',
-    csrfToken,
-    user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      rolle: user.rolle,
-    }
-  });
-});  // <- WICHTIG: diese Klammer schließt die Funktion, sonst "Unexpected end of input"
-
-
+      message: 'Login erfolgreich',
+      csrfToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        rolle: user.rolle,
+      }
+    });
+  } catch (err) {
+    console.error('❌ Login-Fehler:', err);
+    sendError(res, 500, 'Interner Serverfehler');
+  }
+});
 
 
 
