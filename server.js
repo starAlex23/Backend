@@ -517,17 +517,17 @@ res.cookie('csrfToken', csrfToken, {
   maxAge: 15 * 60 * 1000,
 });
 
-res.json({
-  message: 'Login erfolgreich',
-  csrfToken, // wichtig: Token sichtbar für Frontend
-  user: {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    rolle: user.rolle,
-  }
-});
-
+ res.json({
+    message: 'Login erfolgreich',
+    csrfToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      rolle: user.rolle,
+    }
+  });
+});  // <- WICHTIG: diese Klammer schließt die Funktion, sonst "Unexpected end of input"
 
 
 
