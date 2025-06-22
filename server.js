@@ -173,7 +173,7 @@ function setAuthCookies(res, token, csrfToken) {
     };
 
     res.cookie('accessToken', token, cookieOptionsHttpOnly);
-    res.cookie('csrf', csrfToken, cookieOptionsJsAccessible);
+    res.cookie('csrfToken', csrfToken, cookieOptionsJsAccessible);
 }
 
 // Helper: Auth-Cookies löschen (Logout)
@@ -192,7 +192,7 @@ function clearAuthCookies(res) {
     res.clearCookie('token', cookieOptions);
     // Beachten Sie den Pfad für den Refresh-Token, falls er spezifisch ist
     res.clearCookie('refreshToken', { ...cookieOptions, path: '/api/refresh' });
-    res.clearCookie('csrf', cookieOptionsJsAccessible);
+    res.clearCookie('csrfToken', cookieOptionsJsAccessible);
 }
 
 // Middleware, die nur Admin-Zugriff erlaubt
