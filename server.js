@@ -510,25 +510,21 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     });
 
     // ✅ Hier war der Fehler – Variable falsch geschrieben. Jetzt korrekt:
-    res.cookie('csrfToken', csrfToken, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'None',
-      maxAge: 15 * 60 * 1000
-    });
+res.cookie('csrfToken', csrfToken, {
+  httpOnly: false,
+  secure: true,
+  sameSite: 'None',
+  maxAge: 15 * 60 * 1000,
+});
 
-    res.json({
-      csrfToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        rolle: user.rolle
-      }
-    });
-  } catch (err) {
-    console.error('Login Error:', err);
-    sendError(res, 500, 'Interner Serverfehler beim Login.');
+res.json({
+  message: 'Login erfolgreich',
+  csrfToken, // wichtig: Token sichtbar für Frontend
+  user: {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    rolle: user.rolle,
   }
 });
 
