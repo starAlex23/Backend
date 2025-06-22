@@ -779,7 +779,7 @@ app.post('/api/admin-login', loginLimiter, async (req, res) => {
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
-        res.cookie('csrf', csrfToken, {
+        res.cookie('csrfToken', csrfToken, {
             httpOnly: false, // Für Client-Zugriff
             secure: true,
             sameSite: 'None',
