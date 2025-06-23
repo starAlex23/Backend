@@ -872,7 +872,7 @@ app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
       }
 
       await pool.query(
-        `INSERT INTO zeiten (user_id, aktion, zeitpunkt) VALUES ($1, $2, $3)`,
+        `INSERT INTO zeiten (user_id, aktion, zeit) VALUES ($1, $2, $3)`,
         [userId, 'stop', serverZeit]
       );
       await pool.query(`UPDATE users SET ist_eingestempelt = FALSE WHERE id = $1`, [userId]);
