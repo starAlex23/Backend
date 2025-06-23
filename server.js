@@ -249,20 +249,21 @@ cron.schedule('*/50 * * * *', async () => {
 // Verbesserte DB-Initialisierung mit allen notwendigen Tabellen
 async function initDb() {
     try {
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                vorname TEXT NOT NULL,
-                nachname TEXT NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                passwort TEXT NOT NULL,
-                rolle TEXT DEFAULT 'user',
-                fehlversuche INTEGER DEFAULT 0,
-                gesperrt_bis TIMESTAMP,
-                biometric_enabled BOOLEAN DEFAULT FALSE
-            )
-        `);
-
+       await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        vorname TEXT NOT NULL,
+        nachname TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        passwort TEXT NOT NULL,
+        rolle TEXT DEFAULT 'user',
+        fehlversuche INTEGER DEFAULT 0,
+        gesperrt_bis TIMESTAMP,
+        biometric_enabled BOOLEAN DEFAULT FALSE,
+        ist_eingestempelt BOOLEAN DEFAULT FALSE
+      )
+    `);
+        
         await pool.query(`
             CREATE TABLE IF NOT EXISTS zeiten (
                 id SERIAL PRIMARY KEY,
@@ -278,6 +279,20 @@ async function initDb() {
                 value TEXT NOT NULL
             )
         `);
+
+await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'users' AND column_name = 'ist_eingestempelt'
+    ) THEN
+      ALTER TABLE users ADD COLUMN ist_eingestempelt BOOLEAN DEFAULT FALSE;
+    END IF;
+  END
+  $$;
+`);
 
         await pool.query(`
             CREATE TABLE IF NOT EXISTS active_tokens (
@@ -797,32 +812,85 @@ app.post('/api/admin/irgendwas', authMiddleware, csrfMiddleware, adminOnlyMiddle
     res.json({ message: 'Admin-Aktion erfolgreich ausgeführt.' });
 });
 
+
+app.get('/api/status', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT ist_eingestempelt FROM users WHERE id = $1', [req.user.id]);
+    res.json({ ist_eingestempelt: result.rows[0].ist_eingestempelt });
+  } catch (err) {
+    console.error('Fehler beim Abrufen des Status:', err);
+    sendError(res, 500, 'Statusabfrage fehlgeschlagen');
+  }
+});
+
+
 // Route für Zeitstempel-Aktionen (Start, Stop, Pause, Resume)
 app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
-    // Nur normale Benutzer dürfen Zeitstempel setzen
-    if (req.user.rolle !== 'user')
-        return sendError(res, 403, 'Nur für normale Nutzer erlaubt.');
+  // Nur normale Benutzer dürfen Zeitstempel setzen
+  if (req.user.rolle !== 'user')
+    return sendError(res, 403, 'Nur für normale Nutzer erlaubt.');
 
-    // Validierung der Aktion
-    const { error, value } = zeitSchema.validate(req.body);
-    if (error) {
-        return sendError(res, 400, 'Ungültige Eingabe: ' + error.details[0].message);
+  // Validierung der Eingabe (z. B. aktion: 'start' | 'stop')
+  const { error, value } = zeitSchema.validate(req.body);
+  if (error) {
+    return sendError(res, 400, 'Ungültige Eingabe: ' + error.details[0].message);
+  }
+
+  const { aktion } = value;
+  const userId = req.user.id;
+  const serverZeit = new Date();
+
+  try {
+    // Status prüfen (eingestempelt ja/nein)
+    const result = await pool.query(
+      'SELECT ist_eingestempelt FROM users WHERE id = $1',
+      [userId]
+    );
+    const istEingestempelt = result.rows[0]?.ist_eingestempelt;
+
+    if (aktion === 'start') {
+      if (istEingestempelt) {
+        return sendError(res, 400, 'Du bist bereits eingestempelt.');
+      }
+
+      await pool.query(
+        `INSERT INTO zeiterfassung (user_id, aktion, zeitpunkt) VALUES ($1, $2, $3)`,
+        [userId, 'start', serverZeit]
+      );
+      await pool.query(`UPDATE users SET ist_eingestempelt = TRUE WHERE id = $1`, [userId]);
+
+      return res.json({
+        success: true,
+        message: 'Eingestempelt',
+        zeit: serverZeit
+      });
     }
 
-    const { aktion } = value;
-    const serverZeit = new Date(); // Aktuelle Serverzeit verwenden (UTC)
+    if (aktion === 'stop') {
+      if (!istEingestempelt) {
+        return sendError(res, 400, 'Du bist noch nicht eingestempelt.');
+      }
 
-    try {
-        const result = await pool.query(
-            `INSERT INTO zeiten(user_id, aktion, zeit) VALUES($1, $2, $3) RETURNING id`,
-            [req.user.id, aktion, serverZeit]
-        );
-        res.json({ success: true, id: result.rows[0].id, zeit: serverZeit, message: 'Zeitstempel erfolgreich gesetzt.' });
-    } catch (err) {
-        console.error('Fehler beim Setzen des Zeitstempels:', err);
-        sendError(res, 500, 'Serverfehler beim Setzen des Zeitstempels.');
+      await pool.query(
+        `INSERT INTO zeiterfassung (user_id, aktion, zeitpunkt) VALUES ($1, $2, $3)`,
+        [userId, 'stop', serverZeit]
+      );
+      await pool.query(`UPDATE users SET ist_eingestempelt = FALSE WHERE id = $1`, [userId]);
+
+      return res.json({
+        success: true,
+        message: 'Ausgestempelt',
+        zeit: serverZeit
+      });
     }
+
+    return sendError(res, 400, 'Ungültige Aktion.');
+  } catch (err) {
+    console.error('❌ Fehler bei Zeiterfassung:', err);
+    sendError(res, 500, 'Serverfehler beim Zeitstempeln.');
+  }
 });
+
 
 // GET /api/zeit/letzter-status
 // Ruft den letzten Zeitstempel-Status eines Benutzers ab.
