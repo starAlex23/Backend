@@ -316,7 +316,7 @@ const loginEmail = document.getElementById('login-email');
 const loginPassword = document.getElementById('login-password');
 const loginError = document.getElementById('login-error');
 // API-Endpunkt (Render-Backend)
-const API_BASE = 'https://backend-869x.onrender.com/api';
+const API_BASE = '';
 
 
   
@@ -368,7 +368,7 @@ if (writeMethods.includes(method)) {
     }
   }
 
-  const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+ const url = path.startsWith('http') ? path : path;
 
   async function fetchWithCookies() {
     return fetch(url, options);
