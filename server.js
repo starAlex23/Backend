@@ -2,7 +2,6 @@
 import 'dotenv/config';
 const REFRESH_SECRET = process.env.REFRESH_SECRET;
 
-
 // --- Externe Abhängigkeiten ---
 import express from 'express';
 import { Pool } from 'pg';
@@ -24,29 +23,23 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugef
 
 // --- Eigene Module (mit .js-Endung!) ---
 import { REFRESH_TOKEN_SECRET } from './config/env.js';
-import { DATABASE_URL } from './config/env.js'
+import { DATABASE_URL } from './config/env.js';
+
+// --- ES-Module-kompatibles __dirname ermitteln ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // --- Initialisierung ---
 const app = express();
 app.set('trust proxy', 1);
 
-
-app.use(express.static(path.join(__dirname, 'public')));
-
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
 const router = express.Router();
 export default router;
 
-// --- ES-Module-kompatibles __dirname ermitteln ---
-// Diese Variablen definieren __filename und __dirname für die Verwendung in ES-Modulen.
-// Sie sind notwendig, um relative Pfade korrekt aufzulösen, da __dirname in ES-Modulen nicht direkt verfügbar ist.
-import { fileURLToPath } from 'url';
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const SALT_ROUNDS = 12;
 
 // --- Umgebungsvariablen validieren ---
