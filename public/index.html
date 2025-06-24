@@ -323,7 +323,7 @@ const API_BASE = '';
 
 let loggedInUser = null;
 
-const API_BASE_URL = 'https://backend-869x.onrender.com';
+const API_BASE_URL = '';
 
 // Hilfsfunktion: Cookie auslesen
 function getCookie(name) {
@@ -368,7 +368,7 @@ if (writeMethods.includes(method)) {
     }
   }
 
- const url = path.startsWith('http') ? path : path;
+const url = path.startsWith('http') ? path : (API_BASE_URL + path);
 
   async function fetchWithCookies() {
     return fetch(url, options);
@@ -376,7 +376,7 @@ if (writeMethods.includes(method)) {
 
   let response = await fetchWithCookies();
 
-  if (response.status === 401) {
+   if (response.status === 401) {
     const refreshResponse = await fetch(`${API_BASE_URL}/api/refresh`, {
       method: 'POST',
       credentials: 'include',
@@ -622,11 +622,11 @@ async function stopQrScanner() {
   }
 }
 
-// QR-Code Validierung gegen Backend
 async function validateQrCode(qr) {
   const res = await fetch(`${API_BASE}/validate-qr`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // Cookies mitsenden!
     body: JSON.stringify({ qr }),
   });
 
@@ -634,7 +634,10 @@ async function validateQrCode(qr) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || 'Ungültiger QR-Code');
   }
+
+  return await res.json(); // Falls Backend eine Erfolgsmeldung oder Daten sendet
 }
+
 
 // Wird aufgerufen, wenn QR-Code erkannt wurde
 async function onQrCodeDetected(qrCodeText) {
