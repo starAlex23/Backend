@@ -44,6 +44,7 @@ export default router;
 // --- ES-Module-kompatibles __dirname ermitteln ---
 // Diese Variablen definieren __filename und __dirname für die Verwendung in ES-Modulen.
 // Sie sind notwendig, um relative Pfade korrekt aufzulösen, da __dirname in ES-Modulen nicht direkt verfügbar ist.
+import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SALT_ROUNDS = 12;
