@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Zeiterfassung</title>
+  <style>
+   body {
+  font-family: 'Inter', sans-serif;
+  margin: 0; padding: 0;
+  background: var(--bg, #fff);
+  color: var(--fg, #000);
+  font-size: 16px;
+  line-height: 1.5;
+}
+  
+
+[data-theme="dark"] {
+  --bg: #121212;
+  --fg: #eee;
+}
+
+header {
+  background: #4CAF50;
+  color: white;
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.2rem;
+}
+
+main {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+.card {
+  background: var(--card-bg, #f9f9f9);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+}
+
+[data-theme="dark"] .card {
+  --card-bg: #222;
+}
+
+.hidden {
+  display: none !important;
+}
+
+label {
+  display: block;
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+button {
+  display: block;
+  width: 100%;
+  margin-top: 1.2rem;
+  padding: 0.9rem;
+  font-size: 1.05rem;
+  border-radius: 6px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+button:hover {
+  background: #45a049;
+}
+
+button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.link {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.link button {
+  background: none;
+  border: none;
+  color: #4CAF50;
+  text-decoration: underline;
+  font-size: 1rem;
+  padding: 0.4rem;
+}
+
+#theme-switcher {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  font-size: 2rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+#popup-message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-bg-popup, #222);
+  color: var(--color-text-popup, #eee);
+  padding: 1.5rem 2rem;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.7);
+  font-size: 1.2rem;
+  z-index: 10000;
+  opacity: 0.95;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  max-width: 90%;
+  text-align: center;
+}
+
+#popup-message.hidden {
+  display: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Optional: Media-Query für sehr kleine Geräte */
+@media (max-width: 360px) {
+  header h1 {
+    font-size: 1.1rem;
+  }
+
+  button {
+    font-size: 0.95rem;
+    padding: 0.75rem;
+  }
+
+  label {
+    font-size: 0.95rem;
+  }
+
+  input {
+    font-size: 0.95rem;
+  }
+}
+  </style>
+</head>
+  
+  
+
+</body>
+
+
+<header role="banner"> 
+  <h1>Zeiterfassung</h1>
+</header>
+
+<main role="main" aria-live="polite">
+
+  <!-- 1. QR Code Scanner -->
+  <section id="qr-section" class="card" aria-label="QR Code Scanner">
+    <h2>QR-Code scannen</h2>
+    <div id="qr-reader" style="width:100%"></div>
+    <p id="qr-message"></p>
+  </section>
+
+  <!-- 2. Login -->
+  <section id="login-section" class="card hidden" aria-label="Login Formular">
+    <h2>Login</h2>
+    <form id="login-form" novalidate>
+      <label for="login-email">E-Mail</label>
+      <input type="email" id="login-email" name="email" required autocomplete="email" />
+
+      <label for="login-password">Passwort</label>
+      <input type="password" id="login-password" name="passwort" required autocomplete="current-password" />
+
+      <button type="submit">Einloggen</button>
+    </form>
+
+    <div class="link">
+      Noch keinen Account? <button id="show-register-btn" type="button">Jetzt registrieren</button>
+    </div>
+
+    <p id="login-error" class="error-message"></p>
+  </section>
+
+  <!-- 3. Registrierung -->
+  <section id="register-section" class="card hidden" aria-label="Registrierung Formular">
+    <h2>Registrieren</h2>
+    <form id="register-form" novalidate>
+      <label for="register-firstname">Vorname</label>
+      <input type="text" id="register-firstname" name="firstname" required autocomplete="given-name" />
+
+      <label for="register-lastname">Nachname</label>
+      <input type="text" id="register-lastname" name="lastname" required autocomplete="family-name" />
+
+      <label for="register-email">E-Mail</label>
+      <input type="email" id="register-email" name="email" required autocomplete="email" />
+
+      <label for="register-password">Passwort</label>
+      <input type="password" id="register-password" name="password" required autocomplete="new-password" />
+
+      <button type="submit">Registrieren</button>
+    </form>
+
+    <div class="link">
+      Schon einen Account? <button id="show-login-btn" type="button">Jetzt einloggen</button>
+    </div>
+
+    <div id="logout-message"></div>
+  </section>
+
+  <!-- 4. Zeiterfassung -->
+  <section id="time-tracking-section" class="card hidden" aria-label="Zeiterfassung">
+    <h2>Willkommen, <span id="user-name">Benutzer</span></h2>
+
+    <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
+    <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+
+    <p id="time-message"></p>
+
+    <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
+      Ausloggen
+    </button>
+  </section>
+
+</main>
+
+<!-- Theme-Schalter -->
+<button id="theme-switcher" aria-label="Theme wechseln" type="button">🌙</button>
+
+<!-- QR-Scanner -->
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+ 
+
+
+  // Zeitstatus prüfen
+(async () => {
+  const token = sessionStorage.getItem('accessToken');
+  if (!token) {
+    console.warn('⛔ Kein Token gefunden, Statusprüfung übersprungen.');
+    return;
+  }
+
+  try {
+    const status = await getLetzterStatus();
+    const clockInBtn = document.getElementById('clock-in-btn');
+    const clockOutBtn = document.getElementById('clock-out-btn');
+
+    if (!clockInBtn || !clockOutBtn) {
+      console.warn('⚠️ Clock-In oder Clock-Out Button nicht gefunden.');
+      return;
+    }
+
+    // Status prüfen basierend auf "eingestempelt" Feld vom Backend
+    if (status?.eingestempelt === true) {
+      clockInBtn.disabled = true;
+      clockOutBtn.disabled = false;
+    } else {
+      clockInBtn.disabled = false;
+      clockOutBtn.disabled = true;
+    }
+  } catch (err) {
+    console.error('❌ Fehler beim Abrufen des Status:', err);
+  }
+})();
+
+
+}); // <-- Hier fehlte die schließende Klammer und das Semikolon
+
+
+
+  const BASE = '/api';
+
+// DOM-Elemente
+const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
+const showRegisterBtn = document.getElementById('show-register-btn');
+const showLoginBtn = document.getElementById('show-login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+
+const themeSwitcher = document.getElementById('theme-switcher');
+const userNameSpan = document.getElementById('user-name');
+const clockInBtn = document.getElementById('clock-in-btn');
+const clockOutBtn = document.getElementById('clock-out-btn');
+
+const qrSection = document.getElementById('qr-section');
+const loginSection = document.getElementById('login-section');
+const registerSection = document.getElementById('register-section');
+const timeTrackingSection = document.getElementById('time-tracking-section');
+const qrReaderElem = document.getElementById('qr-reader');
+const qrMessage = document.getElementById('qr-message');
+const loginEmail = document.getElementById('login-email');
+const loginPassword = document.getElementById('login-password');
+const loginError = document.getElementById('login-error');
+// API-Endpunkt (Render-Backend)
+const API_BASE = 'https://backend-869x.onrender.com/api';
+
+
+  
+
+let loggedInUser = null;
+
+const API_BASE_URL = 'https://backend-869x.onrender.com';
+
+// Hilfsfunktion: Cookie auslesen
+function getCookie(name) {
+  const cookies = document.cookie.split(';').map(c => c.trim());
+  for (const cookie of cookies) {
+    if (cookie.startsWith(name + '=')) {
+      return decodeURIComponent(cookie.substring(name.length + 1));
+    }
+  }
+  return null;
+}
+
+// Haupt-Fetch mit automatischem Token-Refresh, CSRF-Token und Auth-Header
+async function apiFetch(path, options = {}, useAuthHeaderToken = false) {
+  const method = (options.method || 'GET').toUpperCase();
+  const writeMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+  options = { ...options };
+  options.headers = options.headers || {};
+  options.credentials = 'include'; // zwingend, damit Cookies gesendet werden
+
+  // CSRF-Token für schreibende Methoden aus localStorage setzen
+if (writeMethods.includes(method)) {
+  // Content-Type setzen, wenn noch nicht gesetzt
+  if (!options.headers['Content-Type']) {
+    options.headers['Content-Type'] = 'application/json';
+  }
+
+  const csrfToken = localStorage.getItem('csrfToken');
+  if (!csrfToken) {
+    console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
+  } else {
+    options.headers['X-CSRF-Token'] = csrfToken;
+  }
+}
+
+
+  if (useAuthHeaderToken) {
+    const token = getCookie('token');
+    if (token) {
+      options.headers['Authorization'] = 'Bearer ' + token;
+    }
+  }
+
+  const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+
+  async function fetchWithCookies() {
+    return fetch(url, options);
+  }
+
+  let response = await fetchWithCookies();
+
+  if (response.status === 401) {
+    const refreshResponse = await fetch(`${API_BASE_URL}/api/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!refreshResponse.ok) {
+      throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
+    }
+
+    response = await fetchWithCookies();
+
+    if (response.status === 401) {
+      throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
+    }
+  }
+
+  if (!response.ok) {
+    let errorMsg = `Fehler: HTTP ${response.status}`;
+    try {
+      const errJson = await response.json();
+      if (errJson.error) errorMsg = errJson.error;
+      else if (errJson.message) errorMsg = errJson.message;
+    } catch {
+      const errText = await response.text().catch(() => '');
+      if (errText) errorMsg = errText;
+    }
+    throw new Error(errorMsg);
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+
+// Login-Funktion: speichert Access- und CSRF-Token
+async function login(email, passwort) {
+  if (!email || !passwort) {
+    alert('Bitte Email und Passwort ausfüllen!');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, passwort }),
+    });
+
+    // Nur noch prüfen, ob das response-Objekt korrekt ist
+    if (!res.user) {
+      alert('Login erfolgreich, aber kein Benutzerobjekt erhalten.');
+      return;
+    }
+
+    console.log('✅ Eingeloggt:', res.user);
+
+    if (res.csrfToken) {
+      localStorage.setItem('csrfToken', res.csrfToken);
+    }
+
+    loggedInUser = res.user;
+
+    await updateUIAfterLogin(res.user);
+    showSection(timeTrackingSection);
+
+  } catch (err) {
+    console.error('❌ Login fehlgeschlagen:', err.message);
+    alert('Login fehlgeschlagen: ' + err.message);
+  }
+}
+
+
+
+
+
+
+// Automatischer Login mit gespeichertem Access-Token
+async function tryAutoLogin() {
+  try {
+    // Kein Token aus sessionStorage, einfach /api/me anfragen
+    const userData = await apiFetch('/api/me', {}, false); // kein Bearer-Token im Header
+
+    loggedInUser = userData;
+  
+    updateUIAfterLogin();
+
+    return true;
+  } catch (err) {
+    console.warn('AutoLogin fehlgeschlagen:', err);
+    // Hier ggf. Logout-Cleanup, falls notwendig
+    return false;
+  }
+}
+
+  
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();  // Verhindert das Neuladen der Seite
+
+  const email = loginForm.email.value;     // Annahme: <input name="email">
+  const passwort = loginForm.passwort.value; // Annahme: <input name="passwort">
+
+  try {
+    await login(email, passwort);  // Deine bereits bestehende login-Funktion
+  } catch (err) {
+    console.error('Login fehlgeschlagen:', err);
+  }
+});
+
+  
+async function init() {
+  if (!clockInBtn || !clockOutBtn) {
+    console.warn('⚠️ ClockIn/ClockOut Button nicht gefunden.');
+    return;
+  }
+
+  showSection(qrSection);
+  await startQrScanner();
+
+  const autoLoginErfolg = await tryAutoLogin();
+
+  if (!autoLoginErfolg) {
+    console.warn('⛔️ Auto-Login fehlgeschlagen – keine Statusabfrage.');
+    return;
+  }
+
+  try {
+    const status = await getLetzterStatus();
+
+    if (status?.aktion === 'start') {
+      clockInBtn.disabled = true;
+      clockOutBtn.disabled = false;
+    } else {
+      clockInBtn.disabled = false;
+      clockOutBtn.disabled = true;
+    }
+  } catch (err) {
+    console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+
+
+
+async function updateProfile() {
+  try {
+    const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
+    loggedInUser = user;
+   
+    updateUIAfterLogin(user); // ⬅️ hier Übergabe fixen!
+  } catch (err) {
+    console.error('Profil konnte nicht geladen werden:', err);
+    handleLogoutCleanup();
+  }
+}
+
+
+
+
+// === Theme Handling ===
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  themeSwitcher.textContent = theme === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('theme', theme);
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  setTheme(current === 'dark' ? 'light' : 'dark');
+}
+(() => {
+  const saved = localStorage.getItem('theme');
+  if (saved) setTheme(saved);
+  else {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
+  }
+})();
+themeSwitcher.addEventListener('click', toggleTheme);
+
+// === Sections anzeigen ===
+function showSection(section) {
+  [qrSection, loginSection, registerSection, timeTrackingSection].forEach(s => {
+    s.classList.add('hidden');
+    s.setAttribute('aria-hidden', 'true');
+  });
+  section.classList.remove('hidden');
+  section.setAttribute('aria-hidden', 'false');
+}
+
+// === QR Scanner ===
+const config = {
+  fps: 10,
+  qrbox: 250,
+};
+
+let scannerIsRunning = false;
+let html5QrCode = null;
+
+async function startQrScanner() {
+  if (scannerIsRunning) {
+    console.warn("Scanner läuft schon, Start übersprungen");
+    return;
+  }
+
+  if (!html5QrCode) {
+    html5QrCode = new Html5Qrcode("qr-reader");
+  }
+
+  try {
+    scannerIsRunning = true;
+await html5QrCode.start(
+  { facingMode: "environment" },
+  config,
+  async (decodedText, decodedResult) => {
+    console.log("QR-Code erkannt:", decodedText);
+    await stopQrScanner();
+    await onQrCodeDetected(decodedText); // 👈 wichtig!
+  }
+);
+  } catch (error) {
+    console.error("Fehler beim Starten des QR-Scanners:", error);
+    scannerIsRunning = false;
+  }
+}
+
+async function stopQrScanner() {
+  if (!scannerIsRunning) {
+    console.warn("Scanner läuft nicht, Stop übersprungen");
+    return;
+  }
+
+  try {
+    await html5QrCode.stop();
+    console.log("QR-Scanner gestoppt");
+  } catch (err) {
+    console.error("Fehler beim Stoppen des QR-Scanners:", err);
+  } finally {
+    scannerIsRunning = false;
+  }
+}
+
+// QR-Code Validierung gegen Backend
+async function validateQrCode(qr) {
+  const res = await fetch(`${API_BASE}/validate-qr`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ qr }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || 'Ungültiger QR-Code');
+  }
+}
+
+// Wird aufgerufen, wenn QR-Code erkannt wurde
+async function onQrCodeDetected(qrCodeText) {
+  try {
+    console.log("➡️ QR-Code wird validiert...");
+
+    await validateQrCode(qrCodeText); // prüft beim Backend, ob QR gültig ist
+
+    console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
+
+    showSection(loginSection); // zum Login-Formular wechseln
+
+  } catch (err) {
+    console.warn("⛔ QR ungültig:", err.message);
+    alert("Ungültiger QR-Code: " + err.message);
+    await startQrScanner(); // Scanner neu starten
+  }
+}
+
+ function showPopupMessage(msg, duration = 3000) {
+  const popup = document.getElementById('popup-message');
+  popup.textContent = msg;
+  popup.classList.remove('hidden');
+
+  setTimeout(() => {
+    popup.classList.add('hidden');
+  }, duration);
+}
+
+
+// === Helper Funktionen zur Base64-URL-Konvertierung (für WebAuthn) ===
+function base64urlToUint8Array(base64urlString) {
+  const padding = '='.repeat((4 - (base64urlString.length % 4)) % 4);
+  const base64 = (base64urlString + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function toBase64Url(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    str += String.fromCharCode(bytes[i]);
+  }
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// === UI Aktualisierung nach Login ===
+async function updateUIAfterLogin(user) {
+  if (!user) {
+    console.warn('⚠️ Kein Benutzerobjekt übergeben an updateUIAfterLogin');
+    return;
+  }
+
+  loggedInUser = user;
+  userNameSpan.textContent = user.name || user.email || 'Benutzer';
+
+  // UI-Sektionen steuern
+  showSection(timeTrackingSection);
+  loginSection.classList.add('hidden');
+  registerSection.classList.add('hidden');
+  qrSection.classList.add('hidden');
+
+
+
+  // Logout sichtbar
+  logoutBtn.classList.remove('hidden');
+
+  // Einstempel-Status prüfen und Buttons setzen
+  await updateTimeButtons(); // ✅ das ist richtig
+}
+
+async function updateTimeButtons() {
+  try {
+    const result = await apiFetch('/api/status'); // keine Auth-Header nötig
+    const eingestempelt = result.ist_eingestempelt;
+
+    clockInBtn.disabled = eingestempelt;
+    clockOutBtn.disabled = !eingestempelt;
+  } catch (err) {
+    console.warn('Status konnte nicht geladen werden:', err);
+    clockInBtn.disabled = true;
+    clockOutBtn.disabled = true;
+  }
+}
+
+// === Logout Cleanup ===
+function handleLogoutCleanup() {
+  loggedInUser = null;
+
+  // Formular-Felder leeren
+  loginForm['email'].value = '';
+  loginForm['passwort'].value = '';
+
+  // Tokens aus Speicher löschen
+  sessionStorage.removeItem('accessToken');
+  localStorage.removeItem('csrfToken'); // ⬅️ wichtig!
+  document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None'; // ⬅️ aus Cookie löschen, falls vorhanden
+
+  // UI zurücksetzen
+  showSection(qrSection);
+  logoutBtn.classList.add('hidden');
+ 
+  userNameSpan.textContent = '';
+}
+
+// === Logout ===
+logoutBtn.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/logout', { method: 'POST' });
+
+    handleLogoutCleanup();
+    alert('Logout erfolgreich!');
+  } catch (err) {
+    console.error(err);
+    alert('Logout Fehler: ' + err.message);
+  }
+});
+
+// === Register-Link im Login-Form ===
+showRegisterBtn.addEventListener('click', () => {
+  showSection(registerSection);
+});
+
+// === Zurück zum Login ===
+showLoginBtn.addEventListener('click', () => {
+  showSection(loginSection);
+});
+
+// === Registrierung ===
+registerForm.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+
+  const vorname = registerForm['firstname'].value.trim();
+  const nachname = registerForm['lastname'].value.trim();
+  const email = registerForm['email'].value.trim();
+  const passwort = registerForm['password'].value.trim();
+
+  try {
+    const res = await apiFetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vorname, nachname, email, passwort }),
+    });
+
+    // Wenn erfolgreich, bekommst du direkt das JSON mit message z. B.
+    alert(res.message || 'Registrierung erfolgreich! Bitte einloggen.');
+    showSection(loginSection);
+  } catch (err) {
+    alert(err.message || 'Registrierung fehlgeschlagen.');
+  }
+});
+
+  
+// === Zeit erfassen (Start) ===
+// === Zeit erfassen (Start & danach sofort Logout) ===
+clockInBtn.addEventListener('click', async () => {
+  if (!loggedInUser) {
+    alert('Bitte zuerst einloggen');
+    return;
+  }
+
+  clockInBtn.disabled = true;
+
+  try {
+    await apiFetch('/api/zeit', {
+      method: 'POST',
+      body: JSON.stringify({ aktion: 'start' }),
+    });
+
+    alert('✅ Du wurdest erfolgreich eingestempelt.\nDu wirst jetzt ausgeloggt.');
+
+    // Logout durchführen
+    await apiFetch('/api/logout', { method: 'POST' });
+
+    // UI aufräumen und zurück zur QR/Loginmaske
+    handleLogoutCleanup();
+  } catch (err) {
+    console.error('Fehler beim Start der Arbeitszeit oder beim Logout:', err);
+    alert('Fehler: ' + err.message);
+    clockInBtn.disabled = false; // Nur bei Fehler wieder aktivieren
+  }
+});
+
+
+
+
+// === Zeit erfassen (Stopp) ===
+// === Zeit erfassen (Stopp & danach sofort Logout) ===
+clockOutBtn.addEventListener('click', async () => {
+  if (!loggedInUser) {
+    alert('Bitte zuerst einloggen');
+    return;
+  }
+
+  clockOutBtn.disabled = true;
+
+  try {
+    await apiFetch('/api/zeit', {
+      method: 'POST',
+      body: JSON.stringify({ aktion: 'stop' }),
+    });
+
+    alert('⏹️ Du wurdest erfolgreich ausgestempelt.\nDu wirst jetzt ausgeloggt.');
+
+    // Logout durchführen
+    await apiFetch('/api/logout', { method: 'POST' });
+
+    // UI aufräumen und zurück zur QR/Loginmaske
+    handleLogoutCleanup();
+  } catch (err) {
+    console.error('Fehler beim Stoppen der Arbeitszeit oder beim Logout:', err);
+    alert('Fehler beim Stoppen der Arbeitszeit: ' + err.message);
+  }
+});
+
+
+
+  //schon eingestempelt?
+async function getLetzterStatus() {
+  try {
+    const data = await apiFetch('/api/zeit/letzter-status', {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+      },
+    }, true); // Authentifizierung aktivieren
+
+    console.log('Letzter Zeitstatus:', data);
+    return data; // z.B. { aktion: 'start', zeit: '2025-06-09T08:00:00Z' }
+  } catch (err) {
+    console.error('Fehler beim Abrufen des letzten Status:', err);
+    return null;
+  }
+}
+  
+
+// === Initial Setup ===
+async function init() {
+  if (!clockInBtn || !clockOutBtn) {
+    console.warn('⚠️ ClockIn/ClockOut Button nicht gefunden.');
+    return;
+  }
+
+  showSection(qrSection);
+  await startQrScanner();
+
+  // tryAutoLogin nur beim Seitenstart — optional, nicht direkt nach Scannerstart
+  const autoLoginErfolg = await tryAutoLogin();
+  if (autoLoginErfolg) {
+    showSection(timeTrackingSection);
+    // Status Buttons setzen
+    try {
+     const status = await getLetzterStatus();
+clockInBtn.disabled = status?.eingestempelt === true;
+clockOutBtn.disabled = status?.eingestempelt !== true;
+
+    } catch (err) {
+      console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
+    }
+  }
+  // Wenn kein Token, bleibt man im QR-Scanner, wartet auf Scan
+}
+
+
+async function fetchUserProfile() {
+  const response = await apiFetch('/api/me');
+  if (!response.ok) throw new Error('Benutzerdaten konnten nicht geladen werden');
+  const user = await response.json();
+  return user;
+}
+</script>
+
+
+
+</body>
+</html>
