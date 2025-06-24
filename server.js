@@ -6,7 +6,6 @@ const REFRESH_SECRET = process.env.REFRESH_SECRET;
 // --- Externe Abhängigkeiten ---
 import express from 'express';
 import { Pool } from 'pg';
-import cors from 'cors';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
@@ -30,6 +29,14 @@ import { DATABASE_URL } from './config/env.js'
 // --- Initialisierung ---
 const app = express();
 app.set('trust proxy', 1);
+
+import path from 'path';
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 
 const router = express.Router();
 export default router;
@@ -110,29 +117,6 @@ app.use(cookieParser());
 // --- Sichere CORS-Konfiguration ---
 // Cross-Origin Resource Sharing (CORS) Einstellungen, um Anfragen von bestimmten Origins zu erlauben.
 // 'secure' und 'sameSite: 'None'' sind wichtig für die Verwendung von Cookies über verschiedene Domains hinweg.
-const allowedOrigins = ['https://nochmal-neu.vercel.app', 'https://andere-domain.de'];
-
-const corsOptions = {
-  origin: function(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Nicht erlaubte Origin'));
-    }
-  },
-  credentials: true
-};
-
-app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
-
-app.use((err, req, res, next) => {
-  if (err.message === 'Nicht erlaubte Origin') {
-    return res.status(403).json({ error: err.message });
-  }
-  next(err);
-});
-
 
 
 // --- Rate Limiter für Login (Schutz vor Brute Force) ---
@@ -162,13 +146,13 @@ function setAuthCookies(res, token, csrfToken) {
     const cookieOptionsHttpOnly = {
         httpOnly: true, // Cookie ist nicht über Client-seitiges JavaScript zugänglich
         secure: true, // Nur über HTTPS senden
-        sameSite: 'None', // Erlaubt Cross-Site-Verwendung
+        sameSite: 'Lax', // Erlaubt Cross-Site-Verwendung
         maxAge: 24 * 60 * 60 * 1000, // 1 Tag
     };
     const cookieOptionsJsAccessible = {
         httpOnly: false, // Cookie ist über Client-seitiges JavaScript zugänglich (für CSRF-Token)
         secure: true,
-        sameSite: 'None',
+        sameSite: 'Lax',
         maxAge: 24 * 60 * 60 * 1000,
     };
 
@@ -181,12 +165,12 @@ function clearAuthCookies(res) {
     const cookieOptions = {
         httpOnly: true,
         secure: true,
-        sameSite: 'None',
+        sameSite: 'Lax',
     };
     const cookieOptionsJsAccessible = { // Für CSRF, da es auch JS-zugänglich sein muss
         httpOnly: false,
         secure: true,
-        sameSite: 'None',
+        sameSite: 'Lax',
     };
 
     res.clearCookie('token', cookieOptions);
@@ -513,14 +497,14 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     res.cookie('token', accessToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'None',
+      sameSite: 'Lax',
       maxAge: 15 * 60 * 1000
     });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'None',
+      sameSite: 'Lax',
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -528,7 +512,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 res.cookie('csrfToken', csrfToken, {
   httpOnly: false,
   secure: true,
-  sameSite: 'None',
+  sameSite: 'Lax',
   maxAge: 15 * 60 * 1000,
 });
 
@@ -781,21 +765,21 @@ app.post('/api/admin-login', loginLimiter, async (req, res) => {
        res.cookie('token', accessToken, {
   httpOnly: true,
   secure: true,
-  sameSite: 'None',
+  sameSite: 'Lax',
   maxAge: 15 * 60 * 1000,
 });
 
         res.cookie('refreshToken', refreshToken, {
   httpOnly: true,
   secure: true,
-  sameSite: 'None',
+  sameSite: 'Lax',
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
         res.cookie('csrfToken', csrfToken, {
             httpOnly: false, // Für Client-Zugriff
             secure: true,
-            sameSite: 'None',
+            sameSite: 'Lax',
             maxAge: 15 * 60 * 1000, // 15 Minuten
         });
 
@@ -990,7 +974,7 @@ app.post('/api/refresh', async (req, res) => {
     res.cookie('token', newAccessToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'None',
+      sameSite: 'Lax',
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
@@ -999,7 +983,7 @@ app.post('/api/refresh', async (req, res) => {
     res.cookie('csrfToken', newCsrfToken, {
       httpOnly: false,
       secure: true,
-      sameSite: 'None',
+      sameSite: 'Lax',
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
