@@ -495,19 +495,19 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       maxAge: 15 * 60 * 1000
     });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    });
+   res.cookie('refreshToken', refreshToken, {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'Lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Tage
+  path: '/api/refresh'
+});
 
-    // ✅ Hier war der Fehler – Variable falsch geschrieben. Jetzt korrekt:
 res.cookie('csrfToken', csrfToken, {
   httpOnly: false,
   secure: true,
   sameSite: 'Lax',
-  maxAge: 15 * 60 * 1000,
+  maxAge: 24 * 60 * 60 * 1000
 });
 
  res.json({
