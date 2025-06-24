@@ -30,7 +30,7 @@ import { DATABASE_URL } from './config/env.js'
 const app = express();
 app.set('trust proxy', 1);
 
-import path from 'path';
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
