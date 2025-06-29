@@ -263,9 +263,50 @@ button:disabled {
 <!-- QR-Code-Generator Bibliothek -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
-  <script>
-  document.addEventListener('DOMContentLoaded', () => {
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('generate-qr-btn')?.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/qr/create', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
 
+      if (!res.ok) {
+        alert('Fehler beim QR-Code-Generieren');
+        return;
+      }
+
+      const { qrUrl, gültigBis } = await res.json();
+
+      // Vorherigen QR-Code löschen und neu anzeigen
+      const qrContainer = document.getElementById('qr-container');
+      qrContainer.innerHTML = '';
+
+      new QRCode(qrContainer, {
+        text: qrUrl,
+        width: 200,
+        height: 200,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      // Ablaufzeit anzeigen
+      const validUntil = new Date(gültigBis).toLocaleTimeString();
+      document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
+
+    } catch (err) {
+      console.error('❌ QR-Fehler:', err);
+      alert('Fehler beim Abrufen des QR-Codes.');
+    }
+  });
+});
+  
   // Zeitstatus prüfen
 (async () => {
   const token = sessionStorage.getItem('accessToken');
@@ -681,48 +722,6 @@ async function validateQrCode(qr) {
 
   return await res.json();
 }
-
-// QR-Button-Logik (sichtbar nur für Vorarbeiter)
-document.getElementById('generate-qr-btn')?.addEventListener('click', async () => {
-  try {
-    const res = await fetch('/api/qr/create', {
-      method: 'POST',
-      headers: {
-        'X-CSRF-Token': csrfToken,
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include'
-    });
-
-    if (!res.ok) {
-      alert('Fehler beim QR-Code-Generieren');
-      return;
-    }
-
-    const { qrUrl, gültigBis } = await res.json();
-
-    // Vorherigen QR-Code löschen und neu anzeigen
-    const qrContainer = document.getElementById('qr-container');
-    qrContainer.innerHTML = '';
-
-    new QRCode(qrContainer, {
-      text: qrUrl,
-      width: 200,
-      height: 200,
-      colorDark: '#000000',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.H
-    });
-
-    // Ablaufzeit anzeigen
-    const validUntil = new Date(gültigBis).toLocaleTimeString();
-    document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
-
-  } catch (err) {
-    console.error('❌ QR-Fehler:', err);
-    alert('Fehler beim Abrufen des QR-Codes.');
-  }
-});
 
 // Prüft beim Seitenstart, ob Vorarbeiter-Token gültig ist, sonst QR-Scanner starten
 async function checkAccessAtStart() {
