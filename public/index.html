@@ -243,6 +243,15 @@ button:disabled {
     </button>
   </section>
 
+  <!-- 5. QR-Code Generator (nur für Vorarbeiter sichtbar) -->
+<section id="qr-generator-section" class="card hidden" aria-label="QR-Code für Arbeiter generieren">
+  <h2>QR-Code für Arbeiter</h2>
+  <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
+  <div id="qr-container" style="margin-top: 1rem;"></div>
+  <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
+</section>
+
+
 </main>
 
 <!-- Theme-Schalter -->
@@ -252,9 +261,13 @@ button:disabled {
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
- 
+  
+ <!-- QR-Code-Generator Bibliothek -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 
+<script>
+  
+  document.addEventListener('DOMContentLoaded', () => {
 
   // Zeitstatus prüfen
 (async () => {
@@ -688,6 +701,42 @@ async function checkQRLoginAccess() {
   }
 }
 
+  function zeigeQRCode(url) {
+  const container = document.getElementById('qr-container');
+  container.innerHTML = ''; // vorherigen QR löschen
+
+  new QRCode(container, {
+    text: url,
+    width: 200,
+    height: 200,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+}
+
+  async function generiereArbeiterQR() {
+  const res = await fetch('/api/qr/create', {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': csrfToken,
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include'
+  });
+
+  if (!res.ok) {
+    alert('Fehler beim QR-Code-Erzeugen');
+    return;
+  }
+
+  const { qrUrl, gültigBis } = await res.json();
+  zeigeQRCode(qrUrl);
+
+  const verfall = new Date(gültigBis).toLocaleTimeString();
+  console.log(`⏳ Gültig bis: ${verfall}`);
+}
+
   
 // Wird aufgerufen, wenn QR-Code erkannt wurde
 async function onQrCodeDetected(qrCodeText) {
@@ -706,6 +755,49 @@ async function onQrCodeDetected(qrCodeText) {
     await startQrScanner(); // Scanner neu starten
   }
 }
+
+// QR-Button-Logik (sichtbar nur für Vorarbeiter)
+document.getElementById('generate-qr-btn')?.addEventListener('click', async () => {
+  try {
+    const res = await fetch('/api/qr/create', {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': csrfToken,
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include'
+    });
+
+    if (!res.ok) {
+      alert('Fehler beim QR-Code-Generieren');
+      return;
+    }
+
+    const { qrUrl, gültigBis } = await res.json();
+
+    // Vorherigen QR-Code löschen und neu anzeigen
+    const qrContainer = document.getElementById('qr-container');
+    qrContainer.innerHTML = '';
+
+    new QRCode(qrContainer, {
+      text: qrUrl,
+      width: 200,
+      height: 200,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.H
+    });
+
+    // Ablaufzeit anzeigen
+    const validUntil = new Date(gültigBis).toLocaleTimeString();
+    document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
+
+  } catch (err) {
+    console.error('❌ QR-Fehler:', err);
+    alert('Fehler beim Abrufen des QR-Codes.');
+  }
+});
+  
 
  function showPopupMessage(msg, duration = 3000) {
   const popup = document.getElementById('popup-message');
@@ -746,6 +838,11 @@ async function updateUIAfterLogin(user) {
     return;
   }
 
+if (user.rolle === 'vorarbeiter') {
+  document.getElementById('qr-generator-section')?.classList.remove('hidden');
+}
+
+  
   loggedInUser = user;
   userNameSpan.textContent = user.name || user.email || 'Benutzer';
 
