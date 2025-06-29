@@ -263,7 +263,6 @@ button:disabled {
 <!-- QR-Code-Generator Bibliothek -->
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
-
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const generateBtn = document.getElementById('generate-qr-btn');
@@ -271,6 +270,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const qrValidUntil = document.getElementById('qr-valid-until');
 
   generateBtn?.addEventListener('click', async () => {
+    if (typeof QRCode === 'undefined') {
+      alert("❌ QRCode ist nicht geladen!");
+      return;
+    }
+
     try {
       const res = await fetch('/api/qr/create', {
         method: 'POST',
@@ -289,22 +293,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const { qrToken, gültigBis } = await res.json();
       console.log("▶️ QR-Inhalt:", qrToken);
 
-      // QR-Code erzeugen (canvas-basiert)
-const canvas = document.createElement('canvas');
-QRCode.toCanvas(canvas, qrToken, { width: 200 }, (err) => {
-  if (err) {
-    console.error("❌ Fehler beim QR-Code-Rendering:", err);
-    alert("QR-Code konnte nicht erzeugt werden.");
-    return;
-  }
+      const canvas = document.createElement('canvas');
+      QRCode.toCanvas(canvas, qrToken, { width: 200 }, (err) => {
+        if (err) {
+          console.error("❌ Fehler beim QR-Code-Rendering:", err);
+          alert("QR-Code konnte nicht erzeugt werden.");
+          return;
+        }
 
-  qrContainer.innerHTML = "";
-  qrContainer.appendChild(canvas);
-});
+        qrContainer.innerHTML = "";
+        qrContainer.appendChild(canvas);
+      });
 
-
-
-      // Ablaufzeit anzeigen
       const validUntil = new Date(gültigBis).toLocaleTimeString();
       qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
     } catch (err) {
@@ -314,7 +314,6 @@ QRCode.toCanvas(canvas, qrToken, { width: 200 }, (err) => {
   });
 });
 
-  
   // Zeitstatus prüfen
 (async () => {
   const token = sessionStorage.getItem('accessToken');
