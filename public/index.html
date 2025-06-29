@@ -724,16 +724,18 @@ async function validateQrCode(qr) {
 
 // Prüft beim Seitenstart, ob Vorarbeiter-Token gültig ist, sonst QR-Scanner starten
 async function checkAccessAtStart() {
+  console.log('Starte Vorarbeiter-Token Prüfung');
   try {
     const res = await fetch('/api/verify-vorarbeiter-token', { credentials: 'include' });
+    console.log('Response status:', res.status);
     if (res.ok) {
       console.log('✅ Vorarbeiter-Token gültig – Login anzeigen');
       qrSection.classList.add('hidden');
       loginSection.classList.remove('hidden');
       return;
     }
-  } catch {
-    // ignorieren
+  } catch (e) {
+    console.error('Fehler bei Tokenprüfung:', e);
   }
 
   console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner starten');
@@ -741,6 +743,7 @@ async function checkAccessAtStart() {
   loginSection.classList.add('hidden');
   await startQrScanner();
 }
+
 
 // Direkt beim Laden starten
 document.addEventListener('DOMContentLoaded', () => {
