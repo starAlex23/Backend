@@ -287,6 +287,20 @@ await pool.query(`
   $$;
 `);
      
+
+      await pool.query(`
+  CREATE TABLE IF NOT EXISTS qr_tokens (
+    id SERIAL PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,
+    erstellt_von INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    erstellt_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    gültig_bis TIMESTAMP NOT NULL
+  )
+`);
+
+      // Alte QR-Codes direkt beim Start bereinigen
+await pool.query(`DELETE FROM qr_tokens WHERE gültig_bis < NOW()`);
+
       
         await pool.query(`
             CREATE TABLE IF NOT EXISTS active_tokens (
@@ -406,6 +420,50 @@ app.post('/api/set-qr-passwort', authMiddleware, async (req, res) => {
         console.error('Fehler beim Setzen des QR-Passworts:', err);
         return sendError(res, 500, 'Serverfehler.');
     }
+});
+
+app.post('/api/qr/create', authMiddleware, csrfMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const rolle = req.user.rolle;
+
+    if (rolle !== 'vorarbeiter') {
+      return sendError(res, 403, 'Nur Vorarbeiter dürfen QR-Codes erstellen.');
+    }
+
+    const code = uuidv4(); // eindeutiger QR-Code
+    const gültigBis = new Date(Date.now() + 15 * 60 * 1000); // 15 Minuten gültig
+
+    await pool.query(
+      `INSERT INTO qr_tokens (code, erstellt_von, gültig_bis) VALUES ($1, $2, $3)`,
+      [code, userId, gültigBis]
+    );
+
+    const qrUrl = `${process.env.FRONTEND_URL}/login?qr=${code}`;
+    res.json({ qrUrl, gültigBis });
+  } catch (err) {
+    console.error('❌ Fehler beim QR-Generieren:', err);
+    sendError(res, 500, 'Fehler beim Generieren des QR-Codes.');
+  }
+});
+
+app.get('/api/qr/verify/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const result = await pool.query(
+      `SELECT * FROM qr_tokens WHERE code = $1 AND gültig_bis > NOW()`,
+      [code]
+    );
+
+    if (result.rowCount === 0) {
+      return sendError(res, 401, 'QR-Code ungültig oder abgelaufen.');
+    }
+
+    res.json({ gültig: true });
+  } catch (err) {
+    console.error('❌ QR-Validierung fehlgeschlagen:', err);
+    sendError(res, 500, 'Fehler bei der QR-Überprüfung.');
+  }
 });
 
 
