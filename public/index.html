@@ -854,6 +854,9 @@ function handleLogoutCleanup() {
   logoutBtn.classList.add('hidden');
  
   userNameSpan.textContent = '';
+  //QR generator verstecken
+  document.getElementById('qr-generator-section')?.classList.add('hidden');
+
 }
 
 // === Logout ===
