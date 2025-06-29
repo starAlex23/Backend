@@ -409,6 +409,19 @@ async function isValidQrCode(qr) {
     return true;
   }
 
+  // Optional: Suche in settings Tabelle (universal_code)
+  const settingResult = await pool.query(
+    'SELECT COUNT(*) FROM settings WHERE universal_code = $1',
+    [qr]
+  );
+  if (parseInt(settingResult.rows[0].count, 10) > 0) {
+    return true;
+  }
+
+  return false;
+}
+
+
 // Route zum Setzen des QR-Passworts (Admin-Zugriff erforderlich)
 app.post('/api/set-qr-passwort', authMiddleware, async (req, res) => {
     // Der authMiddleware sollte req.user.rolle setzen.
