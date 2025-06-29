@@ -383,7 +383,6 @@ app.post('/api/validate-qr', async (req, res) => {
   }
 });
 
-
 app.get('/api/verify-vorarbeiter-token', (req, res) => {
   const token = req.cookies.vorarbeiterToken;
   if (!token) return res.status(401).json({ ok: false, error: 'Kein Token' });
@@ -399,34 +398,43 @@ app.get('/api/verify-vorarbeiter-token', (req, res) => {
   }
 });
 
+/**
+ * Prüft, ob der QR-Code (Token) gültig ist, also entweder in qr_tokens existiert und noch gültig ist
+ * oder alternativ als universal_code in settings hinterlegt ist.
+ * @param {string} qr - Der QR-Code-Token
+ * @returns {Promise<boolean>} true, wenn gültig, sonst false
+ */
 async function isValidQrCode(qr) {
   console.log('Validiere QR-Code:', qr);
 
+  // Prüfe in qr_tokens Tabelle, ob Code existiert und gültig ist (gültig_bis > jetzt)
   const result = await pool.query(
-    'SELECT COUNT(*) FROM qr_token WHERE token = $1',
+    `SELECT COUNT(*) FROM qr_tokens WHERE code = $1 AND gültig_bis > NOW()`,
     [qr]
   );
-  console.log('qr_token Treffer:', result.rows[0].count);
+  console.log('qr_tokens Treffer:', result.rows[0].count);
 
   if (parseInt(result.rows[0].count, 10) > 0) {
-    console.log('QR-Code in qr_token gefunden.');
+    console.log('QR-Code in qr_tokens gefunden und gültig.');
     return true;
   }
 
+  // Optional: Prüfe in settings Tabelle, ob universal_code übereinstimmt
   const settingResult = await pool.query(
-    'SELECT COUNT(*) FROM settings WHERE universal_code = $1',
+    `SELECT COUNT(*) FROM settings WHERE universal_code = $1`,
     [qr]
   );
   console.log('settings Treffer:', settingResult.rows[0].count);
 
   if (parseInt(settingResult.rows[0].count, 10) > 0) {
-    console.log('QR-Code in settings gefunden.');
+    console.log('QR-Code als universal_code in settings gefunden.');
     return true;
   }
 
   console.log('QR-Code nicht gefunden.');
   return false;
 }
+
 
 
 
@@ -461,7 +469,7 @@ app.post('/api/qr/create', authMiddleware, csrfMiddleware, async (req, res) => {
       return sendError(res, 403, 'Nur Vorarbeiter dürfen QR-Codes erstellen.');
     }
 
-    const code = uuidv4(); // eindeutiger QR-Code
+    const code = uuidv4(); // eindeutiger Token
     const gültigBis = new Date(Date.now() + 15 * 60 * 1000); // 15 Minuten gültig
 
     await pool.query(
@@ -469,19 +477,21 @@ app.post('/api/qr/create', authMiddleware, csrfMiddleware, async (req, res) => {
       [code, userId, gültigBis]
     );
 
-    const qrUrl = `${process.env.FRONTEND_URL}/login?qr=${code}`;
-    res.json({ qrUrl, gültigBis });
+    res.json({ qrToken: code, gültigBis });  // nur Token, keine URL
   } catch (err) {
     console.error('❌ Fehler beim QR-Generieren:', err);
     sendError(res, 500, 'Fehler beim Generieren des QR-Codes.');
   }
 });
 
+
 app.get('/api/qr/verify/:code', async (req, res) => {
   const { code } = req.params;
+
   try {
+    // Prüfe, ob der QR-Code existiert und noch gültig ist
     const result = await pool.query(
-      `SELECT * FROM qr_tokens WHERE code = $1 AND gültig_bis > NOW()`,
+      `SELECT 1 FROM qr_tokens WHERE code = $1 AND gültig_bis > NOW()`,
       [code]
     );
 
@@ -489,12 +499,13 @@ app.get('/api/qr/verify/:code', async (req, res) => {
       return sendError(res, 401, 'QR-Code ungültig oder abgelaufen.');
     }
 
-    res.json({ gültig: true });
+    return res.json({ gültig: true });
   } catch (err) {
     console.error('❌ QR-Validierung fehlgeschlagen:', err);
-    sendError(res, 500, 'Fehler bei der QR-Überprüfung.');
+    return sendError(res, 500, 'Fehler bei der QR-Überprüfung.');
   }
 });
+
 
 
 // Route zur Benutzerregistrierung
