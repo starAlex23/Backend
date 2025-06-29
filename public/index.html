@@ -261,7 +261,6 @@ button:disabled {
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <!-- QR-Code-Generator Bibliothek -->
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 
 <script>
@@ -290,16 +289,23 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("▶️ QR-Inhalt:", qrToken);
 
       // QR-Code erzeugen (canvas-basiert)
-      QRCode.toCanvas(qrToken, { width: 200 }, (err, canvas) => {
-        if (err) {
-          console.error("❌ Fehler beim QR-Code-Rendering:", err);
-          alert("QR-Code konnte nicht erzeugt werden.");
-          return;
-        }
+     QRCode.toCanvas(
+  document.createElement('canvas'), // Ziel-Canvas erzeugen
+  qrToken,
+  { width: 200 },
+  (err, canvas) => {
+    if (err) {
+      console.error("❌ Fehler beim QR-Code-Rendering:", err);
+      alert("QR-Code konnte nicht erzeugt werden.");
+      return;
+    }
 
-        qrContainer.innerHTML = "";
-        qrContainer.appendChild(canvas);
-      });
+    const qrContainer = document.getElementById('qr-container');
+    qrContainer.innerHTML = "";
+    qrContainer.appendChild(canvas);
+  }
+);
+
 
       // Ablaufzeit anzeigen
       const validUntil = new Date(gültigBis).toLocaleTimeString();
@@ -1032,6 +1038,7 @@ async function fetchUserProfile() {
 </script>
 
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
 </body>
 </html>
