@@ -87,10 +87,17 @@ validateEnv();
 // --- Pool Konfiguration für PostgreSQL ---
 // Hier werden die Datenbankverbindungseinstellungen aus den Umgebungsvariablen gelesen.
 const pool = new Pool({
-  connectionString: DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
 });
 
+// Zeitzone für alle neuen Verbindungen setzen
+pool.on('connect', client => {
+  client.query(`SET TIME ZONE 'Europe/Berlin'`).catch(err => {
+    console.error('❌ Fehler beim Setzen der Zeitzone:', err);
+  });
+});
+module.exports = pool;
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
