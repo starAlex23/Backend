@@ -333,7 +333,7 @@ const API_BASE = '/api';
 
 
   
-
+let csrfToken = localStorage.getItem('csrfToken') || '';
 let loggedInUser = null;
 
 const API_BASE_URL = '';
@@ -464,9 +464,10 @@ async function login(email, passwort) {
 
     console.log('✅ Eingeloggt:', res.user);
 
-    if (res.csrfToken) {
-      localStorage.setItem('csrfToken', res.csrfToken);
-    }
+   if (res.csrfToken) {
+  localStorage.setItem('csrfToken', res.csrfToken);
+  csrfToken = res.csrfToken; // globale Variable updaten
+}
 
     loggedInUser = res.user;
 
