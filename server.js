@@ -936,9 +936,10 @@ app.get('/api/status', authMiddleware, async (req, res) => {
 // Route für Zeitstempel-Aktionen (Start, Stop, Pause, Resume)
 app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
   // Nur normale Benutzer dürfen Zeitstempel setzen
-  if (req.user.rolle !== 'user')
-    return sendError(res, 403, 'Nur für normale Nutzer erlaubt.');
-
+ const erlaubteRollen = ['user', 'vorarbeiter', 'admin'];
+if (!erlaubteRollen.includes(req.user.rolle)) {
+  return sendError(res, 403, 'Nicht berechtigt, Zeitstempel zu setzen.');
+}
   // Validierung der Eingabe (z. B. aktion: 'start' | 'stop')
   const { error, value } = zeitSchema.validate(req.body);
   if (error) {
