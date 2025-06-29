@@ -282,19 +282,28 @@ if (!res.ok) {
 }
 
 const { qrToken, gültigBis } = await res.json();
+console.log("▶️ QR-Inhalt:", qrToken);
 
 const qrContainer = document.getElementById('qr-container');
-qrContainer.innerHTML = '';
 
-new QRCode(qrContainer, {
-  text: qrToken,  // reiner Token als QR-Code-Text
-  width: 200,
-  height: 200,
-  colorDark: '#000000',
-  colorLight: '#ffffff',
-  correctLevel: QRCode.CorrectLevel.H
-});
-console.log('▶️ QR-Inhalt:', qrToken);
+// Container leeren
+qrContainer.innerHTML = "";
+
+// Sicherstellen, dass Container sichtbar ist
+qrContainer.style.display = "block";
+
+// Kurze Verzögerung, um DOM zu stabilisieren
+setTimeout(() => {
+  new QRCode(qrContainer, {
+    text: qrToken,
+    width: 200,
+    height: 200,
+    colorDark: "#000000",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H,
+  });
+}, 100); // kleiner Timeout gegen Race Conditions
+
 
 const validUntil = new Date(gültigBis).toLocaleTimeString();
 document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
