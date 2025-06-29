@@ -384,18 +384,20 @@ app.post('/api/validate-qr', async (req, res) => {
   }
 });
 
-app.get('/api/verify-vorarbeiter-token', (req, res) => {
-  const token = req.cookies.vorarbeiterToken;
-  if (!token) return res.status(401).json({ ok: false });
-
+app.get('/api/verify-vorarbeiter-token', authMiddleware, async (req, res) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.rolle !== 'vorarbeiter') {
-      return res.status(403).json({ ok: false });
-    }
-    return res.json({ ok: true });
+    const userId = req.user.id;
+    const result = await pool.query('SELECT rolle FROM users WHERE id = $1', [userId]);
+    if (result.rowCount === 0) return res.status(401).json({ error: 'User nicht gefunden' });
+
+    const rolle = result.rows[0].rolle;
+    if (rolle !== 'vorarbeiter') return res.status(403).json({ error: 'Kein Vorarbeiter' });
+
+    // Wenn wir hier sind, ist Vorarbeiter mit gültigem Token
+    res.json({ success: true });
   } catch (err) {
-    return res.status(401).json({ ok: false });
+    console.error(err);
+    res.status(500).json({ error: 'Serverfehler' });
   }
 });
 
