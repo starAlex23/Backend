@@ -268,37 +268,36 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('generate-qr-btn')?.addEventListener('click', async () => {
     try {
       const res = await fetch('/api/qr/create', {
-        method: 'POST',
-        headers: {
-          'X-CSRF-Token': csrfToken,
-          'Content-Type': 'application/json'
-        },
-        credentials: 'include'
-      });
+  method: 'POST',
+  headers: {
+    'X-CSRF-Token': csrfToken,
+    'Content-Type': 'application/json'
+  },
+  credentials: 'include'
+});
 
-      if (!res.ok) {
-        alert('Fehler beim QR-Code-Generieren');
-        return;
-      }
+if (!res.ok) {
+  alert('Fehler beim QR-Code-Generieren');
+  return;
+}
 
-      const { qrUrl, gültigBis } = await res.json();
+const { qrToken, gültigBis } = await res.json();
 
-      // Vorherigen QR-Code löschen und neu anzeigen
-      const qrContainer = document.getElementById('qr-container');
-      qrContainer.innerHTML = '';
+const qrContainer = document.getElementById('qr-container');
+qrContainer.innerHTML = '';
 
-      new QRCode(qrContainer, {
-        text: qrUrl,
-        width: 200,
-        height: 200,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-      });
+new QRCode(qrContainer, {
+  text: qrToken,  // reiner Token als QR-Code-Text
+  width: 200,
+  height: 200,
+  colorDark: '#000000',
+  colorLight: '#ffffff',
+  correctLevel: QRCode.CorrectLevel.H
+});
 
-      // Ablaufzeit anzeigen
-      const validUntil = new Date(gültigBis).toLocaleTimeString();
-      document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
+const validUntil = new Date(gültigBis).toLocaleTimeString();
+document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
+
 
     } catch (err) {
       console.error('❌ QR-Fehler:', err);
