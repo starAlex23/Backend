@@ -493,7 +493,6 @@ async function login(email, passwort) {
       body: JSON.stringify({ email, passwort }),
     });
 
-    // Nur noch prüfen, ob das response-Objekt korrekt ist
     if (!res.user) {
       alert('Login erfolgreich, aber kein Benutzerobjekt erhalten.');
       return;
@@ -501,12 +500,18 @@ async function login(email, passwort) {
 
     console.log('✅ Eingeloggt:', res.user);
 
-   if (res.csrfToken) {
-  localStorage.setItem('csrfToken', res.csrfToken);
-  csrfToken = res.csrfToken; // globale Variable updaten
-}
+    if (res.csrfToken) {
+      localStorage.setItem('csrfToken', res.csrfToken);
+      csrfToken = res.csrfToken; // globale Variable updaten
+    }
 
     loggedInUser = res.user;
+
+    // Vorarbeiter-Token ist HttpOnly-Cookie, hier also nur UI-Anpassung:
+    if (res.user.rolle === 'vorarbeiter') {
+      console.log('Vorarbeiter eingeloggt, Vorarbeiter-Token wurde serverseitig gesetzt');
+      // Du kannst hier ggf. UI anpassen oder Status setzen
+    }
 
     await updateUIAfterLogin(res.user);
     showSection(timeTrackingSection);
@@ -724,18 +729,16 @@ async function validateQrCode(qr) {
 
 // Prüft beim Seitenstart, ob Vorarbeiter-Token gültig ist, sonst QR-Scanner starten
 async function checkAccessAtStart() {
-  console.log('Starte Vorarbeiter-Token Prüfung');
   try {
     const res = await fetch('/api/verify-vorarbeiter-token', { credentials: 'include' });
-    console.log('Response status:', res.status);
     if (res.ok) {
-      console.log('✅ Vorarbeiter-Token gültig – Login anzeigen');
+      console.log('✅ Vorarbeiter-Token gültig – QR-Scan überspringen, Login anzeigen');
       qrSection.classList.add('hidden');
       loginSection.classList.remove('hidden');
       return;
     }
   } catch (e) {
-    console.error('Fehler bei Tokenprüfung:', e);
+    // Fehler ignorieren, normal QR-Scanner starten
   }
 
   console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner starten');
@@ -743,6 +746,11 @@ async function checkAccessAtStart() {
   loginSection.classList.add('hidden');
   await startQrScanner();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+  checkAccessAtStart();
+});
+
 
 
 // Direkt beim Laden starten
