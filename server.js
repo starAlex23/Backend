@@ -226,8 +226,11 @@ cron.schedule('*/50 * * * *', async () => {
 
 // Verbesserte DB-Initialisierung mit allen notwendigen Tabellen
 async function initDb() {
-    try {
-       await pool.query(`
+  try {
+    // Zeitzone festlegen für diese Verbindung
+    await pool.query(`SET TIME ZONE 'Europe/Berlin'`);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         vorname TEXT NOT NULL,
@@ -236,125 +239,120 @@ async function initDb() {
         passwort TEXT NOT NULL,
         rolle TEXT DEFAULT 'user',
         fehlversuche INTEGER DEFAULT 0,
-        gesperrt_bis TIMESTAMP,
+        gesperrt_bis TIMESTAMPTZ,
         biometric_enabled BOOLEAN DEFAULT FALSE,
         ist_eingestempelt BOOLEAN DEFAULT FALSE
       )
     `);
-        
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS zeiten (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                aktion TEXT NOT NULL,
-                zeit TIMESTAMP NOT NULL
-            )
-        `);
 
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL
-            )
-        `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS zeiten (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        aktion TEXT NOT NULL,
+        zeit TIMESTAMPTZ NOT NULL
+      )
+    `);
 
-await pool.query(`
-  DO $$
-  BEGIN
-    IF NOT EXISTS (
-      SELECT 1
-      FROM information_schema.columns
-      WHERE table_name = 'users' AND column_name = 'ist_eingestempelt'
-    ) THEN
-      ALTER TABLE users ADD COLUMN ist_eingestempelt BOOLEAN DEFAULT FALSE;
-    END IF;
-  END
-  $$;
-`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    `);
 
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'ist_eingestempelt'
+        ) THEN
+          ALTER TABLE users ADD COLUMN ist_eingestempelt BOOLEAN DEFAULT FALSE;
+        END IF;
+      END
+      $$;
+    `);
 
- await pool.query(`
-  DO $$
-  BEGIN
-    IF NOT EXISTS (
-      SELECT 1
-      FROM information_schema.columns
-      WHERE table_name = 'users' AND column_name = 'rolle'
-    ) THEN
-      ALTER TABLE users ADD COLUMN rolle TEXT NOT NULL DEFAULT 'user';
-    END IF;
-  END
-  $$;
-`);
-     
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'rolle'
+        ) THEN
+          ALTER TABLE users ADD COLUMN rolle TEXT NOT NULL DEFAULT 'user';
+        END IF;
+      END
+      $$;
+    `);
 
-      await pool.query(`
-  CREATE TABLE IF NOT EXISTS qr_tokens (
-    id SERIAL PRIMARY KEY,
-    code TEXT UNIQUE NOT NULL,
-    erstellt_von INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    erstellt_am TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    gültig_bis TIMESTAMP NOT NULL
-  )
-`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS qr_tokens (
+        id SERIAL PRIMARY KEY,
+        code TEXT UNIQUE NOT NULL,
+        erstellt_von INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        erstellt_am TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        gültig_bis TIMESTAMPTZ NOT NULL
+      )
+    `);
 
-      // Alte QR-Codes direkt beim Start bereinigen
-await pool.query(`DELETE FROM qr_tokens WHERE gültig_bis < NOW()`);
+    // Abgelaufene QR-Codes entfernen
+    await pool.query(`DELETE FROM qr_tokens WHERE gültig_bis < NOW()`);
 
-      
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS active_tokens (
-                token TEXT PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id),
-                jti UUID UNIQUE NOT NULL, -- JWT ID für Token-Invalidierung
-                issued_at TIMESTAMP NOT NULL,
-                expires_at TIMESTAMP NOT NULL
-            )
-        `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS active_tokens (
+        token TEXT PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id),
+        jti UUID UNIQUE NOT NULL,
+        issued_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `);
 
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS webauthn_credentials (
-                id UUID PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                credential_id TEXT UNIQUE NOT NULL,
-                public_key TEXT NOT NULL,
-                counter INTEGER DEFAULT 0,
-                transports TEXT[],
-                created_at TIMESTAMP DEFAULT NOW()
-            )
-        `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS webauthn_credentials (
+        id UUID PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        credential_id TEXT UNIQUE NOT NULL,
+        public_key TEXT NOT NULL,
+        counter INTEGER DEFAULT 0,
+        transports TEXT[],
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
 
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS refresh_tokens (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                token TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                expires_at TIMESTAMP NOT NULL
-            )
-        `);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS refresh_tokens (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        expires_at TIMESTAMPTZ NOT NULL
+      )
+    `);
 
-        // Überprüfen und Einfügen des Standard-QR-Passworts, wenn nicht vorhanden
-        const res = await pool.query(`SELECT 1 FROM settings WHERE key = 'qr_password'`);
-        if (res.rowCount === 0) {
-            let pw = 'SIR2025!'; // Standard-Passwort
-            try {
-                // Versucht, das Passwort aus einer Datei zu lesen, falls vorhanden
-                pw = (await fs.promises.readFile(path.join(__dirname, 'qr-passwort.txt'), 'utf8')).trim();
-            } catch (e) {
-                console.warn('qr-passwort.txt nicht gefunden, Standardwert wird gesetzt.');
-            }
-            await pool.query(`INSERT INTO settings(key, value) VALUES('qr_password', $1)`, [pw]);
-            console.log('QR-Passwort initialisiert.');
-        }
-
-        console.log('✅ Tabellen erfolgreich erstellt oder geprüft und QR-Passwort initialisiert.');
-    } catch (err) {
-        console.error('❌ Fehler beim Erstellen der Tabellen:', err);
-        process.exit(1); // Anwendung beenden, wenn DB-Initialisierung fehlschlägt
+    // QR-Passwort in settings, falls nicht vorhanden
+    const res = await pool.query(`SELECT 1 FROM settings WHERE key = 'qr_password'`);
+    if (res.rowCount === 0) {
+      let pw = 'SIR2025!';
+      try {
+        pw = (await fs.promises.readFile(path.join(__dirname, 'qr-passwort.txt'), 'utf8')).trim();
+      } catch {
+        console.warn('⚠️ qr-passwort.txt nicht gefunden – Standard wird verwendet.');
+      }
+      await pool.query(`INSERT INTO settings(key, value) VALUES('qr_password', $1)`, [pw]);
+      console.log('🔐 QR-Passwort initialisiert.');
     }
-}
 
+    console.log('✅ Tabellen wurden erstellt oder geprüft. Zeitzone: Europe/Berlin');
+  } catch (err) {
+    console.error('❌ Fehler bei initDb:', err);
+    process.exit(1);
+  }
+}
 // Datenbank-Initialisierung beim Start aufrufen
 initDb();
 
