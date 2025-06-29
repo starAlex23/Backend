@@ -653,7 +653,42 @@ async function validateQrCode(qr) {
   return await res.json(); // Falls Backend eine Erfolgsmeldung oder Daten sendet
 }
 
+async function generiereArbeiterQR() {
+  const res = await fetch('/api/qr/create', {
+    method: 'POST',
+    headers: {
+      'X-CSRF-Token': csrfToken,
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include'
+  });
 
+  if (!res.ok) {
+    alert('Fehler beim Generieren des QR-Codes');
+    return;
+  }
+
+  const { qrUrl, gültigBis } = await res.json();
+  zeigeQRCode(qrUrl); // z. B. mit `qrcode.js` oder einem `<img src="...">`
+}
+
+async function checkQRLoginAccess() {
+  const qrCode = new URLSearchParams(location.search).get('qr');
+  if (!qrCode) {
+    // kein Zugang ohne Code oder Token
+    prüfeVorarbeiterTokenOderZeigeQR();
+    return;
+  }
+
+  const res = await fetch(`/api/qr/verify/${qrCode}`);
+  if (res.ok) {
+    zeigeLoginMaske();
+  } else {
+    zeigeQRScanner();
+  }
+}
+
+  
 // Wird aufgerufen, wenn QR-Code erkannt wurde
 async function onQrCodeDetected(qrCodeText) {
   try {
