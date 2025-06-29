@@ -272,6 +272,22 @@ await pool.query(`
   $$;
 `);
 
+
+ await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'users' AND column_name = 'rolle'
+    ) THEN
+      ALTER TABLE users ADD COLUMN rolle TEXT NOT NULL DEFAULT 'user';
+    END IF;
+  END
+  $$;
+`);
+     
+      
         await pool.query(`
             CREATE TABLE IF NOT EXISTS active_tokens (
                 token TEXT PRIMARY KEY,
@@ -354,6 +370,20 @@ app.post('/api/validate-qr', async (req, res) => {
   }
 });
 
+app.get('/api/verify-vorarbeiter-token', (req, res) => {
+  const token = req.cookies.vorarbeiterToken;
+  if (!token) return res.status(401).json({ ok: false });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.rolle !== 'vorarbeiter') {
+      return res.status(403).json({ ok: false });
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(401).json({ ok: false });
+  }
+});
 
 
 // Route zum Setzen des QR-Passworts (Admin-Zugriff erforderlich)
@@ -510,16 +540,40 @@ res.cookie('csrfToken', csrfToken, {
   maxAge: 24 * 60 * 60 * 1000
 });
 
- res.json({
-      message: 'Login erfolgreich',
-      csrfToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        rolle: user.rolle,
-      }
+// Nur wenn Vorarbeiter
+if (user.rolle === 'vorarbeiter') {
+  const existingToken = req.cookies.vorarbeiterToken;
+
+  // Wenn keiner da → neuen Vorarbeiter-Token setzen
+  if (!existingToken) {
+    const vToken = jwt.sign(
+      { id: user.id, rolle: 'vorarbeiter' },
+      JWT_SECRET,
+      { expiresIn: '30d', issuer: process.env.JWT_ISSUER }
+    );
+
+    res.cookie('vorarbeiterToken', vToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 Tage
     });
+
+    console.log(`✅ Vorarbeiter-Token gesetzt für ${user.email}`);
+  }
+}
+
+    
+res.json({
+  message: 'Login erfolgreich',
+  csrfToken,
+  user: {
+    id: user.id,
+    name: `${user.vorname} ${user.nachname}`,
+    email: user.email,
+    rolle: user.rolle,
+  }
+});
   } catch (err) {
     console.error('❌ Login-Fehler:', err);
     sendError(res, 500, 'Interner Serverfehler');
@@ -662,6 +716,23 @@ function csrfMiddleware(req, res, next) {
     return sendError(res, 403, 'CSRF-Token fehlt oder stimmt nicht überein');
   }
   next();
+}
+
+
+function requireVorarbeiter(req, res, next) {
+  try {
+    const token = req.cookies.vorarbeiterToken;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    if (decoded.role !== 'vorarbeiter') {
+      return res.status(403).send('Nicht erlaubt');
+    }
+
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).send('Token fehlt oder ungültig');
+  }
 }
 
 
@@ -1011,44 +1082,44 @@ app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, asyn
 });
 
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
-app.post('/set-admin', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-    try {
-        const requester = await getUserById(req.user.id);
-        if (!requester || requester.rolle !== 'admin') {
-            return sendError(res, 403, 'Nicht erlaubt'); // Doppelte Prüfung, sollte von adminOnlyMiddleware abgefangen werden
-        }
-
-        const { userId: targetUserId, isAdmin } = req.body; // Umbenennung, um Konflikt zu vermeiden
-
-        // Eingabe validieren
-        if (typeof isAdmin !== 'boolean' || typeof targetUserId !== 'number') {
-            return sendError(res, 400, 'Ungültige Eingabedaten für UserId oder isAdmin.');
-        }
-
-        // Admin kann sich nicht selbst ent-administrieren
-        if (req.user.id === targetUserId && !isAdmin) {
-            return sendError(res, 400, 'Du kannst dich nicht selbst ent-administrieren.');
-        }
-
-        // Prüfen, ob der Ziel-Benutzer existiert
-        const result = await pool.query('SELECT id FROM users WHERE id = $1', [targetUserId]);
-        if (result.rowCount === 0) {
-            return sendError(res, 404, 'Nutzer nicht gefunden.');
-        }
-
-        const neueRolle = isAdmin ? 'admin' : 'user';
-
-        await pool.query(
-            'UPDATE users SET rolle = $1 WHERE id = $2',
-            [neueRolle, targetUserId]
-        );
-
-        res.json({ success: true, message: 'Rolle erfolgreich aktualisiert.' });
-    } catch (err) {
-        console.error('Fehler in /set-admin:', err);
-        sendError(res, 500, 'Serverfehler beim Aktualisieren der Rolle.');
+app.post('/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const requester = await getUserById(req.user.id);
+    if (!requester || requester.rolle !== 'admin') {
+      return sendError(res, 403, 'Nicht erlaubt');
     }
+
+    const { userId: targetUserId, rolle } = req.body;
+
+    // Eingabe validieren
+    const erlaubteRollen = ['user', 'vorarbeiter', 'admin'];
+    if (!erlaubteRollen.includes(rolle) || typeof targetUserId !== 'number') {
+      return sendError(res, 400, 'Ungültige Eingabedaten oder Rolle.');
+    }
+
+    // Selbst-Degradierung verhindern
+    if (req.user.id === targetUserId && rolle !== 'admin') {
+      return sendError(res, 400, 'Du kannst dich nicht selbst herabstufen.');
+    }
+
+    // Zielnutzer prüfen
+    const result = await pool.query('SELECT id FROM users WHERE id = $1', [targetUserId]);
+    if (result.rowCount === 0) {
+      return sendError(res, 404, 'Nutzer nicht gefunden.');
+    }
+
+    await pool.query(
+      'UPDATE users SET rolle = $1 WHERE id = $2',
+      [rolle, targetUserId]
+    );
+
+    res.json({ success: true, message: `Rolle erfolgreich zu '${rolle}' geändert.` });
+  } catch (err) {
+    console.error('Fehler in /set-role:', err);
+    sendError(res, 500, 'Serverfehler beim Aktualisieren der Rolle.');
+  }
 });
+
 
 // Benutzerliste abrufen (Admin)
 app.get('/api/users', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
