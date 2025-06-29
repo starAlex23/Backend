@@ -607,6 +607,24 @@ const config = {
 let scannerIsRunning = false;
 let html5QrCode = null;
 
+// Wird aufgerufen, wenn QR-Code erkannt wurde
+async function onQrCodeDetected(qrCodeText) {
+  try {
+    console.log("➡️ QR-Code wird validiert...");
+
+    await validateQrCode(qrCodeText); // Backend prüft Code
+
+    console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
+
+    showSection(loginSection); // Login anzeigen
+    qrSection.classList.add('hidden');
+  } catch (err) {
+    console.warn("⛔ QR ungültig:", err.message);
+    alert("Ungültiger QR-Code: " + err.message);
+    await startQrScanner(); // Scanner neu starten
+  }
+}
+
 async function startQrScanner() {
   if (scannerIsRunning) {
     console.warn("Scanner läuft schon, Start übersprungen");
@@ -619,15 +637,15 @@ async function startQrScanner() {
 
   try {
     scannerIsRunning = true;
-await html5QrCode.start(
-  { facingMode: "environment" },
-  config,
-  async (decodedText, decodedResult) => {
-    console.log("QR-Code erkannt:", decodedText);
-    await stopQrScanner();
-    await onQrCodeDetected(decodedText); // 👈 wichtig!
-  }
-);
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      config,
+      async (decodedText, decodedResult) => {
+        console.log("QR-Code erkannt:", decodedText);
+        await stopQrScanner();
+        await onQrCodeDetected(decodedText);
+      }
+    );
   } catch (error) {
     console.error("Fehler beim Starten des QR-Scanners:", error);
     scannerIsRunning = false;
@@ -654,7 +672,7 @@ async function validateQrCode(qr) {
   const res = await fetch(`${API_BASE}/validate-qr`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    credentials: 'include', // Cookies mitsenden!
+    credentials: 'include',
     body: JSON.stringify({ qr }),
   });
 
@@ -663,97 +681,7 @@ async function validateQrCode(qr) {
     throw new Error(err.error || 'Ungültiger QR-Code');
   }
 
-  return await res.json(); // Falls Backend eine Erfolgsmeldung oder Daten sendet
-}
-
-async function generiereArbeiterQR() {
-  const res = await fetch('/api/qr/create', {
-    method: 'POST',
-    headers: {
-      'X-CSRF-Token': csrfToken,
-      'Content-Type': 'application/json'
-    },
-    credentials: 'include'
-  });
-
-  if (!res.ok) {
-    alert('Fehler beim Generieren des QR-Codes');
-    return;
-  }
-
-  const { qrUrl, gültigBis } = await res.json();
-  zeigeQRCode(qrUrl); // z. B. mit `qrcode.js` oder einem `<img src="...">`
-}
-
-async function checkQRLoginAccess() {
-  const qrCode = new URLSearchParams(location.search).get('qr');
-  if (!qrCode) {
-    // kein Zugang ohne Code oder Token
-    prüfeVorarbeiterTokenOderZeigeQR();
-    return;
-  }
-
-  const res = await fetch(`/api/qr/verify/${qrCode}`);
-  if (res.ok) {
-    zeigeLoginMaske();
-  } else {
-    zeigeQRScanner();
-  }
-}
-
-  function zeigeQRCode(url) {
-  const container = document.getElementById('qr-container');
-  container.innerHTML = ''; // vorherigen QR löschen
-
-  new QRCode(container, {
-    text: url,
-    width: 200,
-    height: 200,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H
-  });
-}
-
-  async function generiereArbeiterQR() {
-  const res = await fetch('/api/qr/create', {
-    method: 'POST',
-    headers: {
-      'X-CSRF-Token': csrfToken,
-      'Content-Type': 'application/json'
-    },
-    credentials: 'include'
-  });
-
-  if (!res.ok) {
-    alert('Fehler beim QR-Code-Erzeugen');
-    return;
-  }
-
-  const { qrUrl, gültigBis } = await res.json();
-  zeigeQRCode(qrUrl);
-
-  const verfall = new Date(gültigBis).toLocaleTimeString();
-  console.log(`⏳ Gültig bis: ${verfall}`);
-}
-
-  
-// Wird aufgerufen, wenn QR-Code erkannt wurde
-async function onQrCodeDetected(qrCodeText) {
-  try {
-    console.log("➡️ QR-Code wird validiert...");
-
-    await validateQrCode(qrCodeText); // prüft beim Backend, ob QR gültig ist
-
-    console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
-
-    showSection(loginSection); // zum Login-Formular wechseln
-
-  } catch (err) {
-    console.warn("⛔ QR ungültig:", err.message);
-    alert("Ungültiger QR-Code: " + err.message);
-    await startQrScanner(); // Scanner neu starten
-  }
+  return await res.json();
 }
 
 // QR-Button-Logik (sichtbar nur für Vorarbeiter)
@@ -797,6 +725,32 @@ document.getElementById('generate-qr-btn')?.addEventListener('click', async () =
     alert('Fehler beim Abrufen des QR-Codes.');
   }
 });
+
+// Prüft beim Seitenstart, ob Vorarbeiter-Token gültig ist, sonst QR-Scanner starten
+async function checkAccessAtStart() {
+  try {
+    const res = await fetch('/api/verify-vorarbeiter-token', { credentials: 'include' });
+    if (res.ok) {
+      console.log('✅ Vorarbeiter-Token gültig – Login anzeigen');
+      qrSection.classList.add('hidden');
+      loginSection.classList.remove('hidden');
+      return;
+    }
+  } catch {
+    // ignorieren
+  }
+
+  console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner starten');
+  qrSection.classList.remove('hidden');
+  loginSection.classList.add('hidden');
+  await startQrScanner();
+}
+
+// Direkt beim Laden starten
+document.addEventListener('DOMContentLoaded', () => {
+  checkAccessAtStart();
+});
+
   
 
  function showPopupMessage(msg, duration = 3000) {
