@@ -294,6 +294,7 @@ new QRCode(qrContainer, {
   colorLight: '#ffffff',
   correctLevel: QRCode.CorrectLevel.H
 });
+console.log('▶️ QR-Inhalt:', qrToken);
 
 const validUntil = new Date(gültigBis).toLocaleTimeString();
 document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
