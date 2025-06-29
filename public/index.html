@@ -412,6 +412,21 @@ const url = path.startsWith('http') ? path : (API_BASE_URL + path);
     return {};
   }
 }
+  
+
+  async function prüfeVorarbeiterTokenOderZeigeQR() {
+  const res = await fetch('/api/verify-vorarbeiter-token', {
+    credentials: 'include'
+  });
+
+  if (res.ok) {
+    console.log('✅ Vorarbeiter erkannt – QR-Scan übersprungen');
+    zeigeLoginMaske();
+  } else {
+    console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner wird gestartet');
+    zeigeQRScanner();
+  }
+}
 
 
 // Login-Funktion: speichert Access- und CSRF-Token
