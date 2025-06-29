@@ -367,18 +367,12 @@ initDb();
 
 // Route zur Validierung des QR-Codes
 app.post('/api/validate-qr', async (req, res) => {
-  console.log('Body:', req.body);  // Zum Debuggen
-
   const { qr } = req.body;
   if (!qr) return sendError(res, 400, 'QR fehlt');
+
   try {
-    const gespeichertesPasswort = await getQrPassword();
-
-    console.log('🔍 Vergleich:', `"${qr}"`, 'vs.', `"${gespeichertesPasswort}"`);
-    console.log('Längen:', qr.length, gespeichertesPasswort.length);
-    console.log('Codes:', [...qr].map(c => c.charCodeAt(0)), 'vs', [...gespeichertesPasswort].map(c => c.charCodeAt(0)));
-
-    if (qr === gespeichertesPasswort) {
+    const valid = await isValidQrCode(qr);
+    if (valid) {
       return res.json({ valid: true });
     } else {
       return sendError(res, 401, 'Ungültiger QR-Code');
@@ -388,6 +382,7 @@ app.post('/api/validate-qr', async (req, res) => {
     return sendError(res, 500, 'Serverfehler');
   }
 });
+
 
 app.get('/api/verify-vorarbeiter-token', (req, res) => {
   const token = req.cookies.vorarbeiterToken;
@@ -404,6 +399,15 @@ app.get('/api/verify-vorarbeiter-token', (req, res) => {
   }
 });
 
+async function isValidQrCode(qr) {
+  // Suche den QR-Code in der qr_token Tabelle
+  const result = await pool.query(
+    'SELECT COUNT(*) FROM qr_token WHERE token = $1',
+    [qr]
+  );
+  if (parseInt(result.rows[0].count, 10) > 0) {
+    return true;
+  }
 
 // Route zum Setzen des QR-Passworts (Admin-Zugriff erforderlich)
 app.post('/api/set-qr-passwort', authMiddleware, async (req, res) => {
