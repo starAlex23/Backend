@@ -261,60 +261,56 @@ button:disabled {
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <!-- QR-Code-Generator Bibliothek -->
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('generate-qr-btn')?.addEventListener('click', async () => {
+  const generateBtn = document.getElementById('generate-qr-btn');
+  const qrContainer = document.getElementById('qr-container');
+  const qrValidUntil = document.getElementById('qr-valid-until');
+
+  generateBtn?.addEventListener('click', async () => {
     try {
       const res = await fetch('/api/qr/create', {
-  method: 'POST',
-  headers: {
-    'X-CSRF-Token': csrfToken,
-    'Content-Type': 'application/json'
-  },
-  credentials: 'include'
-});
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
 
-if (!res.ok) {
-  alert('Fehler beim QR-Code-Generieren');
-  return;
-}
+      if (!res.ok) {
+        alert('Fehler beim QR-Code-Generieren');
+        return;
+      }
 
-const { qrToken, gültigBis } = await res.json();
-console.log("▶️ QR-Inhalt:", qrToken);
+      const { qrToken, gültigBis } = await res.json();
+      console.log("▶️ QR-Inhalt:", qrToken);
 
-const qrContainer = document.getElementById('qr-container');
+      // QR-Code erzeugen (canvas-basiert)
+      QRCode.toCanvas(qrToken, { width: 200 }, (err, canvas) => {
+        if (err) {
+          console.error("❌ Fehler beim QR-Code-Rendering:", err);
+          alert("QR-Code konnte nicht erzeugt werden.");
+          return;
+        }
 
-// Container leeren
-qrContainer.innerHTML = "";
+        qrContainer.innerHTML = "";
+        qrContainer.appendChild(canvas);
+      });
 
-// Sicherstellen, dass Container sichtbar ist
-qrContainer.style.display = "block";
-
-// Kurze Verzögerung, um DOM zu stabilisieren
-setTimeout(() => {
-  new QRCode(qrContainer, {
-    text: qrToken,
-    width: 200,
-    height: 200,
-    colorDark: "#000000",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.H,
-  });
-}, 100); // kleiner Timeout gegen Race Conditions
-
-
-const validUntil = new Date(gültigBis).toLocaleTimeString();
-document.getElementById('qr-valid-until').textContent = `Gültig bis: ${validUntil}`;
-
-
+      // Ablaufzeit anzeigen
+      const validUntil = new Date(gültigBis).toLocaleTimeString();
+      qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
     } catch (err) {
       console.error('❌ QR-Fehler:', err);
       alert('Fehler beim Abrufen des QR-Codes.');
     }
   });
 });
+
   
   // Zeitstatus prüfen
 (async () => {
