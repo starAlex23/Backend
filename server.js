@@ -383,20 +383,28 @@ app.post('/api/validate-qr', async (req, res) => {
   }
 });
 
+
 app.get('/api/verify-vorarbeiter-token', (req, res) => {
   const token = req.cookies.vorarbeiterToken;
-  if (!token) return res.status(401).json({ ok: false, error: 'Kein Token' });
+
+  if (!token) {
+    return res.status(401).json({ ok: false, error: 'Kein Token vorhanden' });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.rolle !== 'vorarbeiter') {
-      return res.status(403).json({ ok: false, error: 'Nicht Vorarbeiter' });
+
+    if (!decoded || decoded.rolle !== 'vorarbeiter') {
+      return res.status(403).json({ ok: false, error: 'Keine Vorarbeiter-Berechtigung' });
     }
+
     return res.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error('❌ Fehler beim Vorarbeiter-Token:', err);
     return res.status(401).json({ ok: false, error: 'Token ungültig oder abgelaufen' });
   }
 });
+
 
 /**
  * Prüft, ob der QR-Code (Token) gültig ist, also entweder in qr_tokens existiert und noch gültig ist
@@ -407,7 +415,7 @@ app.get('/api/verify-vorarbeiter-token', (req, res) => {
 async function isValidQrCode(qr) {
   console.log('Validiere QR-Code:', qr);
 
-  // Prüfe in qr_tokens Tabelle, ob Code existiert und gültig ist (gültig_bis > jetzt)
+  // 1. Prüfe in qr_tokens, ob Code gültig ist (existiert und nicht abgelaufen)
   const result = await pool.query(
     `SELECT COUNT(*) FROM qr_tokens WHERE code = $1 AND gültig_bis > NOW()`,
     [qr]
@@ -415,23 +423,22 @@ async function isValidQrCode(qr) {
   console.log('qr_tokens Treffer:', result.rows[0].count);
 
   if (parseInt(result.rows[0].count, 10) > 0) {
-    console.log('QR-Code in qr_tokens gefunden und gültig.');
+    console.log('✅ QR-Code in qr_tokens gefunden und gültig.');
     return true;
   }
 
-  // Optional: Prüfe in settings Tabelle, ob universal_code übereinstimmt
-  const settingResult = await pool.query(
-    `SELECT COUNT(*) FROM settings WHERE universal_code = $1`,
-    [qr]
+  // 2. Fallback: Prüfe auf universal_code in settings
+  const settingsResult = await pool.query(
+    `SELECT value FROM settings WHERE key = 'universal_code'`
   );
-  console.log('settings Treffer:', settingResult.rows[0].count);
 
-  if (parseInt(settingResult.rows[0].count, 10) > 0) {
-    console.log('QR-Code als universal_code in settings gefunden.');
+  const universalCode = settingsResult.rows[0]?.value;
+  if (universalCode && qr === universalCode) {
+    console.log('✅ QR-Code entspricht dem universal_code in settings.');
     return true;
   }
 
-  console.log('QR-Code nicht gefunden.');
+  console.log('⛔ QR-Code nicht gefunden.');
   return false;
 }
 
