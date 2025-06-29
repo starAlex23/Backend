@@ -367,12 +367,18 @@ initDb();
 
 // Route zur Validierung des QR-Codes
 app.post('/api/validate-qr', async (req, res) => {
+  console.log('Body:', req.body);  // Zum Debuggen
+
   const { qr } = req.body;
   if (!qr) return sendError(res, 400, 'QR fehlt');
-
   try {
-    const valid = await isValidQrCode(qr);
-    if (valid) {
+    const gespeichertesPasswort = await getQrPassword();
+
+    console.log('🔍 Vergleich:', "${qr}", 'vs.', "${gespeichertesPasswort}");
+    console.log('Längen:', qr.length, gespeichertesPasswort.length);
+    console.log('Codes:', [...qr].map(c => c.charCodeAt(0)), 'vs', [...gespeichertesPasswort].map(c => c.charCodeAt(0)));
+
+    if (qr === gespeichertesPasswort) {
       return res.json({ valid: true });
     } else {
       return sendError(res, 401, 'Ungültiger QR-Code');
@@ -382,6 +388,7 @@ app.post('/api/validate-qr', async (req, res) => {
     return sendError(res, 500, 'Serverfehler');
   }
 });
+
 
 
 app.get('/api/verify-vorarbeiter-token', (req, res) => {
