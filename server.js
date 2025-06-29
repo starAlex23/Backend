@@ -400,26 +400,34 @@ app.get('/api/verify-vorarbeiter-token', (req, res) => {
 });
 
 async function isValidQrCode(qr) {
-  // Suche den QR-Code in der qr_token Tabelle
+  console.log('Validiere QR-Code:', qr);
+
   const result = await pool.query(
     'SELECT COUNT(*) FROM qr_token WHERE token = $1',
     [qr]
   );
+  console.log('qr_token Treffer:', result.rows[0].count);
+
   if (parseInt(result.rows[0].count, 10) > 0) {
+    console.log('QR-Code in qr_token gefunden.');
     return true;
   }
 
-  // Optional: Suche in settings Tabelle (universal_code)
   const settingResult = await pool.query(
     'SELECT COUNT(*) FROM settings WHERE universal_code = $1',
     [qr]
   );
+  console.log('settings Treffer:', settingResult.rows[0].count);
+
   if (parseInt(settingResult.rows[0].count, 10) > 0) {
+    console.log('QR-Code in settings gefunden.');
     return true;
   }
 
+  console.log('QR-Code nicht gefunden.');
   return false;
 }
+
 
 
 // Route zum Setzen des QR-Passworts (Admin-Zugriff erforderlich)
