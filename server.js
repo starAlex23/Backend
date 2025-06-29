@@ -97,7 +97,7 @@ pool.on('connect', client => {
     console.error('❌ Fehler beim Setzen der Zeitzone:', err);
   });
 });
-export default pool;
+
 
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
