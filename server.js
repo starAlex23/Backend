@@ -341,6 +341,12 @@ async function initDb() {
       )
     `);
 
+    await pool.query(`
+  INSERT INTO qr_tokens (code, erstellt_von, gültig_bis)
+  VALUES ($1, $2, NOW() + INTERVAL '15 minutes')
+`, [code, userId]);
+
+
     // QR-Passwort in settings, falls nicht vorhanden
     const res = await pool.query(`SELECT 1 FROM settings WHERE key = 'qr_password'`);
     if (res.rowCount === 0) {
