@@ -801,14 +801,19 @@ function toBase64Url(buffer) {
 
 // === UI Aktualisierung nach Login ===
 async function updateUIAfterLogin(user) {
+  console.log("🔐 updateUIAfterLogin aufgerufen:", user);
+
   if (!user) {
     console.warn('⚠️ Kein Benutzerobjekt übergeben an updateUIAfterLogin');
     return;
   }
 
-if (user.rolle === 'vorarbeiter') {
-  document.getElementById('qr-generator-section')?.classList.remove('hidden');
-}
+  if (user.rolle === 'vorarbeiter') {
+    console.log("✅ Vorarbeiter erkannt – QR-Generator wird eingeblendet.");
+    document.getElementById('qr-generator-section')?.classList.remove('hidden');
+  } else {
+    console.log("ℹ️ Kein Vorarbeiter – QR-Generator bleibt versteckt.");
+  }
 
   
   loggedInUser = user;
