@@ -294,7 +294,8 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("▶️ QR-Inhalt:", qrToken);
 
       const canvas = document.createElement('canvas');
-      QRCode.toCanvas(canvas, qrToken, { width: 200 }, (err) => {
+     qrcode.toCanvas(canvas, qrToken, { width: 200 }, (err) => {
+
         if (err) {
           console.error("❌ Fehler beim QR-Code-Rendering:", err);
           alert("QR-Code konnte nicht erzeugt werden.");
