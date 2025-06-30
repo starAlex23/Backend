@@ -28,7 +28,7 @@ import { DATABASE_URL } from './config/env.js';
 // --- ES-Module-kompatibles __dirname ermitteln ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
+const code = generateSimpleCode(8); // z.B. '4F7G9J2K'
 // --- Initialisierung ---
 const app = express();
 app.set('trust proxy', 1);
