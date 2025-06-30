@@ -486,21 +486,31 @@ app.post('/api/qr/create', authMiddleware, csrfMiddleware, async (req, res) => {
       return sendError(res, 403, 'Nur Vorarbeiter dürfen QR-Codes erstellen.');
     }
 
-    const code = uuidv4(); // eindeutiger Token
-    const gültigBis = new Date(Date.now() + 135 * 60 * 1000).toISOString(); // 15 Minuten gültig
+    // 8-stelliger einfacher Code
+    let code;
+    // Optional: Code-Existenz prüfen und bei Kollision neu generieren
+    do {
+      code = generateSimpleCode(8);
+      const { rowCount } = await pool.query(
+        'SELECT 1 FROM qr_tokens WHERE code = $1',
+        [code]
+      );
+      if (rowCount === 0) break; // code ist frei
+    } while(true);
+
+    const gültigBis = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 Minuten gültig
 
     await pool.query(
       `INSERT INTO qr_tokens (code, erstellt_von, gültig_bis) VALUES ($1, $2, $3)`,
       [code, userId, gültigBis]
     );
 
-    res.json({ qrToken: code, gültigBis });  // nur Token, keine URL
+    res.json({ qrToken: code, gültigBis });  // nur Token zurückgeben
   } catch (err) {
     console.error('❌ Fehler beim QR-Generieren:', err);
     sendError(res, 500, 'Fehler beim Generieren des QR-Codes.');
   }
 });
-
 
 app.get('/api/qr/verify/:code', async (req, res) => {
   const { code } = req.params;
