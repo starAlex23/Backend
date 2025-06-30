@@ -537,20 +537,18 @@ async function login(email, passwort) {
 // Automatischer Login mit gespeichertem Access-Token
 async function tryAutoLogin() {
   try {
-    // Kein Token aus sessionStorage, einfach /api/me anfragen
-    const userData = await apiFetch('/api/me', {}, false); // kein Bearer-Token im Header
-
+    const userData = await apiFetch('/api/me', {}, false);
     loggedInUser = userData;
-  
-    updateUIAfterLogin();
+
+    updateUIAfterLogin(userData); // ✅ Fix hier!
 
     return true;
   } catch (err) {
     console.warn('AutoLogin fehlgeschlagen:', err);
-    // Hier ggf. Logout-Cleanup, falls notwendig
     return false;
   }
 }
+
 
   
 loginForm.addEventListener('submit', async (event) => {
