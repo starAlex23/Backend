@@ -373,8 +373,17 @@ const API_BASE = '/api';
   
 let csrfToken = localStorage.getItem('csrfToken') || '';
 let loggedInUser = null;
-
+const code = generateSimpleCode(8); // z.B. '4F7G9J2K'
 const API_BASE_URL = '';
+
+function generateSimpleCode(length = 8) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < length; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
 
 // Hilfsfunktion: Cookie auslesen
 function getCookie(name) {
