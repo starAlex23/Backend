@@ -569,44 +569,6 @@ loginForm.addEventListener('submit', async (event) => {
     console.error('Login fehlgeschlagen:', err);
   }
 });
-
-  
-async function init() {
-  if (!clockInBtn || !clockOutBtn) {
-    console.warn('⚠️ ClockIn/ClockOut Button nicht gefunden.');
-    return;
-  }
-
-  showSection(qrSection);
-  await startQrScanner();
-
-  const autoLoginErfolg = await tryAutoLogin();
-
-  if (!autoLoginErfolg) {
-    console.warn('⛔️ Auto-Login fehlgeschlagen – keine Statusabfrage.');
-    return;
-  }
-
-  try {
-    const status = await getLetzterStatus();
-
-    if (status?.aktion === 'start') {
-      clockInBtn.disabled = true;
-      clockOutBtn.disabled = false;
-    } else {
-      clockInBtn.disabled = false;
-      clockOutBtn.disabled = true;
-    }
-  } catch (err) {
-    console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
-  }
-}
-
-document.addEventListener('DOMContentLoaded', init);
-
-
-
-
 async function updateProfile() {
   try {
     const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
@@ -1013,22 +975,28 @@ async function init() {
   showSection(qrSection);
   await startQrScanner();
 
-  // tryAutoLogin nur beim Seitenstart — optional, nicht direkt nach Scannerstart
   const autoLoginErfolg = await tryAutoLogin();
-  if (autoLoginErfolg) {
-    showSection(timeTrackingSection);
-    // Status Buttons setzen
-    try {
-     const status = await getLetzterStatus();
-clockInBtn.disabled = status?.eingestempelt === true;
-clockOutBtn.disabled = status?.eingestempelt !== true;
-
-    } catch (err) {
-      console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
-    }
+  if (!autoLoginErfolg) {
+    console.warn('⛔️ Auto-Login fehlgeschlagen – keine Statusabfrage.');
+    return;
   }
-  // Wenn kein Token, bleibt man im QR-Scanner, wartet auf Scan
+
+  try {
+    const status = await getLetzterStatus();
+    if (status?.aktion === 'start' || status?.eingestempelt === true) {
+      clockInBtn.disabled = true;
+      clockOutBtn.disabled = false;
+    } else {
+      clockInBtn.disabled = false;
+      clockOutBtn.disabled = true;
+    }
+  } catch (err) {
+    console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
+  }
 }
+
+document.addEventListener('DOMContentLoaded', init);
+
 
 
 async function fetchUserProfile() {
