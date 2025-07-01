@@ -271,7 +271,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const qrContainer = document.getElementById('qr-container');
   const qrValidUntil = document.getElementById('qr-valid-until');
 
-  generateBtn?.addEventListener('click', async () => {
+  if (!generateBtn || !qrContainer || !qrValidUntil) {
+    console.warn("❌ QR-Generator UI-Elemente fehlen.");
+    return;
+  }
+
+  generateBtn.addEventListener('click', async () => {
+    if (!window.csrfToken) {
+      alert('❌ Kein CSRF-Token gefunden.');
+      return;
+    }
+
     try {
       const res = await fetch('/api/qr/create', {
         method: 'POST',
@@ -283,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       if (!res.ok) {
-        alert('Fehler beim QR-Code-Generieren');
+        alert('❌ Fehler beim QR-Code-Generieren.');
         return;
       }
 
@@ -292,31 +302,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
       console.log("▶️ QR-Inhalt:", cleanToken);
 
-      // Canvas erzeugen und QR-Code rendern
+      // Canvas erzeugen
       const canvas = document.createElement('canvas');
-      await QRCode.toCanvas(canvas, cleanToken, {
-        width: 256,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#ffffff',
-        },
-        errorCorrectionLevel: 'M'
+      await new Promise((resolve, reject) => {
+        QRCode.toCanvas(canvas, cleanToken, {
+          width: 256,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#ffffff',
+          },
+          errorCorrectionLevel: 'M'
+        }, (err) => {
+          if (err) return reject(err);
+          resolve();
+        });
       });
 
-      qrContainer.innerHTML = ''; // vorherigen Code löschen
+      // Anzeige aktualisieren
+      qrContainer.innerHTML = '';
       qrContainer.appendChild(canvas);
 
-      // Ablaufzeit anzeigen
       const validUntil = new Date(gültigBis).toLocaleTimeString();
       qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
     } catch (err) {
-      console.error('❌ QR-Fehler:', err);
-      alert('Fehler beim Abrufen des QR-Codes.');
-      console.log("🔍 Code als Zeichen:", [...cleanToken].map(c => c.charCodeAt(0)));
+      console.error('❌ Fehler beim Erzeugen des QR-Codes:', err);
+      alert('Fehler beim Erzeugen oder Anzeigen des QR-Codes.');
+
+      // Debug-Hilfe
+      if (typeof cleanToken === 'string') {
+        console.log("🔍 Code als Zeichen:", [...cleanToken].map(c => c.charCodeAt(0)));
+      }
     }
   });
 });
+
 
 
   // Zeitstatus prüfen
@@ -663,25 +683,18 @@ let html5QrCode = null;
 // Wird aufgerufen, wenn QR-Code erkannt wurde
 async function onQrCodeDetected(decodedText) {
   try {
-    console.log("➡️ QR-Code wird validiert...");
-    await validateQrCode(decodedText); // POST an /api/validate-qr
+    console.log("➡️ QR-Code erkannt:", decodedText);
+    await validateQrCode(decodedText);
 
     console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
-
-    // Wechsel zur Login-Ansicht
     showSection(loginSection);
     qrSection.classList.add('hidden');
   } catch (err) {
     console.warn("⛔ QR ungültig:", err.message);
     alert("Ungültiger QR-Code: " + err.message);
-
-    // Scanner neu starten, damit weiter gescannt werden kann
     await startQrScanner();
   }
 }
-
-
-
 async function startQrScanner() {
   if (scannerIsRunning) {
     console.warn("Scanner läuft schon, Start übersprungen");
