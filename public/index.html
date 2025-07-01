@@ -109,14 +109,17 @@ button:disabled {
 }
 
 #theme-switcher {
-  position: static !important;
-  bottom: auto !important;
-  right: auto !important;
-  display: none !important; /* Standard versteckt */
+  display: none;
+  position: static;
+  bottom: auto;
+  right: auto;
   margin-left: 0.5rem;
   cursor: pointer;
 }
-
+    
+#theme-switcher.visible {
+  display: inline-block;
+}
 
 #settings-btn, #theme-switcher {
   width: 32px;
@@ -355,7 +358,10 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         themeSwitcher.style.display = 'none'; // verstecken
       }
+       themeSwitcher.classList.toggle('visible');
     });
+
+ 
 
     // Theme Switcher Button
     themeSwitcher.addEventListener('click', () => {
