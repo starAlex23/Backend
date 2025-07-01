@@ -652,17 +652,23 @@ let html5QrCode = null;
 // Wird aufgerufen, wenn QR-Code erkannt wurde
 async function onQrCodeDetected(decodedText) {
   try {
-    const result = await validateQrCode(decodedText);
-    console.log("QR-Code validiert:", result);
-    alert("QR-Code gültig!");
-    // Hier weiter verarbeiten, z.B. Login oder Timer starten
+    console.log("➡️ QR-Code wird validiert...");
+    await validateQrCode(decodedText); // POST an /api/validate-qr
+
+    console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
+
+    // Wechsel zur Login-Ansicht
+    showSection(loginSection);
+    qrSection.classList.add('hidden');
   } catch (err) {
-    console.error("Ungültiger QR-Code:", err);
-    alert("Ungültiger QR-Code!");
-    // Scanner ggf. neu starten, falls weiter gescannt werden soll
+    console.warn("⛔ QR ungültig:", err.message);
+    alert("Ungültiger QR-Code: " + err.message);
+
+    // Scanner neu starten, damit weiter gescannt werden kann
     await startQrScanner();
   }
 }
+
 
 
 async function startQrScanner() {
