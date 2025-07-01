@@ -348,28 +348,26 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  settingsBtn.addEventListener('click', () => {
-    if (themeSwitcher.style.display === 'none' || themeSwitcher.style.display === '') {
-      themeSwitcher.style.display = 'inline-block'; // sichtbar machen
-    } else {
-      themeSwitcher.style.display = 'none'; // verstecken
-    }
+  // Settings Button toggeln
+    settingsBtn.addEventListener('click', () => {
+      if (themeSwitcher.style.display === 'none' || themeSwitcher.style.display === '') {
+        themeSwitcher.style.display = 'inline-block'; // sichtbar machen
+      } else {
+        themeSwitcher.style.display = 'none'; // verstecken
+      }
+    });
+
+    // Theme Switcher Button
+    themeSwitcher.addEventListener('click', () => {
+      const html = document.documentElement;
+      if (html.getAttribute('data-theme') === 'dark') {
+        html.setAttribute('data-theme', 'light');
+      } else {
+        html.setAttribute('data-theme', 'dark');
+      }
+    });
   });
-});
-
-
-  // Theme switcher Logik (optional)
-  themeSwitcher.addEventListener('click', () => {
-    // Beispiel: Toggle zwischen light/dark
-    const html = document.documentElement;
-    if (html.getAttribute('data-theme') === 'dark') {
-      html.setAttribute('data-theme', 'light');
-    } else {
-      html.setAttribute('data-theme', 'dark');
-    }
-  });
-});
-
+  
   // Zeitstatus prüfen
 (async () => {
   const token = sessionStorage.getItem('accessToken');
