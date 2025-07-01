@@ -13,11 +13,11 @@
   font-size: 16px;
   line-height: 1.5;
 }
-  
 
 [data-theme="dark"] {
   --bg: #121212;
   --fg: #eee;
+  --card-bg: #222;
 }
 
 header {
@@ -36,17 +36,13 @@ main {
   padding: 1rem;
   box-sizing: border-box;
 }
-    
+
 .card {
   background: var(--card-bg, #f9f9f9);
   padding: 1rem;
   margin-bottom: 1.5rem;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-}
-
-[data-theme="dark"] .card {
-  --card-bg: #222;
 }
 
 .hidden {
@@ -108,36 +104,52 @@ button:disabled {
   padding: 0.4rem;
 }
 
-  #theme-switcher {
-    display: none; /* Standard unsichtbar */
-    cursor: pointer;
-    font-size: 1.5rem;
-    user-select: none;
-    padding: 0 0.2rem;
-  }
+#theme-switcher {
+  display: none; /* Standard unsichtbar */
+  cursor: pointer;
+  font-size: 1.5rem;
+  user-select: none;
+  padding: 0 0.2rem;
+}
 
-  #theme-switcher.visible {
-    display: inline-block; /* sichtbar */
-  }
+#theme-switcher.visible {
+  display: inline-block; /* sichtbar */
+}
 
-  #settings-btn, #theme-switcher {
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
-    background: #4caf50;
-    color: white;
-    border: none;
-  }
+#settings-btn,
+#theme-switcher {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  background: #4caf50;
+  color: white;
+  border: none;
+}
 
-  #settings-btn:hover, #theme-switcher:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    cursor: pointer;
-  }
-    
+#settings-btn:hover,
+#theme-switcher:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+#settings-dropdown {
+  user-select: none;
+  color: var(--fg, #000);
+  background: var(--card-bg, #f9f9f9);
+  position: absolute;
+  top: 3.5rem;
+  right: 0.5rem;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  width: 150px;
+  z-index: 100;
+}
+
 #popup-message {
   position: fixed;
   top: 50%;
@@ -184,25 +196,24 @@ button:disabled {
 }
   </style>
 </head>
-  
-  
-
 </body>
-
 
 <header role="banner" style="position: relative;">
   <h1 style="flex-grow:1;">Zeiterfassung</h1>
+
   <button id="settings-btn" aria-label="Einstellungen" title="Einstellungen"
           style="background:none; border:none; cursor:pointer; font-size:1.5rem; padding:0; margin:0 0.5rem; line-height:1;">
     ⚙️
   </button>
-  <button id="theme-switcher" aria-label="Theme wechseln" title="Theme wechseln"
-          style="display:none; background:none; border:none; cursor:pointer; font-size:1.5rem; padding:0; margin:0;">
-    ☀️
-  </button>
+
+  <div id="settings-dropdown" class="hidden" role="menu" aria-label="Einstellungen Menü" style="position: absolute; top: 3.5rem; right: 0.5rem; background: var(--card-bg, #f9f9f9); padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 150px; z-index: 100;">
+    <label for="darkmode-switch" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+      <input type="checkbox" id="darkmode-switch" />
+      Dark Mode
+    </label>
+  </div>
 </header>
-
-
+  
 <main role="main" aria-live="polite">
 
   <!-- 1. QR Code Scanner -->
@@ -280,9 +291,7 @@ button:disabled {
   <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
 </section>
 
-
 </main>
-
 
 <!-- QR-Scanner -->
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -347,45 +356,48 @@ button:disabled {
 
 document.addEventListener('DOMContentLoaded', () => {
   const settingsBtn = document.getElementById('settings-btn');
-  const themeSwitcher = document.getElementById('theme-switcher');
+  const settingsDropdown = document.getElementById('settings-dropdown');
+  const darkmodeSwitch = document.getElementById('darkmode-switch');
 
-  if (!settingsBtn || !themeSwitcher) {
-    console.warn('Settings-Button oder Theme-Switcher nicht gefunden');
+  if (!settingsBtn || !settingsDropdown || !darkmodeSwitch) {
+    console.warn('Settings-Elemente nicht gefunden');
     return;
   }
 
-  // Theme Switcher sichtbar/unsichtbar toggeln
+  // Dropdown ein-/ausblenden beim Klick auf Settings-Button
   settingsBtn.addEventListener('click', () => {
-    themeSwitcher.classList.toggle('visible');
+    settingsDropdown.classList.toggle('hidden');
   });
 
-  // Theme wechseln beim Klick auf den Switcher
-  themeSwitcher.addEventListener('click', toggleTheme);
+  // Dropdown schließen, wenn außerhalb geklickt wird
+  document.addEventListener('click', (e) => {
+    if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
+      settingsDropdown.classList.add('hidden');
+    }
+  });
 
-  // Setzt das Theme und aktualisiert Icon & localStorage
+  // Dark Mode aus localStorage laden und Switch-Status setzen
   function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    themeSwitcher.textContent = theme === 'dark' ? '☀️' : '🌙';
     localStorage.setItem('theme', theme);
+    darkmodeSwitch.checked = theme === 'dark';
   }
 
-  // Wechselt zwischen 'dark' und 'light'
-  function toggleTheme() {
-    const currentTheme = document.documentElement.getAttribute('data-theme');
-    setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+  // Beim Laden gespeichertes Theme oder System-Preference verwenden
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    setTheme(savedTheme);
+  } else {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
   }
 
-  // Initiales Theme setzen (localStorage oder OS-Einstellung)
-  (function initTheme() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      setTheme(savedTheme);
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
-    }
-  })();
+  // Dark Mode Umschalten beim Schalter
+  darkmodeSwitch.addEventListener('change', () => {
+    setTheme(darkmodeSwitch.checked ? 'dark' : 'light');
+  });
 });
+
 
   // Zeitstatus prüfen
 (async () => {
