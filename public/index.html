@@ -340,15 +340,21 @@ button:disabled {
   });
 
 document.addEventListener('DOMContentLoaded', () => {
- const settingsBtn = document.getElementById('settings-btn');
-const themeSwitcher = document.getElementById('theme-switcher');
+  const settingsBtn = document.getElementById('settings-btn');
+  const themeSwitcher = document.getElementById('theme-switcher');
 
-settingsBtn.addEventListener('click', () => {
-  if (themeSwitcher.style.display === 'none' || !themeSwitcher.style.display) {
-    themeSwitcher.style.display = 'flex';
-  } else {
-    themeSwitcher.style.display = 'none';
+  if (!settingsBtn || !themeSwitcher) {
+    console.warn('Settings-Button oder Theme-Switcher nicht gefunden');
+    return;
   }
+
+  settingsBtn.addEventListener('click', () => {
+    if (themeSwitcher.style.display === 'none' || themeSwitcher.style.display === '') {
+      themeSwitcher.style.display = 'inline-block'; // sichtbar machen
+    } else {
+      themeSwitcher.style.display = 'none'; // verstecken
+    }
+  });
 });
 
 
