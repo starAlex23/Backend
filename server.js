@@ -516,7 +516,7 @@ app.post('/api/qr/create', authMiddleware, csrfMiddleware, async (req, res) => {
       if (rowCount === 0) break; // code ist frei
     } while(true);
 
-    const gültigBis = new Date(Date.now() + 135 * 60 * 1000).toISOString(); // 15 Minuten gültig
+    const gültigBis = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 Minuten gültig
 
     await pool.query(
       `INSERT INTO qr_tokens (code, erstellt_von, gültig_bis) VALUES ($1, $2, $3)`,
