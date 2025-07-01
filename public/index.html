@@ -381,7 +381,8 @@ const loginError = document.getElementById('login-error');
 const API_BASE = '/api';
 
 
-  
+ const csrfToken = getCookie('csrfToken');
+ 
 let csrfToken = localStorage.getItem('csrfToken') || '';
 let loggedInUser = null;
 
