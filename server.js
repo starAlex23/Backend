@@ -370,27 +370,39 @@ initDb();
 
 // Route zur Validierung des QR-Codes
 app.post('/api/validate-qr', async (req, res) => {
-  console.log('Body:', req.body);  // Zum Debuggen
-
   const { qr } = req.body;
   if (!qr) return sendError(res, 400, 'QR fehlt');
+
   try {
+    // 1. Prüfe in qr_tokens
+    const result = await pool.query(
+      `SELECT 1 FROM qr_tokens WHERE code = $1 AND gültig_bis > NOW()`,
+      [qr]
+    );
+
+    if (result.rowCount > 0) {
+      console.log('✅ QR-Code in qr_tokens gültig');
+      return res.json({ valid: true });
+    }
+
+    // 2. Prüfe universal_code
     const gespeichertesPasswort = await getQrPassword();
 
-    console.log('🔍 Vergleich:', "${qr}", 'vs.', "${gespeichertesPasswort}");
-    console.log('Längen:', qr.length, gespeichertesPasswort.length);
-    console.log('Codes:', [...qr].map(c => c.charCodeAt(0)), 'vs', [...gespeichertesPasswort].map(c => c.charCodeAt(0)));
-
+    console.log('🔍 Vergleich:', qr, 'vs.', gespeichertesPasswort);
     if (qr === gespeichertesPasswort) {
+      console.log('✅ QR-Code entspricht universal_code');
       return res.json({ valid: true });
-    } else {
-      return sendError(res, 401, 'Ungültiger QR-Code');
     }
+
+    // 3. Kein Treffer
+    console.warn('⛔ QR ungültig');
+    return sendError(res, 401, 'Ungültiger QR-Code');
   } catch (err) {
-    console.error('Fehler beim QR-Check:', err);
+    console.error('❌ Fehler bei validate-qr:', err);
     return sendError(res, 500, 'Serverfehler');
   }
 });
+
 
 
 
