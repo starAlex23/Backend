@@ -277,10 +277,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   generateBtn.addEventListener('click', async () => {
-    if (!window.csrfToken) {
-      alert('❌ Kein CSRF-Token gefunden.');
-      return;
-    }
+   const csrfToken = getCookie('csrfToken');
+if (!csrfToken) {
+  alert('❌ Kein CSRF-Token im Cookie gefunden.');
+  return;
+}
 
     try {
       const res = await fetch('/api/qr/create', {
