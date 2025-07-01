@@ -109,14 +109,14 @@ button:disabled {
 }
 
 #theme-switcher {
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
-  font-size: 2rem;
-  background: none;
-  border: none;
+  position: static !important;
+  bottom: auto !important;
+  right: auto !important;
+  display: none !important; /* Standard versteckt */
+  margin-left: 0.5rem;
   cursor: pointer;
 }
+
 
 #settings-btn, #theme-switcher {
   width: 32px;
@@ -277,8 +277,6 @@ button:disabled {
 
 </main>
 
-<!-- Theme-Schalter -->
-<button id="theme-switcher" aria-label="Theme wechseln" type="button">🌙</button>
 
 <!-- QR-Scanner -->
 <script src="https://unpkg.com/html5-qrcode"></script>
@@ -342,16 +340,17 @@ button:disabled {
   });
 
 document.addEventListener('DOMContentLoaded', () => {
-  const settingsBtn = document.getElementById('settings-btn');
-  const themeSwitcher = document.getElementById('theme-switcher');
+ const settingsBtn = document.getElementById('settings-btn');
+const themeSwitcher = document.getElementById('theme-switcher');
 
-  settingsBtn.addEventListener('click', () => {
-    if (themeSwitcher.style.display === 'none' || !themeSwitcher.style.display) {
-      themeSwitcher.style.display = 'flex';
-    } else {
-      themeSwitcher.style.display = 'none';
-    }
-  });
+settingsBtn.addEventListener('click', () => {
+  if (themeSwitcher.style.display === 'none' || !themeSwitcher.style.display) {
+    themeSwitcher.style.display = 'flex';
+  } else {
+    themeSwitcher.style.display = 'none';
+  }
+});
+
 
   // Theme switcher Logik (optional)
   themeSwitcher.addEventListener('click', () => {
