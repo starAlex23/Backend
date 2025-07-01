@@ -516,12 +516,14 @@ app.post('/api/qr/create', authMiddleware, csrfMiddleware, async (req, res) => {
       if (rowCount === 0) break; // code ist frei
     } while(true);
 
-    const gültigBis = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 Minuten gültig
+ const gültigBis = new Date().getTime() + 15 * 60 * 1000;
+const gültigBisISO = new Date(gültigBis).toISOString();
 
-    await pool.query(
-      `INSERT INTO qr_tokens (code, erstellt_von, gültig_bis) VALUES ($1, $2, $3)`,
-      [code, userId, gültigBis]
-    );
+   await pool.query(
+  `INSERT INTO qr_tokens (code, erstellt_von, gültig_bis) VALUES ($1, $2, $3::timestamptz)`,
+  [code, userId, gültigBisISO]
+);
+
 
     res.json({ qrToken: code, gültigBis });  // nur Token zurückgeben
   } catch (err) {
