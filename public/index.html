@@ -682,9 +682,14 @@ async function stopQrScanner() {
 }
 
 async function validateQrCode(qr) {
+  const csrfToken = localStorage.getItem('csrfToken'); // oder aus Cookie extrahieren, je nach Implementierung
+
   const res = await fetch(`${API_BASE}/validate-qr`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken
+    },
     credentials: 'include',
     body: JSON.stringify({ qr }),
   });
