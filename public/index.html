@@ -313,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       console.error('❌ QR-Fehler:', err);
       alert('Fehler beim Abrufen des QR-Codes.');
+      console.log("🔍 Code als Zeichen:", [...cleanToken].map(c => c.charCodeAt(0)));
     }
   });
 });
