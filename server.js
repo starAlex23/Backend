@@ -20,6 +20,7 @@ import Joi from 'joi';
 import { fileURLToPath } from 'url'; // Für __dirname bei ES-Modulen
 import cron from 'node-cron';
 import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugefügt für WebAuthn
+import cors from 'cors';
 
 // --- Eigene Module (mit .js-Endung!) ---
 import { REFRESH_TOKEN_SECRET } from './config/env.js';
@@ -45,6 +46,13 @@ const router = express.Router();
 export default router;
 
 const SALT_ROUNDS = 12;
+
+const corsOptions = {
+  origin: 'https://nochmal-neu.vercel.app', // Frontend-Domain erlauben
+  credentials: true,                        // Cookies erlauben
+};
+
+app.use(cors(corsOptions));
 
 // --- Umgebungsvariablen validieren ---
 // Diese Funktion prüft, ob alle notwendigen Umgebungsvariablen gesetzt sind.
@@ -977,26 +985,25 @@ app.post('/api/admin-login', loginLimiter, async (req, res) => {
         const csrfToken = crypto.randomBytes(32).toString('hex'); // CSRF Token generieren
 
         // Cookies setzen
-       res.cookie('token', accessToken, {
+      res.cookie('token', accessToken, {
   httpOnly: true,
   secure: true,
-  sameSite: 'Lax',
+  sameSite: 'None', // <-- WICHTIG für cross-site Cookies
   maxAge: 15 * 60 * 1000,
 });
-
-        res.cookie('refreshToken', refreshToken, {
+res.cookie('refreshToken', refreshToken, {
   httpOnly: true,
   secure: true,
-  sameSite: 'Lax',
+  sameSite: 'None', // <-- auch hier
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000,
 });
-        res.cookie('csrfToken', csrfToken, {
-            httpOnly: false, // Für Client-Zugriff
-            secure: true,
-            sameSite: 'Lax',
-            maxAge: 15 * 60 * 1000, // 15 Minuten
-        });
+res.cookie('csrfToken', csrfToken, {
+  httpOnly: false,
+  secure: true,
+  sameSite: 'None', // <-- auch hier
+  maxAge: 15 * 60 * 1000,
+});
 
         res.json({ message: 'Admin-Login erfolgreich', csrfToken });
 
