@@ -615,27 +615,6 @@ async function login(email, passwort) {
   }
 }
 
-
-
-
-
-
-// Automatischer Login mit gespeichertem Access-Token
-async function tryAutoLogin() {
-  try {
-    const userData = await apiFetch('/api/me', {}, false);
-    loggedInUser = userData;
-
-    updateUIAfterLogin(userData); // ✅ Fix hier!
-
-    return true;
-  } catch (err) {
-    console.warn('AutoLogin fehlgeschlagen:', err);
-    return false;
-  }
-}
-
-
   
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();  // Verhindert das Neuladen der Seite
@@ -1035,12 +1014,6 @@ async function init() {
 
   showSection(qrSection);
   await startQrScanner();
-
-  const autoLoginErfolg = await tryAutoLogin();
-  if (!autoLoginErfolg) {
-    console.warn('⛔️ Auto-Login fehlgeschlagen – keine Statusabfrage.');
-    return;
-  }
 
   try {
     const status = await getLetzterStatus();
