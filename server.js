@@ -25,6 +25,10 @@ import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugef
 import { REFRESH_TOKEN_SECRET } from './config/env.js';
 import { DATABASE_URL } from './config/env.js';
 
+//Zeit auf UTC 2+ umstellversuch
+const { DateTime } = require('luxon');
+const serverZeit = DateTime.now().setZone('Europe/Berlin').toJSDate();
+
 // --- ES-Module-kompatibles __dirname ermitteln ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1021,12 +1025,12 @@ app.get('/api/status', authMiddleware, async (req, res) => {
 
 // Route für Zeitstempel-Aktionen (Start, Stop, Pause, Resume)
 app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
-  // Nur normale Benutzer dürfen Zeitstempel setzen
- const erlaubteRollen = ['user', 'vorarbeiter', 'admin'];
-if (!erlaubteRollen.includes(req.user.rolle)) {
-  return sendError(res, 403, 'Nicht berechtigt, Zeitstempel zu setzen.');
-}
-  // Validierung der Eingabe (z. B. aktion: 'start' | 'stop')
+  const { DateTime } = require('luxon');
+  const erlaubteRollen = ['user', 'vorarbeiter', 'admin'];
+  if (!erlaubteRollen.includes(req.user.rolle)) {
+    return sendError(res, 403, 'Nicht berechtigt, Zeitstempel zu setzen.');
+  }
+
   const { error, value } = zeitSchema.validate(req.body);
   if (error) {
     return sendError(res, 400, 'Ungültige Eingabe: ' + error.details[0].message);
@@ -1034,10 +1038,11 @@ if (!erlaubteRollen.includes(req.user.rolle)) {
 
   const { aktion } = value;
   const userId = req.user.id;
-  const serverZeit = new Date();
+
+  // 🔥 Deutsche Ortszeit (automatisch Sommer/Winter korrekt)
+  const serverZeit = DateTime.now().setZone('Europe/Berlin').toJSDate();
 
   try {
-    // Status prüfen (eingestempelt ja/nein)
     const result = await pool.query(
       'SELECT ist_eingestempelt FROM users WHERE id = $1',
       [userId]
@@ -1086,6 +1091,7 @@ if (!erlaubteRollen.includes(req.user.rolle)) {
     sendError(res, 500, 'Serverfehler beim Zeitstempeln.');
   }
 });
+
 
 
 // GET /api/zeit/letzter-status
