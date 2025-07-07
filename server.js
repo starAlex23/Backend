@@ -31,12 +31,6 @@ import { DateTime } from 'luxon';
 // Als ISO-String für PostgreSQL:
 const zeitstempel = DateTime.now().setZone('Europe/Berlin').toISO(); // z. B. 2025-07-07T14:35:00+02:00
 
-await pool.query(
-  'INSERT INTO zeiten (user_id, aktion, zeit) VALUES ($1, $2, $3)',
-  [userId, aktion, zeitstempel]
-);
-
-
 // --- ES-Module-kompatibles __dirname ermitteln ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -109,6 +103,11 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+await pool.query(
+  'INSERT INTO zeiten (user_id, aktion, zeit) VALUES ($1, $2, $3)',
+  [userId, aktion, zeitstempel]
+);
 
 // Zeitzone für alle neuen Verbindungen setzen
 pool.on('connect', client => {
