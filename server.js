@@ -26,7 +26,7 @@ import { REFRESH_TOKEN_SECRET } from './config/env.js';
 import { DATABASE_URL } from './config/env.js';
 
 //Zeit auf UTC 2+ umstellversuch
-const { DateTime } = require('luxon');
+import { DateTime } from 'luxon';
 const serverZeit = DateTime.now().setZone('Europe/Berlin').toJSDate();
 
 // --- ES-Module-kompatibles __dirname ermitteln ---
