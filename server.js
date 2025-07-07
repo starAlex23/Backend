@@ -104,11 +104,6 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-await pool.query(
-  'INSERT INTO zeiten (user_id, aktion, zeit) VALUES ($1, $2, $3)',
-  [userId, aktion, zeitstempel]
-);
-
 // Zeitzone für alle neuen Verbindungen setzen
 pool.on('connect', client => {
   client.query(`SET TIME ZONE 'Europe/Berlin'`).catch(err => {
