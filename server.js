@@ -1025,7 +1025,6 @@ app.get('/api/status', authMiddleware, async (req, res) => {
 
 // Route für Zeitstempel-Aktionen (Start, Stop, Pause, Resume)
 app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
-  const { DateTime } = require('luxon');
   const erlaubteRollen = ['user', 'vorarbeiter', 'admin'];
   if (!erlaubteRollen.includes(req.user.rolle)) {
     return sendError(res, 403, 'Nicht berechtigt, Zeitstempel zu setzen.');
@@ -1039,7 +1038,7 @@ app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
   const { aktion } = value;
   const userId = req.user.id;
 
-  // 🔥 Deutsche Ortszeit (automatisch Sommer/Winter korrekt)
+  // Deutsche Ortszeit (automatisch Sommer/Winter korrekt)
   const serverZeit = DateTime.now().setZone('Europe/Berlin').toJSDate();
 
   try {
