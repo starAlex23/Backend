@@ -1486,36 +1486,43 @@ app.post('/api/webauthn/register-response', async (req, res) => {
 });
 
 // --- Server starten ---
-// Der Server wird bedingt gestartet: entweder HTTPS (lokal, wenn Zertifikate da sind) oder HTTP (Produktion/Fallback).
-const PORT = process.env.PORT || 3000;
+async function startServer() {
+  try {
+    // Zeitzone in der DB setzen
+    await pool.query("SET timezone='Europe/Berlin'");
 
-// Prüfen, ob die App in Produktion läuft (z.B. auf Render)
-const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+    const PORT = process.env.PORT || 3000;
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
 
-if (isProduction) {
-    // In Produktion (Render, Heroku etc.) wird der Server einfach über HTTP gestartet,
-    // da der Hosting-Anbieter das HTTPS-Handling übernimmt.
-    http.createServer(app).listen(PORT, () => {
+    if (isProduction) {
+      http.createServer(app).listen(PORT, () => {
         console.log(`🚀 HTTP Server läuft auf Port ${PORT} (Produktions-Modus - HTTPS über Proxy)`);
-    });
-} else {
-    // Lokale Entwicklung: Versuche HTTPS zu starten, Fallback auf HTTP bei fehlenden Zertifikaten
-    const privateKeyPath = path.join(__dirname, 'ssl', 'privkey.pem');
-    const certificatePath = path.join(__dirname, 'ssl', 'fullchain.pem'); // Oder 'cert.pem'
+      });
+    } else {
+      const privateKeyPath = path.join(__dirname, 'ssl', 'privkey.pem');
+      const certificatePath = path.join(__dirname, 'ssl', 'fullchain.pem');
 
-    try {
+      try {
         const sslOptions = {
-            key: fs.readFileSync(privateKeyPath),
-            cert: fs.readFileSync(certificatePath),
+          key: fs.readFileSync(privateKeyPath),
+          cert: fs.readFileSync(certificatePath),
         };
         https.createServer(sslOptions, app).listen(PORT, () => {
-            console.log(`🚀 HTTPS Server läuft auf Port ${PORT} (lokal)`);
+          console.log(`🚀 HTTPS Server läuft auf Port ${PORT} (lokal)`);
         });
-    } catch (error) {
+      } catch (error) {
         console.warn(`⚠️ WARNUNG: Konnte SSL-Zertifikate nicht laden (${error.message}).`);
         console.warn(`⚠️ Starte stattdessen HTTP-Server auf Port ${PORT}.`);
         http.createServer(app).listen(PORT, () => {
-            console.log(`🚀 HTTP Server läuft auf Port ${PORT} (lokaler Fallback)`);
+          console.log(`🚀 HTTP Server läuft auf Port ${PORT} (lokaler Fallback)`);
         });
+      }
     }
+  } catch (err) {
+    console.error('❌ Fehler beim Setzen der DB-Zeitzone:', err);
+    process.exit(1); // Server nicht starten, wenn DB-Setup fehlschlägt
+  }
 }
+
+startServer();
+
