@@ -28,7 +28,14 @@ import { DATABASE_URL } from './config/env.js';
 
 //Zeit auf UTC 2+ umstellversuch
 import { DateTime } from 'luxon';
-const serverZeit = DateTime.now().setZone('Europe/Berlin').toJSDate();
+// Als ISO-String für PostgreSQL:
+const zeitstempel = DateTime.now().setZone('Europe/Berlin').toISO(); // z. B. 2025-07-07T14:35:00+02:00
+
+await pool.query(
+  'INSERT INTO zeiten (user_id, aktion, zeit) VALUES ($1, $2, $3)',
+  [userId, aktion, zeitstempel]
+);
+
 
 // --- ES-Module-kompatibles __dirname ermitteln ---
 const __filename = fileURLToPath(import.meta.url);
