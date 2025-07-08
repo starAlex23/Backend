@@ -1249,7 +1249,7 @@ app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, asyn
 });
 
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
-app.post('/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+app.post('/api/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const requester = await getUserById(req.user.id);
     if (!requester || requester.rolle !== 'admin') {
