@@ -210,17 +210,24 @@ async function getUserById(id) {
 
 // --- DB-Abfragen für QR-Passwort ---
 // Ruft das QR-Passwort aus der Datenbank ab.
-async function getQrPassword() {
+app.get('/api/get-qr-passwort', authMiddleware, async (req, res) => {
+  if (!req.user || req.user.rolle !== 'admin') {
+    return sendError(res, 403, 'Adminrechte erforderlich');
+  }
+
+  try {
     const result = await pool.query(`SELECT value FROM settings WHERE key = 'qr_password'`);
     if (result.rows.length === 0) {
-        throw new Error('QR-Passwort nicht in der Datenbank gefunden!');
+      return sendError(res, 404, 'Kein QR-Passwort gefunden.');
     }
+
     const pw = result.rows[0].value;
-    console.log('QR-Passwort aus DB (mit Länge):', `"${pw}"`, pw.length);
-    return pw;
-}
-
-
+    return res.json({ qrPasswort: pw });
+  } catch (err) {
+    console.error('Fehler beim Abrufen des QR-Passworts:', err);
+    return sendError(res, 500, 'Serverfehler.');
+  }
+});
 
 // Setzt oder aktualisiert das QR-Passwort in der Datenbank.
 async function setQrPassword(newPassword) {
