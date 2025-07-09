@@ -272,14 +272,14 @@ async function initDb() {
       )
     `);
 
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS zeiten (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id),
-        aktion TEXT NOT NULL,
-        zeit TIMESTAMPTZ NOT NULL
-      )
-    `);
+   await pool.query(`
+  CREATE TABLE IF NOT EXISTS zeiten (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    aktion TEXT NOT NULL,
+    zeit TIMESTAMPTZ NOT NULL
+  )
+`);
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS settings (
@@ -1324,95 +1324,41 @@ app.get('/api/zeiten/filter', authMiddleware, csrfMiddleware, adminOnlyMiddlewar
     }
 });
 
-// Manuellen Zeitstempel hinzufügen (Admin)
-app.post('/api/zeit/manuell', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-    const { user_id, aktion, zeit } = req.body;
-
-    // Eingabevalidierung
-    if (!user_id || !['start', 'stop', 'pause', 'resume'].includes(aktion) || isNaN(Date.parse(zeit))) {
-        return sendError(res, 400, 'Ungültige Eingabedaten. Benötigt user_id (Zahl), aktion (start/stop/pause/resume) und zeit (gültiges Datum).');
-    }
-
-    try {
-        const result = await pool.query(
-            `INSERT INTO zeiten (user_id, aktion, zeit) VALUES ($1, $2, $3) RETURNING id`,
-            [user_id, aktion, zeit]
-        );
-        res.json({ success: true, id: result.rows[0].id, message: 'Manueller Zeitstempel erfolgreich hinzugefügt.' });
-    } catch (err) {
-        console.error('Fehler beim Hinzufügen manueller Zeitstempel:', err);
-        sendError(res, 500, 'Serverfehler beim Hinzufügen manueller Zeitstempel.');
-    }
-});
-
-// Zeitstempel aktualisieren (Admin)
-app.put('/api/zeit/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-    const { id } = req.params;
-    const { aktion, zeit } = req.body;
-
-    // Eingabevalidierung für Update
-    if (!['start', 'stop', 'pause', 'resume'].includes(aktion) || isNaN(Date.parse(zeit))) {
-        return sendError(res, 400, 'Ungültige Eingabedaten für Update. Benötigt aktion (start/stop/pause/resume) und zeit (gültiges Datum).');
-    }
-
-    try {
-        const result = await pool.query(
-            `UPDATE zeiten SET aktion = $1, zeit = $2 WHERE id = $3 RETURNING id`,
-            [aktion, zeit, id]
-        );
-        if (result.rowCount === 0) {
-            return sendError(res, 404, 'Zeitstempel nicht gefunden.');
-        }
-        res.json({ success: true, message: 'Zeitstempel erfolgreich aktualisiert.' });
-    } catch (err) {
-        console.error('Fehler beim Aktualisieren des Zeitstempels:', err);
-        sendError(res, 500, 'Serverfehler beim Aktualisieren des Zeitstempels.');
-    }
-});
-
-// Zeitstempel löschen (Admin)
-app.delete('/api/zeit/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query(`DELETE FROM zeiten WHERE id = $1 RETURNING id`, [id]);
-        if (result.rowCount === 0) {
-            return sendError(res, 404, 'Zeitstempel nicht gefunden.');
-        }
-        res.json({ success: true, message: 'Zeitstempel erfolgreich gelöscht.' });
-    } catch (err) {
-        console.error('Fehler beim Löschen des Zeitstempels:', err);
-        sendError(res, 500, 'Serverfehler beim Löschen des Zeitstempels.');
-    }
-});
-
 // Benutzer löschen (Admin)
 app.delete('/api/user/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
     const idToDelete = parseInt(req.params.id, 10);
 
-    // Admin kann sich nicht selbst löschen
     if (req.user.id === idToDelete) {
         return sendError(res, 400, 'Du kannst dich nicht selbst löschen.');
     }
 
     try {
-        // Zuerst alle abhängigen Zeitstempel und Tokens löschen
-        await pool.query(`DELETE FROM zeiten WHERE user_id = $1`, [idToDelete]);
+        // Zeitstempel des Benutzers anonymisieren (user_id auf NULL setzen)
+        await pool.query(`UPDATE zeiten SET user_id = NULL WHERE user_id = $1`, [idToDelete]);
+
+        // Auth-bezogene Daten löschen
         await pool.query(`DELETE FROM active_tokens WHERE user_id = $1`, [idToDelete]);
         await pool.query(`DELETE FROM refresh_tokens WHERE user_id = $1`, [idToDelete]);
         await pool.query(`DELETE FROM webauthn_credentials WHERE user_id = $1`, [idToDelete]);
 
-        // Dann den Benutzer löschen
+        // Benutzer löschen
         const result = await pool.query(`DELETE FROM users WHERE id = $1 RETURNING id`, [idToDelete]);
         if (result.rowCount === 0) {
             return sendError(res, 404, 'Benutzer nicht gefunden.');
         }
-        res.json({ success: true, message: 'Benutzer erfolgreich gelöscht.' });
+
+        // Alte Zeitstempel (älter als 10 Jahre) entfernen
+        await pool.query(`
+            DELETE FROM zeiten
+            WHERE zeit < NOW() - INTERVAL '10 years'
+        `);
+
+        res.json({ success: true, message: 'Benutzer gelöscht. Alte Zeitstempel bereinigt.' });
     } catch (err) {
         console.error('Fehler beim Löschen des Benutzers:', err);
         sendError(res, 500, 'Serverfehler beim Löschen des Benutzers.');
     }
 });
-
 
 // --- WebAuthn Registrierung (Step 1: Challenge erstellen) ---
 const rpName = 'Zeiterfassung';
