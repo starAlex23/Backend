@@ -123,6 +123,25 @@ const JWT_SECRET = process.env.JWT_SECRET;
 // --- Middleware Setup ---
 // Helmet fügt wichtige HTTP-Header für die Sicherheit hinzu.
 app.use(helmet());
+// Ergänze gezielte Header, die helmet nicht automatisch setzt oder anpasst:
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // oder restriktiver je nach Setup
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  })
+);
+
+app.use(helmet.referrerPolicy({ policy: 'strict-origin-when-cross-origin' }));
+app.use(helmet.permittedCrossDomainPolicies());
+app.use(helmet.frameguard({ action: 'sameorigin' }));
+app.use(helmet.noSniff());
+app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));
+// Optional: Entferne X-Powered-By
+app.disable('x-powered-by');
 // express.json() parst eingehende Anfragen mit JSON-Payloads.
 app.use(express.json());
 // cookieParser parst Cookies aus dem Request-Header.
@@ -829,29 +848,23 @@ app.post('/change-password', authMiddleware, async (req, res) => {
     res.json({ success: true, message: 'Passwort erfolgreich aktualisiert.' });
 });
 
-
 // Auth Middleware: Prüft Access Token in Cookies oder Authorization-Header
 async function authMiddleware(req, res, next) {
   try {
-    let token;
-
-    // Bevorzugt das HttpOnly-Cookie
-    if (req.cookies?.token) {
-      token = req.cookies.token;
-    }
-    // Fallback: Authorization-Header (z. B. bei API-Tools oder Admin-Login)
-    else if (req.headers.authorization?.startsWith('Bearer ')) {
-      token = req.headers.authorization.slice(7);
-    }
+    let token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') && req.headers.authorization.slice(7));
 
     if (!token) {
       return sendError(res, 401, 'Kein Token vorhanden');
     }
 
-    // Token prüfen
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] }); // falls du algo spezifizieren willst
 
-    // Optional: jti gegen active_tokens prüfen (für Blacklisting/Invalidierung)
+    // Optional: Token-Issued-At in der Zukunft → Angriff/Manipulation
+    if (payload.iat && payload.iat > Math.floor(Date.now() / 1000)) {
+      return sendError(res, 401, 'Ungültiger Zeitstempel im Token');
+    }
+
+    // JTI prüfen gegen active_tokens (Blacklist)
     if (payload.jti) {
       const dbRes = await pool.query('SELECT 1 FROM active_tokens WHERE jti = $1', [payload.jti]);
       if (dbRes.rowCount === 0) {
@@ -862,6 +875,7 @@ async function authMiddleware(req, res, next) {
 
     req.user = payload;
     req.token = token;
+
     next();
   } catch (err) {
     console.error('Auth Middleware Error:', err);
@@ -870,6 +884,13 @@ async function authMiddleware(req, res, next) {
 }
 
 // CSRF Middleware: Prüft CSRF-Token in Cookies und Headern
+function timingSafeEqual(a, b) {
+  const bufA = Buffer.from(a || '');
+  const bufB = Buffer.from(b || '');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
 function csrfMiddleware(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
@@ -878,12 +899,12 @@ function csrfMiddleware(req, res, next) {
   const csrfCookie = req.cookies?.csrfToken;
   const csrfHeader = req.headers['x-csrf-token'];
 
-  if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
+  if (!csrfCookie || !csrfHeader || !timingSafeEqual(csrfCookie, csrfHeader)) {
     return sendError(res, 403, 'CSRF-Token fehlt oder stimmt nicht überein');
   }
+
   next();
 }
-
 
 function requireVorarbeiter(req, res, next) {
   try {
