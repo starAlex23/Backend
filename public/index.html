@@ -495,7 +495,6 @@ if (writeMethods.includes(method)) {
     options.headers['Content-Type'] = 'application/json';
   }
 
-  const csrfToken = localStorage.getItem('csrfToken');
   if (!csrfToken) {
     console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
   } else {
