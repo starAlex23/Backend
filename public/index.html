@@ -430,11 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 })();
 
-
-
-
-
-  const BASE = '/api';
+const BASE = '/api';
 
 // DOM-Elemente
 const loginForm = document.getElementById('login-form');
@@ -460,9 +456,6 @@ const loginError = document.getElementById('login-error');
 // API-Endpunkt (Render-Backend)
 const API_BASE = '/api';
 
-
-
- 
 let csrfToken = localStorage.getItem('csrfToken') || '';
 let loggedInUser = null;
 
@@ -613,7 +606,6 @@ async function login(email, passwort) {
     alert('Login fehlgeschlagen: ' + err.message);
   }
 }
-
   
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();  // Verhindert das Neuladen der Seite
@@ -627,6 +619,7 @@ loginForm.addEventListener('submit', async (event) => {
     console.error('Login fehlgeschlagen:', err);
   }
 });
+  
 async function updateProfile() {
   try {
     const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
@@ -638,6 +631,7 @@ async function updateProfile() {
     handleLogoutCleanup();
   }
 }
+  
 // === Sections anzeigen ===
 function showSection(section) {
   [qrSection, loginSection, registerSection, timeTrackingSection].forEach(s => {
@@ -760,14 +754,10 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAccessAtStart();
 });
 
-
-
 // Direkt beim Laden starten
 document.addEventListener('DOMContentLoaded', () => {
   checkAccessAtStart();
 });
-
-  
 
  function showPopupMessage(msg, duration = 3000) {
   const popup = document.getElementById('popup-message');
@@ -778,7 +768,6 @@ document.addEventListener('DOMContentLoaded', () => {
     popup.classList.add('hidden');
   }, duration);
 }
-
 
 // === Helper Funktionen zur Base64-URL-Konvertierung (für WebAuthn) ===
 function base64urlToUint8Array(base64urlString) {
@@ -817,7 +806,6 @@ async function updateUIAfterLogin(user) {
     console.log("ℹ️ Kein Vorarbeiter – QR-Generator bleibt versteckt.");
   }
 
-  
   loggedInUser = user;
   userNameSpan.textContent = user.name || user.email || 'Benutzer';
 
@@ -826,8 +814,6 @@ async function updateUIAfterLogin(user) {
   loginSection.classList.add('hidden');
   registerSection.classList.add('hidden');
   qrSection.classList.add('hidden');
-
-
 
   // Logout sichtbar
   logoutBtn.classList.remove('hidden');
@@ -920,7 +906,6 @@ registerForm.addEventListener('submit', async (ev) => {
   }
 });
 
-  
 // === Zeit erfassen (Start) ===
 // === Zeit erfassen (Start & danach sofort Logout) ===
 clockInBtn.addEventListener('click', async () => {
@@ -951,9 +936,6 @@ clockInBtn.addEventListener('click', async () => {
   }
 });
 
-
-
-
 // === Zeit erfassen (Stopp) ===
 // === Zeit erfassen (Stopp & danach sofort Logout) ===
 clockOutBtn.addEventListener('click', async () => {
@@ -983,8 +965,6 @@ clockOutBtn.addEventListener('click', async () => {
   }
 });
 
-
-
   //schon eingestempelt?
 async function getLetzterStatus() {
   try {
@@ -1003,7 +983,6 @@ async function getLetzterStatus() {
   }
 }
   
-
 // === Initial Setup ===
 async function init() {
   if (!clockInBtn || !clockOutBtn) {
@@ -1030,17 +1009,13 @@ async function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 
-
-
 async function fetchUserProfile() {
   const response = await apiFetch('/api/me');
   if (!response.ok) throw new Error('Benutzerdaten konnten nicht geladen werden');
   const user = await response.json();
   return user;
 }
+  
 </script>
-
-
-
 </body>
 </html>
