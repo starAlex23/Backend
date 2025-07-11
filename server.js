@@ -37,7 +37,43 @@ app.set('trust proxy', 1);
 // --- Sicherheit: HTTP-Sicherheits-Header ---
 app.use(helmet({ contentSecurityPolicy: false }));
 
+app.use(
+  helmet.contentSecurityPolicy({
+    useDefaults: false, // ← ganz wichtig: keine Default-Blocker!
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'",
+        'https://cdn.jsdelivr.net',
+        'https://unpkg.com',
+      ],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  })
+);
 
+app.use(helmet.referrerPolicy({ policy: 'strict-origin-when-cross-origin' }));
+app.use(helmet.permittedCrossDomainPolicies());
+app.use(helmet.frameguard({ action: 'sameorigin' }));
+app.use(helmet.noSniff());
+app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));
+app.disable('x-powered-by');
+
+// --- Manuelle Sicherheits-Header setzen (auch für static/sendFile) ---
+app.use((req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("Content-Security-Policy", "default-src 'self'");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
 
 // --- Statische Dateien mit Security-Header ---
 app.use(express.static(path.join(__dirname, 'public'), {
