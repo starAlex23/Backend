@@ -1,7 +1,6 @@
 // --- Umgebungsvariablen laden ---
 import 'dotenv/config';
 const REFRESH_SECRET = process.env.REFRESH_SECRET;
-
 // --- Externe Abhängigkeiten ---
 import express from 'express';
 import { Pool } from 'pg';
@@ -21,16 +20,13 @@ import { fileURLToPath } from 'url'; // Für __dirname bei ES-Modulen
 import cron from 'node-cron';
 import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugefügt für WebAuthn
 import cors from 'cors';
-
 // --- Eigene Module (mit .js-Endung!) ---
 import { REFRESH_TOKEN_SECRET } from './config/env.js';
 import { DATABASE_URL } from './config/env.js';
-
 //Zeit auf UTC 2+ umstellversuch
 import { DateTime } from 'luxon';
 // Als ISO-String für PostgreSQL:
 const zeitstempel = DateTime.now().setZone('Europe/Berlin').toISO(); // z. B. 2025-07-07T14:35:00+02:00
-
 // --- ES-Module-kompatibles __dirname ermitteln ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,23 +34,59 @@ const code = generateSimpleCode(8); // z.B. '4F7G9J2K'
 // --- Initialisierung ---
 const app = express();
 app.set('trust proxy', 1);
+// --- Sicherheit: HTTP-Sicherheits-Header ---
+app.use(helmet());
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  })
+);
+
+app.use(helmet.referrerPolicy({ policy: 'strict-origin-when-cross-origin' }));
+app.use(helmet.permittedCrossDomainPolicies());
+app.use(helmet.frameguard({ action: 'sameorigin' }));
+app.use(helmet.noSniff());
+app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));
+app.disable('x-powered-by');
+
+// --- Manuelle Sicherheits-Header setzen (auch für static/sendFile) ---
+app.use((req, res, next) => {
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("Content-Security-Policy", "default-src 'self'");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
 });
+
+// --- Statische Dateien mit Security-Header ---
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res) => {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader("Content-Security-Policy", "default-src 'self'");
+    res.setHeader("X-Frame-Options", "SAMEORIGIN");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  }
+}));
 
 const router = express.Router();
 export default router;
-
 const SALT_ROUNDS = 12;
-
 const corsOptions = {
   origin: 'https://nochmal-neu.vercel.app', // Frontend-Domain erlauben
   credentials: true,                        // Cookies erlauben
 };
 
 app.use(cors(corsOptions));
-
 // --- Umgebungsvariablen validieren ---
 // Diese Funktion prüft, ob alle notwendigen Umgebungsvariablen gesetzt sind.
 // Wenn eine Variable fehlt oder ungültig ist, wird eine Fehlermeldung ausgegeben und die Anwendung beendet.
@@ -96,7 +128,6 @@ function validateEnv() {
 }
 
 validateEnv();
-
 // --- Pool Konfiguration für PostgreSQL ---
 // Hier werden die Datenbankverbindungseinstellungen aus den Umgebungsvariablen gelesen.
 const pool = new Pool({
@@ -111,37 +142,13 @@ pool.on('connect', client => {
   });
 });
 
-
 app.use((req, res, next) => {
   console.log(`[${req.method}] ${req.url}`);
   next();
 });
 
-
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// --- Middleware Setup ---
-// Helmet fügt wichtige HTTP-Header für die Sicherheit hinzu.
-app.use(helmet());
-// Ergänze gezielte Header, die helmet nicht automatisch setzt oder anpasst:
-app.use(
-  helmet.contentSecurityPolicy({
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // oder restriktiver je nach Setup
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: [],
-    },
-  })
-);
-
-app.use(helmet.referrerPolicy({ policy: 'strict-origin-when-cross-origin' }));
-app.use(helmet.permittedCrossDomainPolicies());
-app.use(helmet.frameguard({ action: 'sameorigin' }));
-app.use(helmet.noSniff());
-app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));
-// Optional: Entferne X-Powered-By
-app.disable('x-powered-by');
 // express.json() parst eingehende Anfragen mit JSON-Payloads.
 app.use(express.json());
 // cookieParser parst Cookies aus dem Request-Header.
