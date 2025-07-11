@@ -35,22 +35,22 @@ const code = generateSimpleCode(8); // z.B. '4F7G9J2K'
 const app = express();
 app.set('trust proxy', 1);
 // --- Sicherheit: HTTP-Sicherheits-Header ---
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use(
   helmet.contentSecurityPolicy({
+    useDefaults: false, // ← ganz wichtig: keine Default-Blocker!
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "'unsafe-inline'", // ← notwendig für inline JS (falls du das nutzt)
+        "'unsafe-inline'",
         'https://cdn.jsdelivr.net',
-        'https://unpkg.com'
+        'https://unpkg.com',
       ],
-      styleSrc: [
-        "'self'",
-        "'unsafe-inline'" // ← notwendig für inline CSS
-      ],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
     },
@@ -79,7 +79,15 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public'), {
   setHeaders: (res) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    res.setHeader("Content-Security-Policy", "default-src 'self'");
+    res.setHeader("Content-Security-Policy",
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; " +
+      "style-src 'self' 'unsafe-inline'; " +
+      "img-src 'self' data:; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "connect-src 'self';"
+    );
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
