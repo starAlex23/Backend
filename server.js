@@ -41,7 +41,16 @@ app.use(
   helmet.contentSecurityPolicy({
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'", // ← notwendig für inline JS (falls du das nutzt)
+        'https://cdn.jsdelivr.net',
+        'https://unpkg.com'
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'" // ← notwendig für inline CSS
+      ],
       objectSrc: ["'none'"],
       upgradeInsecureRequests: [],
     },
