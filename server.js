@@ -109,16 +109,12 @@ app.use(cors(corsOptions));
 // Wenn eine Variable fehlt oder ungültig ist, wird eine Fehlermeldung ausgegeben und die Anwendung beendet.
 function validateEnv() {
     const requiredVars = [
-        'DB_HOST',
-        'DB_USER',
-        'DB_PASSWORD',
-        'DB_DATABASE',
-        'DB_PORT',
-        'JWT_SECRET',
-        'REFRESH_SECRET',
-        'JWT_ISSUER',
-        'CORS_ORIGIN',
-    ];
+    'DATABASE_URL',
+    'JWT_SECRET',
+    'REFRESH_SECRET',
+    'JWT_ISSUER',
+    'CORS_ORIGIN',
+];
 
     for (const key of requiredVars) {
         if (!process.env[key]) {
