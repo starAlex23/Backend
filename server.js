@@ -279,6 +279,12 @@ async function setQrPassword(newPassword) {
     );
 }
 
+async function getQrPassword() {
+  const result = await pool.query(
+    `SELECT value FROM settings WHERE key = 'qr_password'`
+  );
+  return result.rows[0]?.value || null;
+}
 // --- Cron Job für Token-Cleanup ---
 // Dieser Cron Job läuft jede Minute ('*/1 * * * *') und löscht abgelaufene Tokens aus der 'active_tokens'-Tabelle.
 // Es wurde auf '*/1 * * * *' geändert, da '*/0 * * * *' nicht valide ist und wahrscheinlich eine Fehlkonfiguration war.
