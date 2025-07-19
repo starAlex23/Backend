@@ -376,737 +376,473 @@ button:disabled {
 
 
 <script type="module">
-  import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
+import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const generateBtn = document.getElementById('generate-qr-btn');
-    const qrContainer = document.getElementById('qr-container');
-    const qrValidUntil = document.getElementById('qr-valid-until');
-
-    generateBtn?.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/qr/create', {
-          method: 'POST',
-          headers: {
-            'X-CSRF-Token': csrfToken,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
-
-        if (!res.ok) {
-          alert('Fehler beim QR-Code-Generieren');
-          return;
-        }
-
-        const { qrToken, gültigBis } = await res.json();
-        const cleanToken = qrToken.trim();
-
-        console.log("▶️ QR-Inhalt:", cleanToken);
-
-        const canvas = document.createElement('canvas');
-
-        await QRCode.toCanvas(canvas, cleanToken, {
-          width: 256,
-          margin: 1,
-          color: {
-            dark: '#000000',
-            light: '#ffffff',
-          },
-          errorCorrectionLevel: 'M'
-        });
-
-        qrContainer.innerHTML = '';
-        qrContainer.appendChild(canvas);
-
-        const validUntil = new Date(gültigBis).toLocaleTimeString();
-        qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
-      } catch (err) {
-        console.error('❌ Fehler beim Erzeugen des QR-Codes:', err);
-        alert('Fehler beim Abrufen des QR-Codes.');
-      }
-    });
-  });
+// Globale Variablen (minimal)
+let csrfToken = localStorage.getItem('csrfToken') || '';
+let loggedInUser = null;
+let html5QrCode = null;
+let scannerIsRunning = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  // --- DOM-Elemente ---
+  const generateBtn = document.getElementById('generate-qr-btn');
+  const qrContainer = document.getElementById('qr-container');
+  const qrValidUntil = document.getElementById('qr-valid-until');
+
   const settingsBtn = document.getElementById('settings-btn');
   const settingsDropdown = document.getElementById('settings-dropdown');
   const darkmodeSwitch = document.getElementById('darkmode-switch');
 
-  if (!settingsBtn || !settingsDropdown || !darkmodeSwitch) {
-    console.warn('Settings-Elemente nicht gefunden');
-    return;
+  const loginForm = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+  const showRegisterBtn = document.getElementById('show-register-btn');
+  const showLoginBtn = document.getElementById('show-login-btn');
+  const logoutBtn = document.getElementById('logout-btn');
+
+  const userNameSpan = document.getElementById('user-name');
+  const clockInBtn = document.getElementById('clock-in-btn');
+  const clockOutBtn = document.getElementById('clock-out-btn');
+
+  const qrSection = document.getElementById('qr-section');
+  const loginSection = document.getElementById('login-section');
+  const registerSection = document.getElementById('register-section');
+  const timeTrackingSection = document.getElementById('time-tracking-section');
+
+  // --- Funktionen ---
+
+  // CSRF Token aktualisieren
+  function setCsrfToken(token) {
+    csrfToken = token;
+    localStorage.setItem('csrfToken', token);
   }
 
-  // Dropdown ein-/ausblenden beim Klick auf Settings-Button
-  settingsBtn.addEventListener('click', () => {
-    settingsDropdown.classList.toggle('hidden');
-  });
+  // API Fetch mit Refresh-Handling
+  async function apiFetch(path, options = {}, useAuthHeaderToken = false) {
+    const method = (options.method || 'GET').toUpperCase();
+    const writeMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
 
-  // Dropdown schließen, wenn außerhalb geklickt wird
-  document.addEventListener('click', (e) => {
-    if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
-      settingsDropdown.classList.add('hidden');
-    }
-  });
+    options = { ...options };
+    options.headers = options.headers || {};
+    options.credentials = 'include';
 
-  // Dark Mode aus localStorage laden und Switch-Status setzen
-  function setTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
-    darkmodeSwitch.checked = theme === 'dark';
-  }
-
-  // Beim Laden gespeichertes Theme oder System-Preference verwenden
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) {
-    setTheme(savedTheme);
-  } else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(prefersDark ? 'dark' : 'light');
-  }
-
-  // Dark Mode Umschalten beim Schalter
-  darkmodeSwitch.addEventListener('change', () => {
-    setTheme(darkmodeSwitch.checked ? 'dark' : 'light');
-  });
-});
-
-  // Navigationsleiste
-document.querySelectorAll('#bottom-nav button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = btn.dataset.target;
-
-    document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
-    document.getElementById(target).classList.remove('hidden');
-  });
-});
-  
-  // Zeitstatus prüfen
-(async () => {
-  const token = sessionStorage.getItem('accessToken');
-  if (!token) {
-    console.warn('⛔ Kein Token gefunden, Statusprüfung übersprungen.');
-    return;
-  }
-
-  try {
-    const status = await getLetzterStatus();
-    const clockInBtn = document.getElementById('clock-in-btn');
-    const clockOutBtn = document.getElementById('clock-out-btn');
-
-    if (!clockInBtn || !clockOutBtn) {
-      console.warn('⚠️ Clock-In oder Clock-Out Button nicht gefunden.');
-      return;
+    if (writeMethods.includes(method)) {
+      if (!options.headers['Content-Type']) options.headers['Content-Type'] = 'application/json';
+      if (!csrfToken) {
+        console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
+      } else {
+        options.headers['X-CSRF-Token'] = csrfToken;
+      }
     }
 
-    // Status prüfen basierend auf "eingestempelt" Feld vom Backend
-    if (status?.eingestempelt === true) {
-      clockInBtn.disabled = true;
-      clockOutBtn.disabled = false;
-    } else {
-      clockInBtn.disabled = false;
-      clockOutBtn.disabled = true;
-    }
-  } catch (err) {
-    console.error('❌ Fehler beim Abrufen des Status:', err);
-  }
-})();
-
-const BASE = '/api';
-
-// DOM-Elemente
-const loginForm = document.getElementById('login-form');
-const registerForm = document.getElementById('register-form');
-const showRegisterBtn = document.getElementById('show-register-btn');
-const showLoginBtn = document.getElementById('show-login-btn');
-const logoutBtn = document.getElementById('logout-btn');
-
-const themeSwitcher = document.getElementById('theme-switcher');
-const userNameSpan = document.getElementById('user-name');
-const clockInBtn = document.getElementById('clock-in-btn');
-const clockOutBtn = document.getElementById('clock-out-btn');
-
-const qrSection = document.getElementById('qr-section');
-const loginSection = document.getElementById('login-section');
-const registerSection = document.getElementById('register-section');
-const timeTrackingSection = document.getElementById('time-tracking-section');
-const qrReaderElem = document.getElementById('qr-reader');
-const qrMessage = document.getElementById('qr-message');
-const loginEmail = document.getElementById('login-email');
-const loginPassword = document.getElementById('login-password');
-const loginError = document.getElementById('login-error');
-// API-Endpunkt (Render-Backend)
-const API_BASE = '/api';
-
-let csrfToken = localStorage.getItem('csrfToken') || '';
-let loggedInUser = null;
-
-const API_BASE_URL = '';
-
-// Hilfsfunktion: Cookie auslesen
-function getCookie(name) {
-  const cookies = document.cookie.split(';').map(c => c.trim());
-  for (const cookie of cookies) {
-    if (cookie.startsWith(name + '=')) {
-      return decodeURIComponent(cookie.substring(name.length + 1));
-    }
-  }
-  return null;
-}
-
-// Haupt-Fetch mit automatischem Token-Refresh, CSRF-Token und Auth-Header
-async function apiFetch(path, options = {}, useAuthHeaderToken = false) {
-  const method = (options.method || 'GET').toUpperCase();
-  const writeMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
-
-  options = { ...options };
-  options.headers = options.headers || {};
-  options.credentials = 'include'; // zwingend, damit Cookies gesendet werden
-
-  // CSRF-Token für schreibende Methoden aus localStorage setzen
-if (writeMethods.includes(method)) {
-  // Content-Type setzen, wenn noch nicht gesetzt
-  if (!options.headers['Content-Type']) {
-    options.headers['Content-Type'] = 'application/json';
-  }
-
-  if (!csrfToken) {
-    console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
-  } else {
-    options.headers['X-CSRF-Token'] = csrfToken;
-  }
-}
-
-
-  if (useAuthHeaderToken) {
-    const token = getCookie('token');
-    if (token) {
-      options.headers['Authorization'] = 'Bearer ' + token;
-    }
-  }
-
-const url = path.startsWith('http') ? path : (API_BASE_URL + path);
-
-  async function fetchWithCookies() {
-    return fetch(url, options);
-  }
-
-  let response = await fetchWithCookies();
-
-   if (response.status === 401) {
-    const refreshResponse = await fetch(`${API_BASE_URL}/api/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    if (!refreshResponse.ok) {
-      throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
+    if (useAuthHeaderToken) {
+      const token = getCookie('token');
+      if (token) options.headers['Authorization'] = 'Bearer ' + token;
     }
 
-    response = await fetchWithCookies();
+    const url = path.startsWith('http') ? path : ('/api' + path);
+
+    async function fetchWithCookies() {
+      return fetch(url, options);
+    }
+
+    let response = await fetchWithCookies();
 
     if (response.status === 401) {
-      throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
-    }
-  }
-
-  if (!response.ok) {
-    let errorMsg = `Fehler: HTTP ${response.status}`;
-    try {
-      const errJson = await response.json();
-      if (errJson.error) errorMsg = errJson.error;
-      else if (errJson.message) errorMsg = errJson.message;
-    } catch {
-      const errText = await response.text().catch(() => '');
-      if (errText) errorMsg = errText;
-    }
-    throw new Error(errorMsg);
-  }
-
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
-}
-  
-
-  async function prüfeVorarbeiterTokenOderZeigeQR() {
-  const res = await fetch('/api/verify-vorarbeiter-token', {
-    credentials: 'include'
-  });
-
-  if (res.ok) {
-    console.log('✅ Vorarbeiter erkannt – QR-Scan übersprungen');
-    zeigeLoginMaske();
-  } else {
-    console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner wird gestartet');
-    zeigeQRScanner();
-  }
-}
-
-
-// Login-Funktion: speichert Access- und CSRF-Token
-async function login(email, passwort) {
-  if (!email || !passwort) {
-    alert('Bitte Email und Passwort ausfüllen!');
-    return;
-  }
-
-  try {
-    const res = await apiFetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, passwort }),
-    });
-
-    if (!res.user) {
-      alert('Login erfolgreich, aber kein Benutzerobjekt erhalten.');
-      return;
+      const refreshResponse = await fetch('/api/refresh', { method: 'POST', credentials: 'include' });
+      if (!refreshResponse.ok) throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
+      response = await fetchWithCookies();
+      if (response.status === 401) throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
     }
 
-    console.log('✅ Eingeloggt:', res.user);
-
-    if (res.csrfToken) {
-      localStorage.setItem('csrfToken', res.csrfToken);
-      csrfToken = res.csrfToken; // globale Variable updaten
-    }
-
-    loggedInUser = res.user;
-
-    // Vorarbeiter-Token ist HttpOnly-Cookie, hier also nur UI-Anpassung:
-    if (res.user.rolle === 'vorarbeiter') {
-      console.log('Vorarbeiter eingeloggt, Vorarbeiter-Token wurde serverseitig gesetzt');
-      // Du kannst hier ggf. UI anpassen oder Status setzen
-    }
-
-    await updateUIAfterLogin(res.user);
-    showSection(timeTrackingSection);
-
-  } catch (err) {
-    console.error('❌ Login fehlgeschlagen:', err.message);
-    alert('Login fehlgeschlagen: ' + err.message);
-  }
-}
-  
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();  // Verhindert das Neuladen der Seite
-
-  const email = loginForm.email.value;     // Annahme: <input name="email">
-  const passwort = loginForm.passwort.value; // Annahme: <input name="passwort">
-
-  try {
-    await login(email, passwort);  // Deine bereits bestehende login-Funktion
-  } catch (err) {
-    console.error('Login fehlgeschlagen:', err);
-  }
-});
-  
-async function updateProfile() {
-  try {
-    const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
-    loggedInUser = user;
-   
-    updateUIAfterLogin(user); // ⬅️ hier Übergabe fixen!
-  } catch (err) {
-    console.error('Profil konnte nicht geladen werden:', err);
-    handleLogoutCleanup();
-  }
-}
-  
-// === Sections anzeigen ===
-function showSection(section) {
-  [qrSection, loginSection, registerSection, timeTrackingSection].forEach(s => {
-    s.classList.add('hidden');
-    s.setAttribute('aria-hidden', 'true');
-  });
-  section.classList.remove('hidden');
-  section.setAttribute('aria-hidden', 'false');
-}
-
-// === QR Scanner ===
-const config = {
-  fps: 10,
-  qrbox: 250,
-};
-
-let scannerIsRunning = false;
-let html5QrCode = null;
-
-// Wird aufgerufen, wenn QR-Code erkannt wurde
-async function onQrCodeDetected(decodedText) {
-  try {
-    console.log("➡️ QR-Code erkannt:", decodedText);
-    await validateQrCode(decodedText);
-
-    console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
-    showSection(loginSection);
-    qrSection.classList.add('hidden');
-  } catch (err) {
-    console.warn("⛔ QR ungültig:", err.message);
-    alert("Ungültiger QR-Code: " + err.message);
-    await startQrScanner();
-  }
-}
-async function startQrScanner() {
-  if (scannerIsRunning) {
-    console.warn("Scanner läuft schon, Start übersprungen");
-    return;
-  }
-
-  if (!html5QrCode) {
-    html5QrCode = new Html5Qrcode("qr-reader");
-  }
-
-  try {
-    scannerIsRunning = true;
-    await html5QrCode.start(
-      { facingMode: "environment" },
-      config,
-      async (decodedText, decodedResult) => {
-        console.log("QR-Code erkannt:", decodedText);
-        await stopQrScanner();
-        await onQrCodeDetected(decodedText);
+    if (!response.ok) {
+      let errorMsg = `Fehler: HTTP ${response.status}`;
+      try {
+        const errJson = await response.json();
+        if (errJson.error) errorMsg = errJson.error;
+        else if (errJson.message) errorMsg = errJson.message;
+      } catch {
+        const errText = await response.text().catch(() => '');
+        if (errText) errorMsg = errText;
       }
-    );
-  } catch (error) {
-    console.error("Fehler beim Starten des QR-Scanners:", error);
-    scannerIsRunning = false;
-  }
-}
-
-async function stopQrScanner() {
-  if (!scannerIsRunning) {
-    console.warn("Scanner läuft nicht, Stop übersprungen");
-    return;
-  }
-
-  try {
-    await html5QrCode.stop();
-    console.log("QR-Scanner gestoppt");
-  } catch (err) {
-    console.error("Fehler beim Stoppen des QR-Scanners:", err);
-  } finally {
-    scannerIsRunning = false;
-  }
-}
-
-async function validateQrCode(qr) {
-  const csrfToken = localStorage.getItem('csrfToken'); // oder aus Cookie extrahieren, je nach Implementierung
-
-  const res = await fetch(`${API_BASE}/validate-qr`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': csrfToken
-    },
-    credentials: 'include',
-    body: JSON.stringify({ qr }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || 'Ungültiger QR-Code');
-  }
-
-  return await res.json();
-}
-
-// Prüft beim Seitenstart, ob Vorarbeiter-Token gültig ist, sonst QR-Scanner starten
-async function checkAccessAtStart() {
-  try {
-    const res = await fetch('/api/verify-vorarbeiter-token', { credentials: 'include' });
-    if (res.ok) {
-      console.log('✅ Vorarbeiter-Token gültig – QR-Scan überspringen, Login anzeigen');
-      qrSection.classList.add('hidden');
-      loginSection.classList.remove('hidden');
-      return;
+      throw new Error(errorMsg);
     }
-  } catch (e) {
-    // Fehler ignorieren, normal QR-Scanner starten
+
+    try {
+      return await response.json();
+    } catch {
+      return {};
+    }
   }
 
-  console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner starten');
-  qrSection.classList.remove('hidden');
-  loginSection.classList.add('hidden');
-  await startQrScanner();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  checkAccessAtStart();
-});
-
-// Direkt beim Laden starten
-document.addEventListener('DOMContentLoaded', () => {
-  checkAccessAtStart();
-});
-
- function showPopupMessage(msg, duration = 3000) {
-  const popup = document.getElementById('popup-message');
-  popup.textContent = msg;
-  popup.classList.remove('hidden');
-
-  setTimeout(() => {
-    popup.classList.add('hidden');
-  }, duration);
-}
-
-// === Helper Funktionen zur Base64-URL-Konvertierung (für WebAuthn) ===
-function base64urlToUint8Array(base64urlString) {
-  const padding = '='.repeat((4 - (base64urlString.length % 4)) % 4);
-  const base64 = (base64urlString + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-function toBase64Url(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let str = '';
-  for (let i = 0; i < bytes.byteLength; i++) {
-    str += String.fromCharCode(bytes[i]);
-  }
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-// === UI Aktualisierung nach Login ===
-async function updateUIAfterLogin(user) {
-  console.log("🔐 updateUIAfterLogin aufgerufen:", user);
-
-  if (!user) {
-    console.warn('⚠️ Kein Benutzerobjekt übergeben an updateUIAfterLogin');
-    return;
-  }
-
-  // Benutzername anzeigen, wenn möglich
-  const nameEl = document.getElementById('user-name');
-  if (nameEl) {
-    nameEl.textContent = user.name || user.email || 'Benutzer';
-  } else {
-    console.warn('⚠️ Element #user-name nicht im DOM gefunden.');
-  }
-
-  // Vorarbeiter-spezifische Ansicht
-  if (user.rolle === 'vorarbeiter') {
-    console.log("✅ Vorarbeiter erkannt – QR-Generator wird eingeblendet.");
-    document.getElementById('qr-generator-section')?.classList.remove('hidden');
-  } else {
-    console.log("ℹ️ Kein Vorarbeiter – QR-Generator bleibt versteckt.");
-  }
-
-  loggedInUser = user;
-
-  // UI-Sektionen anpassen
-  showSection(timeTrackingSection);
-  loginSection.classList.add('hidden');
-  registerSection.classList.add('hidden');
-  qrSection.classList.add('hidden');
-
-  // Logout-Button sichtbar machen
-  logoutBtn.classList.remove('hidden');
-
-  // Zeitbuttons (Start/Pause/Stop) aktualisieren
-  await updateTimeButtons();
-}
-
-async function updateTimeButtons() {
-  try {
-    const result = await apiFetch('/api/status'); // keine Auth-Header nötig
-    const eingestempelt = result.ist_eingestempelt;
-
-    clockInBtn.disabled = eingestempelt;
-    clockOutBtn.disabled = !eingestempelt;
-  } catch (err) {
-    console.warn('Status konnte nicht geladen werden:', err);
-    clockInBtn.disabled = true;
-    clockOutBtn.disabled = true;
-  }
-}
-
-// === Logout Cleanup ===
-function handleLogoutCleanup() {
-  loggedInUser = null;
-
-  // Formular-Felder leeren
-  loginForm['email'].value = '';
-  loginForm['passwort'].value = '';
-
-  // Tokens aus Speicher löschen
-  sessionStorage.removeItem('accessToken');
-  localStorage.removeItem('csrfToken'); // ⬅️ wichtig!
-  document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None'; // ⬅️ aus Cookie löschen, falls vorhanden
-
-  // UI zurücksetzen
-  showSection(qrSection);
-  logoutBtn.classList.add('hidden');
- 
-  userNameSpan.textContent = '';
-  //QR generator verstecken
-  document.getElementById('qr-generator-section')?.classList.add('hidden');
-
-}
-
-// === Logout ===
-logoutBtn.addEventListener('click', async () => {
-  try {
-    await apiFetch('/api/logout', { method: 'POST' });
-
-    handleLogoutCleanup();
-    alert('Logout erfolgreich!');
-  } catch (err) {
-    console.error(err);
-    alert('Logout Fehler: ' + err.message);
-  }
-});
-
-// === Register-Link im Login-Form ===
-showRegisterBtn.addEventListener('click', () => {
-  showSection(registerSection);
-});
-
-// === Zurück zum Login ===
-showLoginBtn.addEventListener('click', () => {
-  showSection(loginSection);
-});
-
-// === Registrierung ===
-registerForm.addEventListener('submit', async (ev) => {
-  ev.preventDefault();
-
-  const vorname = registerForm['firstname'].value.trim();
-  const nachname = registerForm['lastname'].value.trim();
-  const email = registerForm['email'].value.trim();
-  const passwort = registerForm['password'].value.trim();
-
-  try {
-    const res = await apiFetch('/api/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vorname, nachname, email, passwort }),
-    });
-
-    // Wenn erfolgreich, bekommst du direkt das JSON mit message z. B.
-    alert(res.message || 'Registrierung erfolgreich! Bitte einloggen.');
-    showSection(loginSection);
-  } catch (err) {
-    alert(err.message || 'Registrierung fehlgeschlagen.');
-  }
-});
-
-// === Zeit erfassen (Start) ===
-// === Zeit erfassen (Start & danach sofort Logout) ===
-clockInBtn.addEventListener('click', async () => {
-  if (!loggedInUser) {
-    alert('Bitte zuerst einloggen');
-    return;
-  }
-
-  clockInBtn.disabled = true;
-
-  try {
-    await apiFetch('/api/zeit', {
-      method: 'POST',
-      body: JSON.stringify({ aktion: 'start' }),
-    });
-
-    alert('✅ Du wurdest erfolgreich eingestempelt.\nDu wirst jetzt ausgeloggt.');
-
-    // Logout durchführen
-    await apiFetch('/api/logout', { method: 'POST' });
-
-    // UI aufräumen und zurück zur QR/Loginmaske
-    handleLogoutCleanup();
-  } catch (err) {
-    console.error('Fehler beim Start der Arbeitszeit oder beim Logout:', err);
-    alert('Fehler: ' + err.message);
-    clockInBtn.disabled = false; // Nur bei Fehler wieder aktivieren
-  }
-});
-
-// === Zeit erfassen (Stopp) ===
-// === Zeit erfassen (Stopp & danach sofort Logout) ===
-clockOutBtn.addEventListener('click', async () => {
-  if (!loggedInUser) {
-    alert('Bitte zuerst einloggen');
-    return;
-  }
-
-  clockOutBtn.disabled = true;
-
-  try {
-    await apiFetch('/api/zeit', {
-      method: 'POST',
-      body: JSON.stringify({ aktion: 'stop' }),
-    });
-
-    alert('⏹️ Du wurdest erfolgreich ausgestempelt.\nDu wirst jetzt ausgeloggt.');
-
-    // Logout durchführen
-    await apiFetch('/api/logout', { method: 'POST' });
-
-    // UI aufräumen und zurück zur QR/Loginmaske
-    handleLogoutCleanup();
-  } catch (err) {
-    console.error('Fehler beim Stoppen der Arbeitszeit oder beim Logout:', err);
-    alert('Fehler beim Stoppen der Arbeitszeit: ' + err.message);
-  }
-});
-
-  //schon eingestempelt?
-async function getLetzterStatus() {
-  try {
-    const data = await apiFetch('/api/zeit/letzter-status', {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-      },
-    }, true); // Authentifizierung aktivieren
-
-    console.log('Letzter Zeitstatus:', data);
-    return data; // z.B. { aktion: 'start', zeit: '2025-06-09T08:00:00Z' }
-  } catch (err) {
-    console.error('Fehler beim Abrufen des letzten Status:', err);
+  // Cookie auslesen
+  function getCookie(name) {
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    for (const cookie of cookies) {
+      if (cookie.startsWith(name + '=')) {
+        return decodeURIComponent(cookie.substring(name.length + 1));
+      }
+    }
     return null;
   }
-}
-  
-// === Initial Setup ===
-async function init() {
-  if (!clockInBtn || !clockOutBtn) {
-    console.warn('⚠️ ClockIn/ClockOut Button nicht gefunden.');
-    return;
-  }
 
-  showSection(qrSection);
-  await startQrScanner();
+  // QR-Code generieren
+  async function generateQrCode() {
+    if (!generateBtn || !qrContainer || !qrValidUntil) return;
 
-  try {
-    const status = await getLetzterStatus();
-    if (status?.aktion === 'start' || status?.eingestempelt === true) {
-      clockInBtn.disabled = true;
-      clockOutBtn.disabled = false;
-    } else {
-      clockInBtn.disabled = false;
-      clockOutBtn.disabled = true;
+    try {
+      const res = await fetch('/api/qr/create', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        alert('Fehler beim QR-Code-Generieren');
+        return;
+      }
+
+      const { qrToken, gültigBis } = await res.json();
+      const cleanToken = qrToken.trim();
+
+      const canvas = document.createElement('canvas');
+      await QRCode.toCanvas(canvas, cleanToken, {
+        width: 256,
+        margin: 1,
+        color: { dark: '#000000', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
+      });
+
+      qrContainer.innerHTML = '';
+      qrContainer.appendChild(canvas);
+
+      const validUntil = new Date(gültigBis).toLocaleTimeString();
+      qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
+    } catch (err) {
+      console.error('❌ Fehler beim Erzeugen des QR-Codes:', err);
+      alert('Fehler beim Abrufen des QR-Codes.');
     }
-  } catch (err) {
-    console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
   }
-}
 
-document.addEventListener('DOMContentLoaded', init);
+  // Login-Funktion
+  async function login(email, passwort) {
+    if (!email || !passwort) {
+      alert('Bitte Email und Passwort ausfüllen!');
+      return;
+    }
 
-async function fetchUserProfile() {
-  const response = await apiFetch('/api/me');
-  if (!response.ok) throw new Error('Benutzerdaten konnten nicht geladen werden');
-  const user = await response.json();
-  return user;
-}
-  
+    try {
+      const res = await apiFetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, passwort }),
+      });
+
+      if (!res.user) {
+        alert('Login erfolgreich, aber kein Benutzerobjekt erhalten.');
+        return;
+      }
+
+      if (res.csrfToken) setCsrfToken(res.csrfToken);
+
+      loggedInUser = res.user;
+
+      await updateUIAfterLogin(res.user);
+      showSection(timeTrackingSection);
+    } catch (err) {
+      alert('Login fehlgeschlagen: ' + err.message);
+      console.error('❌ Login fehlgeschlagen:', err);
+    }
+  }
+
+  // UI nach Login updaten
+  async function updateUIAfterLogin(user) {
+    if (!user) return;
+
+    if (userNameSpan) {
+      userNameSpan.textContent = user.name || user.email || 'Benutzer';
+    }
+
+    // QR Generator nur für Vorarbeiter anzeigen
+    const qrGenSection = document.getElementById('qr-generator-section');
+    if (qrGenSection) {
+      if (user.rolle === 'vorarbeiter') qrGenSection.classList.remove('hidden');
+      else qrGenSection.classList.add('hidden');
+    }
+
+    loggedInUser = user;
+
+    showSection(timeTrackingSection);
+    loginSection.classList.add('hidden');
+    registerSection.classList.add('hidden');
+    qrSection.classList.add('hidden');
+
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+
+    await updateTimeButtons();
+  }
+
+  // Zeitbuttons updaten
+  async function updateTimeButtons() {
+    try {
+      const result = await apiFetch('/status');
+      const eingestempelt = result.ist_eingestempelt;
+
+      if (clockInBtn) clockInBtn.disabled = eingestempelt;
+      if (clockOutBtn) clockOutBtn.disabled = !eingestempelt;
+    } catch (err) {
+      if (clockInBtn) clockInBtn.disabled = true;
+      if (clockOutBtn) clockOutBtn.disabled = true;
+      console.warn('Status konnte nicht geladen werden:', err);
+    }
+  }
+
+  // Section anzeigen
+  function showSection(section) {
+    [qrSection, loginSection, registerSection, timeTrackingSection].forEach(s => {
+      if (!s) return;
+      s.classList.add('hidden');
+      s.setAttribute('aria-hidden', 'true');
+    });
+    if (!section) return;
+    section.classList.remove('hidden');
+    section.setAttribute('aria-hidden', 'false');
+  }
+
+  // QR-Scanner Funktionen
+  const config = { fps: 10, qrbox: 250 };
+
+  async function startQrScanner() {
+    if (scannerIsRunning) return;
+    if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
+    try {
+      scannerIsRunning = true;
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        async (decodedText) => {
+          await stopQrScanner();
+          await onQrCodeDetected(decodedText);
+        }
+      );
+    } catch (e) {
+      scannerIsRunning = false;
+      console.error("Fehler beim Starten des QR-Scanners:", e);
+    }
+  }
+
+  async function stopQrScanner() {
+    if (!scannerIsRunning) return;
+    try {
+      await html5QrCode.stop();
+    } catch (e) {
+      console.error("Fehler beim Stoppen des QR-Scanners:", e);
+    }
+    scannerIsRunning = false;
+  }
+
+  async function onQrCodeDetected(decodedText) {
+    try {
+      await validateQrCode(decodedText);
+      showSection(loginSection);
+      qrSection.classList.add('hidden');
+    } catch (e) {
+      alert("Ungültiger QR-Code: " + e.message);
+      await startQrScanner();
+    }
+  }
+
+  async function validateQrCode(qr) {
+    const token = localStorage.getItem('csrfToken');
+    const res = await fetch('/api/validate-qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+      credentials: 'include',
+      body: JSON.stringify({ qr }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Ungültiger QR-Code');
+    }
+    return await res.json();
+  }
+
+  // Initiale Prüfung auf Vorarbeiter-Token oder QR-Scanner starten
+  async function checkAccessAtStart() {
+    try {
+      const res = await fetch('/api/verify-vorarbeiter-token', { credentials: 'include' });
+      if (res.ok) {
+        qrSection.classList.add('hidden');
+        loginSection.classList.remove('hidden');
+        return;
+      }
+    } catch {
+      // Ignore
+    }
+    qrSection.classList.remove('hidden');
+    loginSection.classList.add('hidden');
+    await startQrScanner();
+  }
+
+  // Logout Funktion
+  async function logout() {
+    try {
+      await apiFetch('/logout', { method: 'POST' });
+      handleLogoutCleanup();
+      alert('Logout erfolgreich!');
+    } catch (err) {
+      alert('Logout Fehler: ' + err.message);
+    }
+  }
+
+  // Aufräumen nach Logout
+  function handleLogoutCleanup() {
+    loggedInUser = null;
+    if (loginForm) {
+      loginForm.email.value = '';
+      loginForm.passwort.value = '';
+    }
+    sessionStorage.removeItem('accessToken');
+    localStorage.removeItem('csrfToken');
+    document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None';
+
+    showSection(qrSection);
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+    if (userNameSpan) userNameSpan.textContent = '';
+
+    const qrGenSection = document.getElementById('qr-generator-section');
+    if (qrGenSection) qrGenSection.classList.add('hidden');
+  }
+
+  // --- Event Listener binden ---
+
+  if (generateBtn) generateBtn.addEventListener('click', generateQrCode);
+
+  if (settingsBtn && settingsDropdown && darkmodeSwitch) {
+    settingsBtn.addEventListener('click', () => {
+      settingsDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', e => {
+      if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
+        settingsDropdown.classList.add('hidden');
+      }
+    });
+
+    // Dark Mode initial setzen
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
+
+    darkmodeSwitch.addEventListener('change', () => {
+      setTheme(darkmodeSwitch.checked ? 'dark' : 'light');
+    });
+
+    function setTheme(theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
+      darkmodeSwitch.checked = (theme === 'dark');
+    }
+  }
+
+  document.querySelectorAll('#bottom-nav button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      document.querySelectorAll('.view').forEach(s => s.classList.add('hidden'));
+      const targetElem = document.getElementById(target);
+      if (targetElem) {
+        targetElem.classList.remove('hidden');
+      }
+    });
+  });
+
+  if (loginForm) {
+    loginForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const email = loginForm.email.value;
+      const passwort = loginForm.passwort.value;
+      await login(email, passwort);
+    });
+  }
+
+  if (registerForm) {
+    registerForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = registerForm.name.value;
+      const email = registerForm.email.value;
+      const passwort = registerForm.passwort.value;
+      try {
+        const res = await apiFetch('/register', {
+          method: 'POST',
+          body: JSON.stringify({ name, email, passwort }),
+        });
+        alert('Registrierung erfolgreich! Bitte anmelden.');
+        showSection(loginSection);
+      } catch (err) {
+        alert('Registrierung fehlgeschlagen: ' + err.message);
+      }
+    });
+  }
+
+  if (showRegisterBtn) showRegisterBtn.addEventListener('click', () => showSection(registerSection));
+  if (showLoginBtn) showLoginBtn.addEventListener('click', () => showSection(loginSection));
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+
+  if (clockInBtn) {
+    clockInBtn.addEventListener('click', async () => {
+      try {
+        await apiFetch('/zeit/start', { method: 'POST' });
+        await updateTimeButtons();
+        alert('Eingestempelt!');
+      } catch (err) {
+        alert('Fehler beim Einstempeln: ' + err.message);
+      }
+    });
+  }
+
+  if (clockOutBtn) {
+    clockOutBtn.addEventListener('click', async () => {
+      try {
+        await apiFetch('/zeit/stop', { method: 'POST' });
+        await updateTimeButtons();
+        alert('Ausgestempelt!');
+      } catch (err) {
+        alert('Fehler beim Ausstempeln: ' + err.message);
+      }
+    });
+  }
+
+  // --- Initialisierung ---
+  async function init() {
+    try {
+      // CSRF-Token vom Server holen, falls noch nicht gesetzt
+      if (!csrfToken) {
+        const res = await fetch('/api/csrf-token', { credentials: 'include' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.csrfToken) setCsrfToken(json.csrfToken);
+        }
+      }
+
+      // Prüfen, ob schon eingeloggt (z.B. via Token im Cookie)
+      const userResponse = await apiFetch('/me');
+      if (userResponse.user) {
+        await updateUIAfterLogin(userResponse.user);
+      } else {
+        await checkAccessAtStart();
+      }
+    } catch (err) {
+      console.warn('Initialisierung fehlgeschlagen:', err);
+      await checkAccessAtStart();
+    }
+  }
+
+  init();
+});
 </script>
+
 </body>
 </html>
