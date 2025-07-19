@@ -175,6 +175,41 @@ button:disabled {
   pointer-events: none;
 }
 
+#bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  background: #f2f2f2;
+  border-top: 1px solid #ccc;
+  padding: 0.5rem 0;
+  z-index: 1000;
+}
+
+#bottom-nav button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  padding: 0.4rem;
+  color: #333;
+}
+
+#bottom-nav .main-button {
+  font-size: 2rem;
+  background: #4CAF50;
+  color: white;
+  border-radius: 50%;
+  padding: 0.6rem;
+  margin-top: -1.2rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.view {
+  margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
+}
+    
 /* Optional: Media-Query für sehr kleine Geräte */
 @media (max-width: 360px) {
   header h1 {
@@ -206,25 +241,18 @@ button:disabled {
     ⚙️
   </button>
 
-  <div id="settings-dropdown" class="hidden" role="menu" aria-label="Einstellungen Menü" style="position: absolute; top: 3.5rem; right: 0.5rem; background: var(--card-bg, #f9f9f9); padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 150px; z-index: 100;">
+  <div id="settings-dropdown" class="hidden" role="menu" aria-label="Einstellungen Menü">
     <label for="darkmode-switch" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
       <input type="checkbox" id="darkmode-switch" />
       Dark Mode
     </label>
   </div>
 </header>
-  
+
 <main role="main" aria-live="polite">
 
-  <!-- 1. QR Code Scanner -->
-  <section id="qr-section" class="card" aria-label="QR Code Scanner">
-    <h2>QR-Code scannen</h2>
-    <div id="qr-reader" style="width:100%"></div>
-    <p id="qr-message"></p>
-  </section>
-
-  <!-- 2. Login -->
-  <section id="login-section" class="card hidden" aria-label="Login Formular">
+  <!-- Login bleibt Einstiegspunkt -->
+  <section id="login-section" class="card" aria-label="Login Formular">
     <h2>Login</h2>
     <form id="login-form" novalidate>
       <label for="login-email">E-Mail</label>
@@ -243,7 +271,7 @@ button:disabled {
     <p id="login-error" class="error-message"></p>
   </section>
 
-  <!-- 3. Registrierung -->
+  <!-- Registrierung -->
   <section id="register-section" class="card hidden" aria-label="Registrierung Formular">
     <h2>Registrieren</h2>
     <form id="register-form" novalidate>
@@ -269,30 +297,73 @@ button:disabled {
     <div id="logout-message"></div>
   </section>
 
-  <!-- 4. Zeiterfassung -->
-  <section id="time-tracking-section" class="card hidden" aria-label="Zeiterfassung">
-    <h2>Willkommen, <span id="user-name">Benutzer</span></h2>
+  <!-- App-Ansicht nach Login -->
+  <div id="app-view" class="hidden">
 
-    <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
-    <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" aria-label="Hauptnavigation">
+      <button data-target="mein-tag-section" aria-label="Mein Tag">🏠</button>
+      <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">👷‍♂️</button>
+      <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">📷</button>
+      <button data-target="chat-section" aria-label="Chat">💬</button>
+      <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
+    </nav>
 
-    <p id="time-message"></p>
+    <!-- 1. Mein Tag -->
+    <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
+      <h2>Mein Tag</h2>
+      <p>Hier siehst du deinen heutigen Einsatz.</p>
+    </section>
 
-    <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
-      Ausloggen
-    </button>
-  </section>
+    <!-- 2. Arbeitsplanung -->
+    <section id="arbeitsplanung-section" class="card view hidden" aria-label="Arbeitsplanung">
+      <h2>Arbeitsplanung</h2>
+      <p>(Hier kommt später die Einsatzplanung hin)</p>
+    </section>
 
-  <!-- 5. QR-Code Generator (nur für Vorarbeiter sichtbar) -->
-<section id="qr-generator-section" class="card hidden" aria-label="QR-Code für Arbeiter generieren">
-  <h2>QR-Code für Arbeiter</h2>
-  <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
-  <div id="qr-container" style="margin-top: 1rem;"></div>
-  <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
-</section>
+    <!-- 3. Zeiterfassung (inkl. QR-Scanner) -->
+    <section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
+      <h2>Zeiterfassung</h2>
+
+      <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
+      <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+
+      <p id="time-message"></p>
+
+      <div id="qr-reader" style="margin-top: 2rem;"></div>
+      <p id="qr-message"></p>
+
+      <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
+        Ausloggen
+      </button>
+    </section>
+
+    <!-- 4. Chat -->
+    <section id="chat-section" class="card view hidden" aria-label="Chat">
+      <h2>Chat</h2>
+      <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
+    </section>
+
+    <!-- 5. Einstellungen -->
+    <section id="settings-section" class="card view hidden" aria-label="Einstellungen">
+      <h2>Einstellungen</h2>
+      <label for="darkmode-switch-main">
+        <input type="checkbox" id="darkmode-switch-main" />
+        Dark Mode
+      </label>
+    </section>
+
+    <!-- 6. QR-Code Generator (nur für Vorarbeiter sichtbar) -->
+    <section id="qr-generator-section" class="card view hidden" aria-label="QR-Code für Arbeiter generieren">
+      <h2>QR-Code für Arbeiter</h2>
+      <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
+      <div id="qr-container" style="margin-top: 1rem;"></div>
+      <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
+    </section>
+
+  </div>
 
 </main>
-
 <!-- QR-Scanner -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -398,7 +469,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+  // Navigationsleiste
+document.querySelectorAll('#bottom-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const target = btn.dataset.target;
 
+    document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
+    document.getElementById(target).classList.remove('hidden');
+  });
+});
+  
   // Zeitstatus prüfen
 (async () => {
   const token = sessionStorage.getItem('accessToken');
