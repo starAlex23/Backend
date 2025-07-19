@@ -377,55 +377,59 @@ button:disabled {
 <script type="module">
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const generateBtn = document.getElementById('generate-qr-btn');
-    const qrContainer = document.getElementById('qr-container');
-    const qrValidUntil = document.getElementById('qr-valid-until');
+ document.addEventListener('DOMContentLoaded', () => {
+  const generateBtn = document.getElementById('generate-qr-btn');
+  const qrContainer = document.getElementById('qr-container');
+  const qrValidUntil = document.getElementById('qr-valid-until');
 
-    generateBtn?.addEventListener('click', async () => {
-      try {
-        const res = await fetch('/api/qr/create', {
-          method: 'POST',
-          headers: {
-            'X-CSRF-Token': csrfToken,
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include'
-        });
+  if (!generateBtn || !qrContainer || !qrValidUntil) {
+    console.warn('⚠️ QR-Code-UI-Element(e) fehlen: Button, Container oder Gültigkeitsanzeige nicht gefunden.');
+    return;
+  }
 
-        if (!res.ok) {
-          alert('Fehler beim QR-Code-Generieren');
-          return;
-        }
+  generateBtn.addEventListener('click', async () => {
+    try {
+      const res = await fetch('/api/qr/create', {
+        method: 'POST',
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
+      });
 
-        const { qrToken, gültigBis } = await res.json();
-        const cleanToken = qrToken.trim();
-
-        console.log("▶️ QR-Inhalt:", cleanToken);
-
-        const canvas = document.createElement('canvas');
-
-        await QRCode.toCanvas(canvas, cleanToken, {
-          width: 256,
-          margin: 1,
-          color: {
-            dark: '#000000',
-            light: '#ffffff',
-          },
-          errorCorrectionLevel: 'M'
-        });
-
-        qrContainer.innerHTML = '';
-        qrContainer.appendChild(canvas);
-
-        const validUntil = new Date(gültigBis).toLocaleTimeString();
-        qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
-      } catch (err) {
-        console.error('❌ Fehler beim Erzeugen des QR-Codes:', err);
-        alert('Fehler beim Abrufen des QR-Codes.');
+      if (!res.ok) {
+        console.error('❌ QR-Code konnte nicht generiert werden – Serverfehler:', res.status);
+        alert('Fehler beim QR-Code-Generieren');
+        return;
       }
-    });
+
+      const { qrToken, gültigBis } = await res.json();
+      const cleanToken = qrToken.trim();
+      console.log('▶️ QR-Inhalt:', cleanToken);
+
+      const canvas = document.createElement('canvas');
+      await QRCode.toCanvas(canvas, cleanToken, {
+        width: 256,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+        errorCorrectionLevel: 'M'
+      });
+
+      qrContainer.innerHTML = '';
+      qrContainer.appendChild(canvas);
+
+      const validUntil = new Date(gültigBis).toLocaleTimeString();
+      qrValidUntil.textContent = `Gültig bis: ${validUntil}`;
+    } catch (err) {
+      console.error('❌ Fehler beim Erzeugen des QR-Codes:', err);
+      alert('Fehler beim Abrufen des QR-Codes.');
+    }
   });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   const settingsBtn = document.getElementById('settings-btn');
@@ -433,30 +437,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const darkmodeSwitch = document.getElementById('darkmode-switch');
 
   if (!settingsBtn || !settingsDropdown || !darkmodeSwitch) {
-    console.warn('Settings-Elemente nicht gefunden');
+    console.warn('⚠️ Darkmode/Settings-Element(e) fehlen. Prüfe IDs: settings-btn, settings-dropdown, darkmode-switch.');
     return;
   }
 
-  // Dropdown ein-/ausblenden beim Klick auf Settings-Button
+  // Dropdown ein-/ausblenden beim Klick
   settingsBtn.addEventListener('click', () => {
     settingsDropdown.classList.toggle('hidden');
   });
 
-  // Dropdown schließen, wenn außerhalb geklickt wird
+  // Schließen bei Klick außerhalb
   document.addEventListener('click', (e) => {
     if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
       settingsDropdown.classList.add('hidden');
     }
   });
 
-  // Dark Mode aus localStorage laden und Switch-Status setzen
   function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
     darkmodeSwitch.checked = theme === 'dark';
   }
 
-  // Beim Laden gespeichertes Theme oder System-Preference verwenden
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
     setTheme(savedTheme);
@@ -465,54 +467,81 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(prefersDark ? 'dark' : 'light');
   }
 
-  // Dark Mode Umschalten beim Schalter
   darkmodeSwitch.addEventListener('change', () => {
     setTheme(darkmodeSwitch.checked ? 'dark' : 'light');
   });
 });
 
-  // Navigationsleiste
-document.querySelectorAll('#bottom-nav button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const target = btn.dataset.target;
+ // Navigationsleiste
+document.addEventListener('DOMContentLoaded', () => {
+  const navButtons = document.querySelectorAll('#bottom-nav button');
+  if (!navButtons.length) {
+    console.warn('⚠️ Keine Navigations-Buttons gefunden.');
+    return;
+  }
 
-    document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
-    document.getElementById(target).classList.remove('hidden');
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      if (!target) {
+        console.warn('⚠️ Kein data-target-Attribut vorhanden.');
+        return;
+      }
+
+      document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
+
+      const section = document.getElementById(target);
+      if (!section) {
+        console.warn(`⚠️ Ziel-Section mit ID "${target}" nicht gefunden.`);
+        return;
+      }
+
+      section.classList.remove('hidden');
+    });
   });
 });
-  
-  // Zeitstatus prüfen
-(async () => {
+
+// Zeitstatus prüfen
+document.addEventListener('DOMContentLoaded', async () => {
   const token = sessionStorage.getItem('accessToken');
   if (!token) {
-    console.warn('⛔ Kein Token gefunden, Statusprüfung übersprungen.');
+    console.warn('⛔ Kein accessToken in sessionStorage – Statusprüfung übersprungen.');
     return;
   }
 
   try {
     const status = await getLetzterStatus();
+
     const clockInBtn = document.getElementById('clock-in-btn');
     const clockOutBtn = document.getElementById('clock-out-btn');
 
     if (!clockInBtn || !clockOutBtn) {
-      console.warn('⚠️ Clock-In oder Clock-Out Button nicht gefunden.');
+      console.warn('⚠️ Clock-In oder Clock-Out Button nicht im DOM gefunden.');
       return;
     }
 
-    // Status prüfen basierend auf "eingestempelt" Feld vom Backend
-    if (status?.eingestempelt === true) {
+    const eingestempelt = status?.eingestempelt;
+
+    if (eingestempelt === true) {
       clockInBtn.disabled = true;
       clockOutBtn.disabled = false;
-    } else {
+    } else if (eingestempelt === false) {
       clockInBtn.disabled = false;
       clockOutBtn.disabled = true;
+    } else {
+      console.warn('⚠️ Ungültiger Statuswert:', eingestempelt);
+      clockInBtn.disabled = false;
+      clockOutBtn.disabled = false;
     }
   } catch (err) {
-    console.error('❌ Fehler beim Abrufen des Status:', err);
+    console.error('❌ Fehler beim Abrufen des letzten Zeitstatus:', err);
   }
-})();
+});
 
+/ API-Konstanten
 const BASE = '/api';
+const API_BASE = '/api';
+const API_BASE_URL = '';
 
 // DOM-Elemente
 const loginForm = document.getElementById('login-form');
@@ -521,27 +550,30 @@ const showRegisterBtn = document.getElementById('show-register-btn');
 const showLoginBtn = document.getElementById('show-login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 
-const themeSwitcher = document.getElementById('theme-switcher');
 const userNameSpan = document.getElementById('user-name');
 const clockInBtn = document.getElementById('clock-in-btn');
 const clockOutBtn = document.getElementById('clock-out-btn');
 
-const qrSection = document.getElementById('qr-section');
+// Settings (Dropdown oben rechts)
+const themeSwitcher = document.getElementById('darkmode-switch'); // Header Switch
+const themeSwitcherMain = document.getElementById('darkmode-switch-main'); // Einstellungen-Switch
+
+// Bereiche / Views
+const qrSection = document.getElementById('qr-generator-section'); // Generator für Vorarbeiter
 const loginSection = document.getElementById('login-section');
 const registerSection = document.getElementById('register-section');
-const timeTrackingSection = document.getElementById('time-tracking-section');
+const timeTrackingSection = document.getElementById('zeiterfassung-section');
+
 const qrReaderElem = document.getElementById('qr-reader');
 const qrMessage = document.getElementById('qr-message');
+
 const loginEmail = document.getElementById('login-email');
 const loginPassword = document.getElementById('login-password');
 const loginError = document.getElementById('login-error');
-// API-Endpunkt (Render-Backend)
-const API_BASE = '/api';
 
+// Session-Zustand
 let csrfToken = localStorage.getItem('csrfToken') || '';
 let loggedInUser = null;
-
-const API_BASE_URL = '';
 
 // Hilfsfunktion: Cookie auslesen
 function getCookie(name) {
@@ -630,7 +662,6 @@ const url = path.startsWith('http') ? path : (API_BASE_URL + path);
   }
 }
   
-
   async function prüfeVorarbeiterTokenOderZeigeQR() {
   const res = await fetch('/api/verify-vorarbeiter-token', {
     credentials: 'include'
