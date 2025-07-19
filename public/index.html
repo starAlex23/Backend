@@ -313,6 +313,9 @@ button:disabled {
     <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
       <h2>Mein Tag</h2>
       <p>Hier siehst du deinen heutigen Einsatz.</p>
+            <div class="user-info">
+  Angemeldet als: <span id="user-name">…</span>
+</div>
     </section>
 
     <!-- 2. Arbeitsplanung -->
@@ -879,6 +882,15 @@ async function updateUIAfterLogin(user) {
     return;
   }
 
+  // Benutzername anzeigen, wenn möglich
+  const nameEl = document.getElementById('user-name');
+  if (nameEl) {
+    nameEl.textContent = user.name || user.email || 'Benutzer';
+  } else {
+    console.warn('⚠️ Element #user-name nicht im DOM gefunden.');
+  }
+
+  // Vorarbeiter-spezifische Ansicht
   if (user.rolle === 'vorarbeiter') {
     console.log("✅ Vorarbeiter erkannt – QR-Generator wird eingeblendet.");
     document.getElementById('qr-generator-section')?.classList.remove('hidden');
@@ -887,19 +899,18 @@ async function updateUIAfterLogin(user) {
   }
 
   loggedInUser = user;
-  userNameSpan.textContent = user.name || user.email || 'Benutzer';
 
-  // UI-Sektionen steuern
+  // UI-Sektionen anpassen
   showSection(timeTrackingSection);
   loginSection.classList.add('hidden');
   registerSection.classList.add('hidden');
   qrSection.classList.add('hidden');
 
-  // Logout sichtbar
+  // Logout-Button sichtbar machen
   logoutBtn.classList.remove('hidden');
 
-  // Einstempel-Status prüfen und Buttons setzen
-  await updateTimeButtons(); // ✅ das ist richtig
+  // Zeitbuttons (Start/Pause/Stop) aktualisieren
+  await updateTimeButtons();
 }
 
 async function updateTimeButtons() {
