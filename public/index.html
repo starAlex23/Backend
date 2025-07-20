@@ -219,75 +219,78 @@ button:disabled {
   </section>
 </div>
 
-  <!-- App-Ansicht nach Login -->
-  <div id="app-view" class="hidden">
+ <!-- App-Ansicht nach Login -->
+<div id="app-view" class="hidden">
 
-    <!-- Bottom Navigation -->
-    <nav id="bottom-nav" aria-label="Hauptnavigation">
-      <button data-target="mein-tag-section" aria-label="Mein Tag">🏠</button>
-      <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">👷‍♂️</button>
-      <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">📷</button>
-      <button data-target="chat-section" aria-label="Chat">💬</button>
-      <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
-    </nav>
+  <!-- Bottom Navigation -->
+  <nav id="bottom-nav" aria-label="Hauptnavigation">
+    <button data-target="mein-tag-section" aria-label="Mein Tag">🏠</button>
+    <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">👷‍♂️</button>
+    <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">📷</button>
+    <button data-target="chat-section" aria-label="Chat">💬</button>
+    <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
+  </nav>
 
-    <!-- 1. Mein Tag -->
-    <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
-      <h2>Mein Tag</h2>
-      <p>Hier siehst du deinen heutigen Einsatz.</p>
-            <div class="user-info">
-  Angemeldet als: <span id="user-name">…</span>
+  <!-- QR-Gate vor der Zeiterfassung -->
+  <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
+    <h2>QR-Code scannen</h2>
+    <div id="qr-reader" style="width: 100%; height: 250px;"></div>
+    <p>Bitte scanne deinen QR-Code, um zur Zeiterfassung zu gelangen.</p>
+  </section>
+
+  <!-- 1. Mein Tag -->
+  <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
+    <h2>Mein Tag</h2>
+    <p>Hier siehst du deinen heutigen Einsatz.</p>
+    <div class="user-info">
+      Angemeldet als: <span id="user-name">…</span>
+    </div>
+  </section>
+
+  <!-- 2. Arbeitsplanung -->
+  <section id="arbeitsplanung-section" class="card view hidden" aria-label="Arbeitsplanung">
+    <h2>Arbeitsplanung</h2>
+    <p>(Hier kommt später die Einsatzplanung hin)</p>
+  </section>
+
+  <!-- 3. Zeiterfassung (inkl. QR-Scanner und ggf. QR-Generator für Vorarbeiter) -->
+  <section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
+    <h2>Zeiterfassung</h2>
+
+    <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
+    <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+
+    <p id="time-message"></p>
+
+    <!-- QR-Code Generator (nur sichtbar für Vorarbeiter) -->
+    <div id="qr-generator-container" class="hidden" style="margin-top: 2rem;">
+      <h3>QR-Code für Arbeiter</h3>
+      <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
+      <div id="qr-container" style="margin-top: 1rem;"></div>
+      <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
+    </div>
+
+    <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
+      Ausloggen
+    </button>
+  </section>
+
+  <!-- 4. Chat -->
+  <section id="chat-section" class="card view hidden" aria-label="Chat">
+    <h2>Chat</h2>
+    <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
+  </section>
+
+  <!-- 5. Einstellungen -->
+  <section id="settings-section" class="card view hidden" aria-label="Einstellungen">
+    <h2>Einstellungen</h2>
+    <label for="darkmode-switch-main">
+      <input type="checkbox" id="darkmode-switch-main" />
+      Dark Mode
+    </label>
+  </section>
+
 </div>
-    </section>
-
-    <!-- 2. Arbeitsplanung -->
-    <section id="arbeitsplanung-section" class="card view hidden" aria-label="Arbeitsplanung">
-      <h2>Arbeitsplanung</h2>
-      <p>(Hier kommt später die Einsatzplanung hin)</p>
-    </section>
-
-    <!-- 3. Zeiterfassung (inkl. QR-Scanner) -->
-<!-- 3. Zeiterfassung (inkl. QR-Scanner und ggf. QR-Generator für Vorarbeiter) -->
-<section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
-  <h2>Zeiterfassung</h2>
-
-  <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
-  <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
-
-  <p id="time-message"></p>
-
-  <div id="qr-reader" style="margin-top: 2rem;"></div>
-  <p id="qr-message"></p>
-
-  <!-- QR-Code Generator (nur sichtbar für Vorarbeiter) -->
-  <div id="qr-generator-container" class="hidden" style="margin-top: 2rem;">
-    <h3>QR-Code für Arbeiter</h3>
-    <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
-    <div id="qr-container" style="margin-top: 1rem;"></div>
-    <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
-  </div>
-
-  <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
-    Ausloggen
-  </button>
-</section>
-
-    <!-- 4. Chat -->
-    <section id="chat-section" class="card view hidden" aria-label="Chat">
-      <h2>Chat</h2>
-      <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
-    </section>
-
-    <!-- 5. Einstellungen -->
-    <section id="settings-section" class="card view hidden" aria-label="Einstellungen">
-      <h2>Einstellungen</h2>
-      <label for="darkmode-switch-main">
-        <input type="checkbox" id="darkmode-switch-main" />
-        Dark Mode
-      </label>
-    </section>
-
-  </div>
 
 </main>
 <!-- QR-Scanner -->
@@ -442,7 +445,8 @@ const zeiterfassungBtn = document.querySelector('button.main-button[data-target=
 const darkModeSwitch = document.getElementById('darkmode-switch-main');
 
 // Bereiche / Views
-const qrSection = document.getElementById('qr-generator-section'); // Generator für Vorarbeiter
+const qrSection = document.getElementById('qr-section'); // QR-Scanner
+const qrGeneratorSection = document.getElementById('qr-generator-container'); // QR-Code Generator
 const loginSection = document.getElementById('login-view');
 const registerSection = document.getElementById('register-view');
 const timeTrackingSection = document.getElementById('zeiterfassung-section');
@@ -851,25 +855,35 @@ async function updateUIAfterLogin(user) {
     bottomNav.classList.remove('hidden');
   }
 
-  // QR-Generator nur für Vorarbeiter sichtbar
+  // QR-Generator nur für Vorarbeiter sichtbar machen
   const qrGen = document.getElementById('qr-generator-container');
   if (qrGen) {
-    qrGen.classList.toggle('hidden', !isVorarbeiter);
-    qrGen.setAttribute('aria-hidden', !isVorarbeiter);
+    if (isVorarbeiter) {
+      qrGen.classList.remove('hidden');
+      qrGen.setAttribute('aria-hidden', 'false');
+    } else {
+      qrGen.classList.add('hidden');
+      qrGen.setAttribute('aria-hidden', 'true');
+    }
   }
 
-  // QR-Scanner nur für normale Nutzer sichtbar
+  // QR-Scanner nur für normale Nutzer sichtbar machen
   const qrReader = document.getElementById('qr-reader');
   if (qrReader) {
-    qrReader.classList.toggle('hidden', isVorarbeiter);
-    qrReader.setAttribute('aria-hidden', isVorarbeiter);
+    if (isVorarbeiter) {
+      qrReader.classList.add('hidden');
+      qrReader.setAttribute('aria-hidden', 'true');
+    } else {
+      qrReader.classList.remove('hidden');
+      qrReader.setAttribute('aria-hidden', 'false');
+    }
   }
 
   // Buttons aktivieren/deaktivieren
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-  // Weitere Login-spezifische UI-Anpassungen ggf. hier
+  // Hier ggf. weitere UI-Anpassungen, z.B. spezielle Bereiche für Rollen
 }
 
 // === Logout Cleanup ===
