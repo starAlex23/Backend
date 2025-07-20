@@ -478,18 +478,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // === Klick auf großen Zeiterfassungsbutton ===
-  zeiterfassungBtn?.addEventListener("click", () => {
-    const isVorarbeiter = window.loggedInUser?.rolle === "vorarbeiter";
-    if (!isVorarbeiter && !qrScanErfolgt) {
-      alert("Bitte QR-Code scannen, bevor du dich einstempelst.");
-      showSection(qrSection);
-      startQrScanner();
-      return;
-    }
-    showSection(zeiterfassungSection);
-  });
-
   // === Standardansicht beim Start (Mein Tag) ===
   if (meinTagSection) {
     showSection(meinTagSection);
