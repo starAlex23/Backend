@@ -574,6 +574,7 @@ async function login(email, passwort) {
       console.log('Vorarbeiter eingeloggt, Vorarbeiter-Token wurde serverseitig gesetzt');
     }
 
+    // UI anpassen:
     await updateUIAfterLogin(res.user);
 
   } catch (err) {
@@ -764,19 +765,27 @@ async function updateUIAfterLogin(user) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
   }
 
-  // Sichtbarkeit aller Hauptbereiche korrekt setzen
-  document.getElementById('app-view')?.classList.remove('hidden');
-  loginSection.classList.add('hidden');
-  registerSection.classList.add('hidden');
-  qrSection?.classList.add('hidden');
+  // Kompletten Auth-Container (Login+Register) ausblenden
+  const authContainer = document.getElementById('auth-container');
+  if (authContainer) {
+    authContainer.classList.add('hidden');
+  }
+
+  // App-View anzeigen
+  const appView = document.getElementById('app-view');
+  if (appView) {
+    appView.classList.remove('hidden');
+  }
 
   // Zeiterfassungsansicht aktivieren
   showSection(timeTrackingSection);
 
-  // Logout sichtbar
-  logoutBtn.classList.remove('hidden');
+  // Logout sichtbar machen
+  if (logoutBtn) {
+    logoutBtn.classList.remove('hidden');
+  }
 
-  // Vorarbeiter-Sicht
+  // Vorarbeiter-Sicht steuern
   const isVorarbeiter = user.rolle === 'vorarbeiter';
 
   // QR-Scanner zeigen oder verstecken
@@ -785,19 +794,19 @@ async function updateUIAfterLogin(user) {
     qrReader.style.display = isVorarbeiter ? 'none' : 'block';
   }
 
-  // QR-Generator zeigen oder verstecken
-const qrGen = document.getElementById('qr-generator-container'); // neu!
-if (qrGen) {
-  if (isVorarbeiter) {
-    qrGen.classList.remove('hidden');
-    qrGen.setAttribute('aria-hidden', 'false');
-  } else {
-    qrGen.classList.add('hidden');
-    qrGen.setAttribute('aria-hidden', 'true');
+  // QR-Generator anzeigen/verstecken
+  const qrGen = document.getElementById('qr-generator-container');
+  if (qrGen) {
+    if (isVorarbeiter) {
+      qrGen.classList.remove('hidden');
+      qrGen.setAttribute('aria-hidden', 'false');
+    } else {
+      qrGen.classList.add('hidden');
+      qrGen.setAttribute('aria-hidden', 'true');
+    }
   }
-}
 
-  // Zeitbuttons aktivieren
+  // Buttons aktivieren
   await updateTimeButtons();
 }
 
