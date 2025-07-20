@@ -641,6 +641,67 @@ const config = {
 let scannerIsRunning = false;
 let html5QrCode = null;
 
+// QR-Scanner starten und anzeigen
+async function showQrGate() {
+  qrSection.classList.remove('hidden');
+  qrSection.setAttribute('aria-hidden', 'false');
+
+  await startQrScanner();
+}
+
+// QR-Gate ausblenden
+function hideQrGate() {
+  qrSection.classList.add('hidden');
+  qrSection.setAttribute('aria-hidden', 'true');
+
+  stopQrScanner(); // Scanner stoppen, falls aktiv
+}
+
+// Event-Listener für Navigation
+document.querySelectorAll('#bottom-nav button').forEach(btn => {
+  btn.addEventListener('click', async (ev) => {
+    const targetId = btn.getAttribute('data-target');
+    if (!targetId) return;
+
+    // Wenn Ziel Zeiterfassung ist
+    if (targetId === 'zeiterfassung-section') {
+      if (qrScanErfolgt) {
+        hideQrGate();
+        showSection(timeTrackingSection);
+      } else {
+        // QR-Gate zeigen, Zeiterfassung noch nicht
+        await showQrGate();
+      }
+    } else {
+      // Andere Section: QR-Gate verstecken, Ziel anzeigen
+      hideQrGate();
+
+      const targetSection = document.getElementById(targetId);
+      if (targetSection) {
+        showSection(targetSection);
+      }
+    }
+  });
+});
+
+// QR-Scan erfolgreich – Status setzen und QR-Gate ausblenden
+async function onQrCodeDetected(decodedText) {
+  try {
+    console.log("➡️ QR-Code erkannt:", decodedText);
+    await validateQrCode(decodedText);
+
+    console.log("✅ QR-Code gültig – Gate passiert.");
+    qrScanErfolgt = true;
+
+    hideQrGate();
+    showSection(timeTrackingSection);
+  } catch (err) {
+    console.warn("⛔ QR ungültig:", err.message);
+    alert("Ungültiger QR-Code: " + err.message);
+    await startQrScanner();
+  }
+}
+
 // Wird aufgerufen, wenn QR-Code erkannt wurde
 async function onQrCodeDetected(decodedText) {
   try {
