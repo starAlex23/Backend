@@ -435,6 +435,9 @@ const userNameSpan = document.getElementById('user-name');
 const clockInBtn = document.getElementById('clock-in-btn');
 const clockOutBtn = document.getElementById('clock-out-btn');
 
+//Navbar button
+const zeiterfassungBtn = document.querySelector('button.main-button[data-target="zeiterfassung-section"]');
+  
 // Settings (Dropdown oben rechts)
 const darkModeSwitch = document.getElementById('darkmode-switch-main');
 
@@ -644,15 +647,22 @@ async function onQrCodeDetected(decodedText) {
     console.log("➡️ QR-Code erkannt:", decodedText);
     await validateQrCode(decodedText);
 
-    console.log("✅ QR-Code gültig – Loginmaske wird angezeigt.");
-    showSection(loginSection);
+    console.log("✅ QR-Code gültig – Zeiterfassung wird geöffnet.");
+    qrScanErfolgt = true;  // Setze Status, dass QR gescannt wurde
+
+    // Verstecke QR-Scan-Bereich
     qrSection.classList.add('hidden');
+    qrSection.setAttribute('aria-hidden', 'true');
+
+    // Zeige Zeiterfassungsbereich
+    showSection(timeTrackingSection);
   } catch (err) {
     console.warn("⛔ QR ungültig:", err.message);
     alert("Ungültiger QR-Code: " + err.message);
-    await startQrScanner();
+    await startQrScanner();  // Scanner neu starten
   }
 }
+
 async function startQrScanner() {
   if (scannerIsRunning) {
     console.warn("Scanner läuft schon, Start übersprungen");
@@ -1093,6 +1103,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+let qrScanErfolgt = false; // globaler Status, ob QR gescannt wurde
+
+zeiterfassungBtn.addEventListener('click', () => {
+  const isVorarbeiter = loggedInUser?.rolle === 'vorarbeiter';
+
+  if (!isVorarbeiter && !qrScanErfolgt) {
+    alert("Bitte QR-Code scannen, bevor du dich einstempelst.");
+    showSection(qrSection);
+    startQrScanner();
+    return;
+  }
+
+  // Wenn QR-Scan erfolgt oder Vorarbeiter
+  showSection(timeTrackingSection);
+});
+        
 async function fetchUserProfile() {
   const response = await apiFetch('/api/me');
   if (!response.ok) throw new Error('Benutzerdaten konnten nicht geladen werden');
