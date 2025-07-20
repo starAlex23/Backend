@@ -444,16 +444,10 @@ const zeiterfassungBtn = document.querySelector('button.main-button[data-target=
 // Settings (Dropdown oben rechts)
 const darkModeSwitch = document.getElementById('darkmode-switch-main');
 
-// Sections & Elemente
-const navButtons = document.querySelectorAll('#bottom-nav button');
-const sections = document.querySelectorAll('.view');
-
 // Bereiche / Views
-const qrSection = document.getElementById('qr-section'); // QR-Scanner
 const qrGeneratorSection = document.getElementById('qr-generator-container'); // QR-Code Generator
 const loginSection = document.getElementById('login-view');
 const registerSection = document.getElementById('register-view');
-const timeTrackingSection = document.getElementById('zeiterfassung-section');
 
 const qrReaderElem = document.getElementById('qr-reader');
 const qrMessage = document.getElementById('qr-message');
@@ -987,11 +981,15 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 
 //QR-Zeug
- document.addEventListener("DOMContentLoaded", () => {
-  const config = {
-    fps: 10,
-    qrbox: 250,
-  };
+document.addEventListener("DOMContentLoaded", () => {
+  const config = { fps: 10, qrbox: 250 };
+
+  // DOM-Elemente
+  const qrSection = document.getElementById("qr-section");
+  const zeiterfassungSection = document.getElementById("zeiterfassung-section");
+  const sections = Array.from(document.querySelectorAll("section"));
+  const navButtons = Array.from(document.querySelectorAll("#bottom-nav button"));
+  const zeiterfassungBtn = document.getElementById("zeiterfassung-btn");
 
   // Status
   let scannerIsRunning = false;
