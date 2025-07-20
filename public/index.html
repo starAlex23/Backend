@@ -878,7 +878,6 @@ function toBase64Url(buffer) {
 }
 
 // === UI Aktualisierung nach Login ===
-// === UI Aktualisierung nach Login ===
 async function updateUIAfterLogin(user) {
   console.log("🔐 updateUIAfterLogin aufgerufen:", user);
 
@@ -891,32 +890,27 @@ async function updateUIAfterLogin(user) {
   const nameEl = document.getElementById('user-name');
   if (nameEl) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
-  } else {
-    console.warn('⚠️ Element #user-name nicht im DOM gefunden.');
   }
 
   // Vorarbeiter-spezifische Ansicht
   if (user.rolle === 'vorarbeiter') {
     console.log("✅ Vorarbeiter erkannt – QR-Generator wird eingeblendet.");
     document.getElementById('qr-generator-section')?.classList.remove('hidden');
-  } else {
-    console.log("ℹ️ Kein Vorarbeiter – QR-Generator bleibt versteckt.");
   }
 
   loggedInUser = user;
 
   // UI-Sektionen anpassen
-  showSection(timeTrackingSection);
+  document.getElementById('app-view')?.classList.remove('hidden');  // 👈 DAS HAT GEFHLT
+  showSection(timeTrackingSection); // das ist z.B. zeiterfassung-section
   loginSection.classList.add('hidden');
   registerSection.classList.add('hidden');
-  qrSection.classList.add('hidden');
+  qrSection?.classList.add('hidden');
 
   // Logout-Button sichtbar machen
   logoutBtn.classList.remove('hidden');
 
-  // ❌ Zeitstatus NICHT mehr sofort laden – wird nur noch bei Bedarf in start/pause/stop geprüft
-
-  // Zeitbuttons (Start/Pause/Stop) aktualisieren
+  // Zeitbuttons aktualisieren
   await updateTimeButtons();
 }
 
