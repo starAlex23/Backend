@@ -444,6 +444,10 @@ const zeiterfassungBtn = document.querySelector('button.main-button[data-target=
 // Settings (Dropdown oben rechts)
 const darkModeSwitch = document.getElementById('darkmode-switch-main');
 
+// Sections & Elemente
+const navButtons = document.querySelectorAll('#bottom-nav button');
+const sections = document.querySelectorAll('.view');
+
 // Bereiche / Views
 const qrSection = document.getElementById('qr-section'); // QR-Scanner
 const qrGeneratorSection = document.getElementById('qr-generator-container'); // QR-Code Generator
@@ -983,18 +987,18 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 
 //QR-Zeug
-  document.addEventListener("DOMContentLoaded", () => {
+ document.addEventListener("DOMContentLoaded", () => {
   const config = {
     fps: 10,
     qrbox: 250,
   };
 
-  // Scanner-Status & Instanz
+  // Status
   let scannerIsRunning = false;
   let html5QrCode = null;
-  let qrScanErfolgt = false; // Flag ob QR-Code schon erfolgreich gescannt wurde
+  let qrScanErfolgt = false;
 
-  // Funktion zum Anzeigen einer Sektion & Verstecken der anderen
+  // Zeigt eine Section an, versteckt alle anderen
   function showSection(section) {
     sections.forEach(sec => {
       sec.classList.add('hidden');
@@ -1006,7 +1010,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // QR-Scanner starten
+  // Scanner-Start
   async function startQrScanner() {
     if (scannerIsRunning) {
       console.log("Scanner läuft schon, Start übersprungen");
@@ -1015,7 +1019,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!html5QrCode) {
       html5QrCode = new Html5Qrcode("qr-reader");
     }
-
     try {
       scannerIsRunning = true;
       await html5QrCode.start(
@@ -1034,10 +1037,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // QR-Scanner stoppen
+  // Scanner-Stopp
   async function stopQrScanner() {
     if (!scannerIsRunning || !html5QrCode) return;
-
     try {
       await html5QrCode.stop();
       await html5QrCode.clear();
@@ -1048,7 +1050,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // QR-Gate anzeigen und Scanner starten
+  // QR-Gate anzeigen + Scanner starten
   async function showQrGate() {
     if (!qrSection) return;
     qrSection.classList.remove('hidden');
@@ -1056,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await startQrScanner();
   }
 
-  // QR-Gate ausblenden und Scanner stoppen
+  // QR-Gate verstecken + Scanner stoppen
   async function hideQrGate() {
     if (!qrSection) return;
     qrSection.classList.add('hidden');
@@ -1064,25 +1066,42 @@ document.addEventListener('DOMContentLoaded', () => {
     await stopQrScanner();
   }
 
-  // Wenn ein QR-Code erkannt und validiert wurde
+  // QR-Code wurde erkannt und validiert
   async function onQrCodeDetected(decodedText) {
     try {
       console.log("➡️ QR-Code erkannt:", decodedText);
       await validateQrCode(decodedText);
-
       console.log("✅ QR-Code gültig – Zeiterfassung wird geöffnet.");
       qrScanErfolgt = true;
-
       await hideQrGate();
       showSection(zeiterfassungSection);
     } catch (err) {
       console.warn("⛔ QR ungültig:", err.message);
       alert("Ungültiger QR-Code: " + err.message);
-      await startQrScanner(); // Scanner neu starten für erneuten Versuch
+      await startQrScanner();
     }
   }
 
-  // Navigation-Button-Handler
+  // Validierungsfunktion (API Call)
+  async function validateQrCode(qr) {
+    const csrfToken = localStorage.getItem('csrfToken');
+    const res = await fetch(`${API_BASE}/validate-qr`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
+      credentials: 'include',
+      body: JSON.stringify({ qr }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Ungültiger QR-Code');
+    }
+    return await res.json();
+  }
+
+  // Navigation Button Handler
   navButtons.forEach(btn => {
     btn.addEventListener('click', async () => {
       const targetId = btn.dataset.target;
@@ -1090,12 +1109,10 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('⚠️ Kein data-target-Attribut vorhanden.');
         return;
       }
-
       if (targetId === 'login-view' || targetId === 'qr-section') {
         console.warn('⚠️ Login/QR-Section nicht direkt über Navigation erreichbar.');
         return;
       }
-
       if (targetId === 'zeiterfassung-section') {
         if (qrScanErfolgt) {
           await hideQrGate();
@@ -1111,55 +1128,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Beispiel Validierungsfunktion, ersetze mit deinem API-Call
-  async function validateQrCode(qr) {
-    const csrfToken = localStorage.getItem('csrfToken');
-    const res = await fetch(`${API_BASE}/validate-qr`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': csrfToken
-      },
-      credentials: 'include',
-      body: JSON.stringify({ qr }),
-    });
+  // Beispiel: Klick auf Zeiterfassung-Button (Einstempeln)
+  zeiterfassungBtn?.addEventListener('click', () => {
+    // Hier musst du loggedInUser definieren oder vom Backend holen
+    const isVorarbeiter = window.loggedInUser?.rolle === 'vorarbeiter'; 
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Ungültiger QR-Code');
+    if (!isVorarbeiter && !qrScanErfolgt) {
+      alert("Bitte QR-Code scannen, bevor du dich einstempelst.");
+      showSection(qrSection);
+      startQrScanner();
+      return;
     }
 
-    return await res.json();
-  }
+    // Wenn QR-Scan erfolgt oder Vorarbeiter
+    showSection(zeiterfassungSection);
+  });
 
-  // Beim Laden Standard-Section anzeigen
+  // Standard-Section anzeigen
   const defaultSection = document.getElementById("mein-tag-section");
   if (defaultSection) {
     showSection(defaultSection);
   }
 });
 
-zeiterfassungBtn.addEventListener('click', () => {
-  const isVorarbeiter = loggedInUser?.rolle === 'vorarbeiter';
-
-  if (!isVorarbeiter && !qrScanErfolgt) {
-    alert("Bitte QR-Code scannen, bevor du dich einstempelst.");
-    showSection(qrSection);
-    startQrScanner();
-    return;
-  }
-
-  // Wenn QR-Scan erfolgt oder Vorarbeiter
-  showSection(timeTrackingSection);
-});
-        
-async function fetchUserProfile() {
-  const response = await apiFetch('/api/me');
-  if (!response.ok) throw new Error('Benutzerdaten konnten nicht geladen werden');
-  const user = await response.json();
-  return user;
-}
-  
 </script>
 
 </body>
