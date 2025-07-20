@@ -753,26 +753,34 @@ async function updateUIAfterLogin(user) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
   }
 
-  // Vorarbeiter-spezifische Ansicht
-  if (user.rolle === 'vorarbeiter') {
-    console.log("✅ Vorarbeiter erkannt – QR-Generator wird eingeblendet.");
-    document.getElementById('qr-generator-section')?.classList.remove('hidden');
-  }
-
   loggedInUser = user;
 
-  // Haupt-App-Oberfläche anzeigen
+  // Standardansicht aktivieren
   document.getElementById('app-view')?.classList.remove('hidden');
-  document.getElementById('bottom-nav')?.classList.remove('hidden'); // 👈 ergänzt
-
-  // UI-Sektionen anpassen
-  showSection(timeTrackingSection);
   loginSection.classList.add('hidden');
   registerSection.classList.add('hidden');
   qrSection?.classList.add('hidden');
 
+  // Zeiterfassungsansicht einblenden
+  showSection(timeTrackingSection);
+
   // Logout-Button sichtbar machen
   logoutBtn.classList.remove('hidden');
+
+  // 🧠 Vorarbeiter erkennen
+  const isVorarbeiter = user.rolle === 'vorarbeiter';
+
+  // QR-Scanner für Vorarbeiter ausblenden
+  const qrReader = document.getElementById('qr-reader');
+  if (qrReader) {
+    qrReader.style.display = isVorarbeiter ? 'none' : 'block';
+  }
+
+  // QR-Generator nur für Vorarbeiter sichtbar
+  const qrGeneratorSection = document.getElementById('qr-generator-section');
+  if (qrGeneratorSection) {
+    qrGeneratorSection.classList.toggle('hidden', !isVorarbeiter);
+  }
 
   // Zeitbuttons aktualisieren
   await updateTimeButtons();
