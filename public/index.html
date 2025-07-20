@@ -828,62 +828,62 @@ async function updateTimeButtons() {
 function handleLogoutCleanup() {
   loggedInUser = null;
 
-  // Formular-Felder leeren
-  loginForm['email'].value = '';
-  loginForm['password'].value = '';  // Achtung: 'password', nicht 'passwort'
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    if (loginForm['email']) loginForm['email'].value = '';
+    if (loginForm['passwort']) loginForm['passwort'].value = '';
+  }
 
-  // Tokens löschen
+  // Tokens aus Speicher löschen
   sessionStorage.removeItem('accessToken');
   localStorage.removeItem('csrfToken');
   document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None';
 
-  // Alle App-Views ausblenden
-  const appView = document.getElementById('app-view');
-  if (appView) {
-    appView.classList.add('hidden');
-  }
-  const bottomNav = document.getElementById('bottom-nav');
-  if (bottomNav) {
-    bottomNav.classList.add('hidden');
-  }
+  // Alle Haupt-Sections ausblenden, außer Login-View
+  [
+    document.getElementById('qr-section'),
+    document.getElementById('register-view'),
+    document.getElementById('time-tracking-section'),
+    document.getElementById('mein-tag-section'),
+    document.getElementById('arbeitsplanung-section'),
+    document.getElementById('zeiterfassung-section'),
+    document.getElementById('chat-section'),
+    document.getElementById('settings-section'),
+    document.getElementById('qr-generator-section')
+  ].filter(Boolean).forEach(sec => {
+    if (sec.id !== 'login-view') {
+      sec.classList.add('hidden');
+      sec.setAttribute('aria-hidden', 'true');
+    }
+  });
 
-  // Auth-Container zeigen (Login + Register)
-  const authContainer = document.getElementById('auth-container');
-  if (authContainer) {
-    authContainer.classList.remove('hidden');
-  }
-
-  // Login-Section anzeigen, Register verstecken
-  const loginSection = document.getElementById('login-view');
-  const registerSection = document.getElementById('register-view');
-  if (loginSection && registerSection) {
-    loginSection.classList.remove('hidden');
-    registerSection.classList.add('hidden');
+  // Login-View anzeigen
+  const loginView = document.getElementById('login-view');
+  if (loginView) {
+    loginView.classList.remove('hidden');
+    loginView.setAttribute('aria-hidden', 'false');
   }
 
   // Benutzername leeren
   const userNameSpan = document.getElementById('user-name');
-  if (userNameSpan) {
-    userNameSpan.textContent = '';
-  }
+  if (userNameSpan) userNameSpan.textContent = '';
 
-  // Logout-Button verstecken
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.classList.add('hidden');
-  }
+  // Buttons zurücksetzen, falls definiert
+  if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
+  if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-  // Zeitbuttons zurücksetzen
-  const clockInBtn = document.getElementById('clock-in-btn');
-  const clockOutBtn = document.getElementById('clock-out-btn');
-  if (clockInBtn) clockInBtn.disabled = false;
-  if (clockOutBtn) clockOutBtn.disabled = true;
-
-  // QR-Code Generator verstecken
-  const qrGen = document.getElementById('qr-generator-container');
+  // QR-Code-Generator verstecken
+  const qrGen = document.getElementById('qr-generator-section');
   if (qrGen) qrGen.classList.add('hidden');
 
-  // QR-Scanner evtl. neu starten
+  // Bottom-Navigation ausblenden
+  const bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) bottomNav.classList.add('hidden');
+
+  // Logout-Button verstecken
+  if (typeof logoutBtn !== 'undefined') logoutBtn.classList.add('hidden');
+
+  // QR-Scanner ggf. neu starten
   if (typeof initQRScanner === 'function') {
     initQRScanner();
   }
