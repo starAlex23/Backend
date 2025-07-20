@@ -816,17 +816,32 @@ function handleLogoutCleanup() {
 
   // Tokens aus Speicher löschen
   sessionStorage.removeItem('accessToken');
-  localStorage.removeItem('csrfToken'); // ⬅️ wichtig!
-  document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None'; // ⬅️ aus Cookie löschen, falls vorhanden
+  localStorage.removeItem('csrfToken');
+  document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None';
 
   // UI zurücksetzen
   showSection(qrSection);
-  logoutBtn.classList.add('hidden');
- 
+
+  // Name zurücksetzen
   userNameSpan.textContent = '';
-  //QR generator verstecken
+
+  // Buttons deaktivieren/aktivieren
+  clockInBtn.disabled = false;
+  clockOutBtn.disabled = true;
+
+  // QR-Code-Generator verstecken
   document.getElementById('qr-generator-section')?.classList.add('hidden');
 
+  // Bottom-Navigation verstecken
+  document.getElementById('bottom-nav')?.classList.add('hidden');
+
+  // Logout-Button verstecken
+  logoutBtn.classList.add('hidden');
+
+  // Scanner ggf. neu starten
+  if (typeof initQRScanner === 'function') {
+    initQRScanner();
+  }
 }
 
 // === Logout ===
