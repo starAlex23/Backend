@@ -957,6 +957,7 @@ logoutBtn.addEventListener('click', async () => {
     await apiFetch('/api/logout', { method: 'POST' });
 
     handleLogoutCleanup();
+    showSection(loginSection); // ← Zur Login-Ansicht zurückkehren
     alert('Logout erfolgreich!');
   } catch (err) {
     console.error(err);
