@@ -139,39 +139,6 @@ button:disabled {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
 }
 
-/* Sichtbarkeit */
-.hidden {
-  display: none !important;
-}
-
-/* Umfasst Login & Registrierung */
-#auth-container {
-  max-width: 420px;
-  margin: 5rem auto 2rem;
-  padding: 1rem;
-}
-
-/* Karte für Login & Registrierung */
-.card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow: 0 0 10px rgba(0,0,0,0.1);
-  padding: 2rem;
-  margin-bottom: 2rem;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-/* Buttons zum Umschalten (Login/Register) */
-.link-btn {
-  background: none;
-  border: none;
-  color: #007bff;
-  text-decoration: underline;
-  cursor: pointer;
-  margin-top: 1rem;
-}
-
 /* Optional: Media-Query für sehr kleine Geräte */
 @media (max-width: 360px) {
   header h1 {
@@ -202,30 +169,34 @@ button:disabled {
 
 <main role="main" aria-live="polite">
 
-<!-- === AUTH-BEREICH: Login & Registrierung === -->
+<!-- Auth-Hülle -->
 <div id="auth-container">
-  <section id="login-section" class="card view">
+  <!-- Login-Ansicht -->
+  <section id="login-view" class="view">
     <h2>Login</h2>
     <form id="login-form">
-      <input type="email" name="email" placeholder="E-Mail" required />
-      <input type="password" name="password" placeholder="Passwort" required />
+      <input name="email" type="email" required />
+      <input name="password" type="password" required />
       <button type="submit">Einloggen</button>
     </form>
-    <button id="show-register-btn" class="link-btn">Noch kein Konto?</button>
+    <button id="show-register-btn">Noch kein Konto?</button>
   </section>
 
-  <section id="register-section" class="card view hidden">
+  <!-- Registrierung -->
+  <section id="register-view" class="view hidden">
     <h2>Registrieren</h2>
     <form id="register-form">
-      <input type="text" name="firstname" placeholder="Vorname" required />
-      <input type="text" name="lastname" placeholder="Nachname" required />
-      <input type="email" name="email" placeholder="E-Mail" required />
-      <input type="password" name="password" placeholder="Passwort" required />
+      <input name="firstname" placeholder="Vorname" required />
+      <input name="lastname" placeholder="Nachname" required />
+      <input name="email" placeholder="E-Mail" type="email" required />
+      <input name="password" placeholder="Passwort" type="password" required />
       <button type="submit">Registrieren</button>
     </form>
-    <button id="show-login-btn" class="link-btn">Zurück zum Login</button>
+    <button id="show-login-btn">Zurück zum Login</button>
   </section>
 </div>
+
+
   
   <!-- App-Ansicht nach Login -->
   <div id="app-view" class="hidden">
