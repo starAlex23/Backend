@@ -864,6 +864,13 @@ function handleLogoutCleanup() {
     loginView.setAttribute('aria-hidden', 'false');
   }
 
+  // WICHTIG: auth-container sichtbar machen
+  const authContainer = document.getElementById('auth-container');
+  if (authContainer) {
+    authContainer.classList.remove('hidden');
+    authContainer.setAttribute('aria-hidden', 'false');
+  }
+
   // Benutzername leeren
   const userNameSpan = document.getElementById('user-name');
   if (userNameSpan) userNameSpan.textContent = '';
