@@ -478,12 +478,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // === Standardansicht beim Start (Mein Tag) ===
-  if (meinTagSection) {
-    showSection(meinTagSection);
-  }
-});
-
  document.addEventListener('DOMContentLoaded', () => {
   const generateBtn = document.getElementById('generate-qr-btn');
   const qrContainer = document.getElementById('qr-container');
@@ -894,7 +888,7 @@ async function updateUIAfterLogin(user) {
   }
 
   // Zeiterfassungsansicht aktivieren
-showSection('zeiterfassung-section');
+showSection('qr-section');
 
   // Logout sichtbar machen
   if (logoutBtn) {
