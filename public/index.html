@@ -819,9 +819,9 @@ function handleLogoutCleanup() {
   localStorage.removeItem('csrfToken');
   document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None';
 
-  // Alle anderen Haupt-Sections verstecken, außer qrSection
+  // Alle Haupt-Sections ausblenden, außer Login-Section
   [
-    loginSection,
+    qrSection,
     registerSection,
     timeTrackingSection,
     document.getElementById('mein-tag-section'),
@@ -831,26 +831,26 @@ function handleLogoutCleanup() {
     document.getElementById('settings-section'),
     document.getElementById('qr-generator-section')
   ].filter(Boolean).forEach(sec => {
-    if (sec !== qrSection) {
+    if (sec !== loginSection) {
       sec.classList.add('hidden');
       sec.setAttribute('aria-hidden', 'true');
     }
   });
 
-  // QR-Section anzeigen
-  showSection(qrSection);
+  // Login-Section anzeigen
+  showSection(loginSection);
 
-  // Name zurücksetzen
+  // Benutzername leeren
   userNameSpan.textContent = '';
 
-  // Buttons deaktivieren/aktivieren
+  // Buttons zurücksetzen
   clockInBtn.disabled = false;
   clockOutBtn.disabled = true;
 
   // QR-Code-Generator verstecken
   document.getElementById('qr-generator-section')?.classList.add('hidden');
 
-  // Bottom-Navigation verstecken
+  // Bottom-Navigation ausblenden
   document.getElementById('bottom-nav')?.classList.add('hidden');
 
   // Logout-Button verstecken
