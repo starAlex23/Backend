@@ -758,6 +758,7 @@ async function updateUIAfterLogin(user) {
   }
 
   loggedInUser = user;
+  const isVorarbeiter = user.rolle === 'vorarbeiter';
 
   // Benutzername anzeigen
   const nameEl = document.getElementById('user-name');
@@ -793,30 +794,25 @@ async function updateUIAfterLogin(user) {
     bottomNav.classList.remove('hidden');
   }
 
-  // QR-Generator anzeigen/verstecken
+  // QR-Generator nur für Vorarbeiter sichtbar
   const qrGen = document.getElementById('qr-generator-container');
-  const isVorarbeiter = user.rolle === 'vorarbeiter';
   if (qrGen) {
-    if (isVorarbeiter) {
-      qrGen.classList.remove('hidden');
-      qrGen.setAttribute('aria-hidden', 'false');
-    } else {
-      qrGen.classList.add('hidden');
-      qrGen.setAttribute('aria-hidden', 'true');
-    }
+    qrGen.classList.toggle('hidden', !isVorarbeiter);
+    qrGen.setAttribute('aria-hidden', !isVorarbeiter);
   }
 
-  // QR-Scanner zeigen oder verstecken
+  // QR-Scanner nur für normale Nutzer sichtbar
   const qrReader = document.getElementById('qr-reader');
   if (qrReader) {
-    qrReader.style.display = isVorarbeiter ? 'none' : 'block';
+    qrReader.classList.toggle('hidden', isVorarbeiter);
+    qrReader.setAttribute('aria-hidden', isVorarbeiter);
   }
 
-  // Falls du noch Buttons hast, die aktiviert/deaktiviert werden müssen, hier anpassen
+  // Buttons aktivieren/deaktivieren
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-  // Falls noch andere UI-Elemente beim Login sichtbar werden müssen, hier hinzufügen
+  // Weitere Login-spezifische UI-Anpassungen ggf. hier
 }
 
 // === Logout Cleanup ===
