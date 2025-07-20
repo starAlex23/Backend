@@ -629,19 +629,18 @@ function showSection(section) {
     return;
   }
 
-  // Alle Sektionen mit Klasse .view ausblenden
-  document.querySelectorAll('.view').forEach(s => {
-    s.classList.add('hidden');
-    s.setAttribute('aria-hidden', 'true');
-  });
+  // Alle ".view"-Sektionen im #app-view ausblenden
+  const appView = document.getElementById('app-view');
+  if (appView) {
+    appView.querySelectorAll('.view').forEach(s => {
+      s.classList.add('hidden');
+      s.setAttribute('aria-hidden', 'true');
+    });
+  }
 
   // Gewünschte Section anzeigen
   section.classList.remove('hidden');
   section.setAttribute('aria-hidden', 'false');
-
-  // Falls gewünscht, kannst du hier weitere Logik ergänzen,
-  // z.B. Scrollposition zurücksetzen:
-  // window.scrollTo(0,0);
 }
 
 // === QR Scanner ===
