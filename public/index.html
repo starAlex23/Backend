@@ -1102,18 +1102,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Navigation Button Handler
-  navButtons.forEach(btn => {
-    btn.addEventListener('click', async () => {
+ navButtons.forEach(btn => {
+    btn.addEventListener("click", async () => {
       const targetId = btn.dataset.target;
-      if (!targetId) {
-        console.warn('⚠️ Kein data-target-Attribut vorhanden.');
-        return;
-      }
-      if (targetId === 'login-view' || targetId === 'qr-section') {
-        console.warn('⚠️ Login/QR-Section nicht direkt über Navigation erreichbar.');
-        return;
-      }
-      if (targetId === 'zeiterfassung-section') {
+      if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
+
+      if (targetId === "zeiterfassung-section") {
         if (qrScanErfolgt) {
           await hideQrGate();
           showSection(zeiterfassungSection);
@@ -1128,22 +1122,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Beispiel: Klick auf Zeiterfassung-Button (Einstempeln)
-  zeiterfassungBtn?.addEventListener('click', () => {
-    // Hier musst du loggedInUser definieren oder vom Backend holen
-    const isVorarbeiter = window.loggedInUser?.rolle === 'vorarbeiter'; 
-
+  // === Klick auf Zeiterfassungs-Button (Einstempeln) ===
+  zeiterfassungBtn?.addEventListener("click", () => {
+    const isVorarbeiter = window.loggedInUser?.rolle === "vorarbeiter";
     if (!isVorarbeiter && !qrScanErfolgt) {
       alert("Bitte QR-Code scannen, bevor du dich einstempelst.");
       showSection(qrSection);
       startQrScanner();
       return;
     }
-
-    // Wenn QR-Scan erfolgt oder Vorarbeiter
     showSection(zeiterfassungSection);
   });
-
+});
+   
   // Standard-Section anzeigen
   const defaultSection = document.getElementById("mein-tag-section");
   if (defaultSection) {
