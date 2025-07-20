@@ -878,6 +878,7 @@ function toBase64Url(buffer) {
 }
 
 // === UI Aktualisierung nach Login ===
+// === UI Aktualisierung nach Login ===
 async function updateUIAfterLogin(user) {
   console.log("🔐 updateUIAfterLogin aufgerufen:", user);
 
@@ -913,19 +914,7 @@ async function updateUIAfterLogin(user) {
   // Logout-Button sichtbar machen
   logoutBtn.classList.remove('hidden');
 
-  // Letzten Zeitstatus abrufen und UI entsprechend anpassen
-  try {
-    const status = await getLetzterStatus();
-
-    if (status) {
-      console.log('Letzter Zeitstatus:', status);
-      updateZeitUI(status); // Diese Funktion musst du definieren, siehe unten
-    } else {
-      console.warn('⚠️ Kein Zeitstatus zurückgegeben.');
-    }
-  } catch (err) {
-    console.error('❌ Fehler beim Laden des letzten Status:', err);
-  }
+  // ❌ Zeitstatus NICHT mehr sofort laden – wird nur noch bei Bedarf in start/pause/stop geprüft
 
   // Zeitbuttons (Start/Pause/Stop) aktualisieren
   await updateTimeButtons();
