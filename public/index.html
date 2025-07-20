@@ -313,12 +313,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatSection = document.getElementById("chat-section");
   const settingsSection = document.getElementById("settings-section");
 
-  // Buttons in der Bottom Navigation
-  const navButtons = Array.from(document.querySelectorAll("#bottom-nav button"));
-
-  // Großer Zeiterfassungsbutton (Camera-Icon)
-  const zeiterfassungBtn = document.querySelector('button.main-button[data-target="zeiterfassung-section"]');
-
   // Alle Sections als Array (für showSection)
   const sections = [
     meinTagSection,
@@ -614,7 +608,6 @@ const clockOutBtn = document.getElementById('clock-out-btn');
 
 const qrSection = document.getElementById('qr-section');
 
-const sections = Array.from(document.querySelectorAll('section'));
 const navButtons = Array.from(document.querySelectorAll('#bottom-nav button'));
 
 // Navbar Button (großer Zeiterfassungsbutton)
