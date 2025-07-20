@@ -604,7 +604,10 @@ async function updateProfile() {
   
 // === Sections anzeigen ===
 function showSection(section) {
-  [qrSection, loginSection, registerSection, timeTrackingSection].forEach(s => {
+  // Nur die Haupt-Views verstecken – qr-generator-section NICHT!
+  const viewsToHide = [qrSection, loginSection, registerSection, timeTrackingSection];
+
+  viewsToHide.forEach(s => {
     if (!s) return console.warn("⚠️ showSection: DOM-Element nicht gefunden");
     s.classList.add('hidden');
     s.setAttribute('aria-hidden', 'true');
@@ -747,42 +750,48 @@ async function updateUIAfterLogin(user) {
     return;
   }
 
+  loggedInUser = user;
+
   // Benutzername anzeigen
   const nameEl = document.getElementById('user-name');
   if (nameEl) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
   }
 
-  loggedInUser = user;
-
-  // Standardansicht aktivieren
+  // Sichtbarkeit aller Hauptbereiche korrekt setzen
   document.getElementById('app-view')?.classList.remove('hidden');
   loginSection.classList.add('hidden');
   registerSection.classList.add('hidden');
   qrSection?.classList.add('hidden');
 
-  // Zeiterfassungsansicht einblenden
+  // Zeiterfassungsansicht aktivieren
   showSection(timeTrackingSection);
 
-  // Logout-Button sichtbar machen
+  // Logout sichtbar
   logoutBtn.classList.remove('hidden');
 
-  // 🧠 Vorarbeiter erkennen
+  // Vorarbeiter-Sicht
   const isVorarbeiter = user.rolle === 'vorarbeiter';
 
-  // QR-Scanner für Vorarbeiter ausblenden
+  // QR-Scanner zeigen oder verstecken
   const qrReader = document.getElementById('qr-reader');
   if (qrReader) {
     qrReader.style.display = isVorarbeiter ? 'none' : 'block';
   }
 
-  // QR-Generator nur für Vorarbeiter sichtbar
-  const qrGeneratorSection = document.getElementById('qr-generator-section');
-  if (qrGeneratorSection) {
-    qrGeneratorSection.classList.toggle('hidden', !isVorarbeiter);
+  // QR-Generator zeigen oder verstecken
+ const qrGen = document.getElementById('qr-generator-section');
+if (qrGen) {
+  if (isVorarbeiter) {
+    qrGen.classList.remove('hidden');
+    qrGen.setAttribute('aria-hidden', 'false');
+  } else {
+    qrGen.classList.add('hidden');
+    qrGen.setAttribute('aria-hidden', 'true');
   }
+}
 
-  // Zeitbuttons aktualisieren
+  // Zeitbuttons aktivieren
   await updateTimeButtons();
 }
 
