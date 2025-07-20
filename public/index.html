@@ -819,7 +819,25 @@ function handleLogoutCleanup() {
   localStorage.removeItem('csrfToken');
   document.cookie = 'csrfToken=; Max-Age=0; path=/; secure; SameSite=None';
 
-  // UI zurücksetzen
+  // Alle anderen Haupt-Sections verstecken, außer qrSection
+  [
+    loginSection,
+    registerSection,
+    timeTrackingSection,
+    document.getElementById('mein-tag-section'),
+    document.getElementById('arbeitsplanung-section'),
+    document.getElementById('zeiterfassung-section'),
+    document.getElementById('chat-section'),
+    document.getElementById('settings-section'),
+    document.getElementById('qr-generator-section')
+  ].filter(Boolean).forEach(sec => {
+    if (sec !== qrSection) {
+      sec.classList.add('hidden');
+      sec.setAttribute('aria-hidden', 'true');
+    }
+  });
+
+  // QR-Section anzeigen
   showSection(qrSection);
 
   // Name zurücksetzen
