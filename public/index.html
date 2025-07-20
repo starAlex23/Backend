@@ -605,16 +605,18 @@ async function updateProfile() {
   
 // === Sections anzeigen ===
 function showSection(section) {
-  document.querySelectorAll('.main-section').forEach(s => {
+  // Verstecke alle View-Abschnitte
+  document.querySelectorAll('.view, .main-section').forEach(s => {
     s.classList.add('hidden');
     s.setAttribute('aria-hidden', 'true');
   });
 
   if (!section) {
-    console.error("❌ showSection: Übergaben-Section ist null!");
+    console.error("❌ showSection: Übergabe-Section ist null oder undefiniert!");
     return;
   }
 
+  // Zeige nur die gewünschte Section
   section.classList.remove('hidden');
   section.setAttribute('aria-hidden', 'false');
 }
