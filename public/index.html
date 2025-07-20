@@ -626,6 +626,15 @@ function showSection(section) {
     return;
   }
 
+  // Falls String übergeben wurde → DOM-Element holen
+  if (typeof section === 'string') {
+    section = document.getElementById(section);
+    if (!section) {
+      console.error("❌ showSection: Kein Element gefunden mit ID:", section);
+      return;
+    }
+  }
+
   // Alle ".view"-Sektionen im #app-view ausblenden
   const appView = document.getElementById('app-view');
   if (appView) {
