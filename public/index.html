@@ -605,18 +605,21 @@ async function updateProfile() {
   
 // === Sections anzeigen ===
 function showSection(section) {
-  // Verstecke alle View-Abschnitte
-  document.querySelectorAll('.view, .main-section').forEach(s => {
-    s.classList.add('hidden');
-    s.setAttribute('aria-hidden', 'true');
-  });
-
   if (!section) {
     console.error("❌ showSection: Übergabe-Section ist null oder undefiniert!");
     return;
   }
 
-  // Zeige nur die gewünschte Section
+  // Alle "App-Views" verstecken, also alle Sektionen innerhalb #app-view mit Klasse view
+  const appView = document.getElementById('app-view');
+  if (appView) {
+    appView.querySelectorAll('.view').forEach(s => {
+      s.classList.add('hidden');
+      s.setAttribute('aria-hidden', 'true');
+    });
+  }
+
+  // Zeige die gewünschte Section (egal ob Login/Register oder App-View)
   section.classList.remove('hidden');
   section.setAttribute('aria-hidden', 'false');
 }
