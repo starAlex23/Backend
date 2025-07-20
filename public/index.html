@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zeiterfassung</title>
   <style>
-   body {
+  body {
   font-family: 'Inter', sans-serif;
   margin: 0; padding: 0;
   background: var(--bg, #fff);
@@ -104,77 +104,6 @@ button:disabled {
   padding: 0.4rem;
 }
 
-#theme-switcher {
-  display: none; /* Standard unsichtbar */
-  cursor: pointer;
-  font-size: 1.5rem;
-  user-select: none;
-  padding: 0 0.2rem;
-}
-
-#theme-switcher.visible {
-  display: inline-block; /* sichtbar */
-}
-
-#settings-btn,
-#theme-switcher {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
-  background: #4caf50;
-  color: white;
-  border: none;
-}
-
-#settings-btn:hover,
-#theme-switcher:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  cursor: pointer;
-}
-
-#settings-dropdown {
-  user-select: none;
-  color: var(--fg, #000);
-  background: var(--card-bg, #f9f9f9);
-  position: absolute;
-  top: 3.5rem;
-  right: 0.5rem;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  width: 150px;
-  z-index: 100;
-}
-
-#popup-message {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: var(--color-bg-popup, #222);
-  color: var(--color-text-popup, #eee);
-  padding: 1.5rem 2rem;
-  border-radius: 10px;
-  box-shadow: 0 0 15px rgba(0,0,0,0.7);
-  font-size: 1.2rem;
-  z-index: 10000;
-  opacity: 0.95;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-  max-width: 90%;
-  text-align: center;
-}
-
-#popup-message.hidden {
-  display: none;
-  opacity: 0;
-  pointer-events: none;
-}
-
 #bottom-nav {
   position: fixed;
   bottom: 0;
@@ -209,7 +138,7 @@ button:disabled {
 .view {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
 }
-    
+
 /* Optional: Media-Query für sehr kleine Geräte */
 @media (max-width: 360px) {
   header h1 {
@@ -229,24 +158,13 @@ button:disabled {
     font-size: 0.95rem;
   }
 }
+
   </style>
 </head>
 </body>
 
 <header role="banner" style="position: relative;">
   <h1 style="flex-grow:1;">Zeiterfassung</h1>
-
-  <button id="settings-btn" aria-label="Einstellungen" title="Einstellungen"
-          style="background:none; border:none; cursor:pointer; font-size:1.5rem; padding:0; margin:0 0.5rem; line-height:1;">
-    ⚙️
-  </button>
-
-  <div id="settings-dropdown" class="hidden" role="menu" aria-label="Einstellungen Menü">
-    <label for="darkmode-switch" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-      <input type="checkbox" id="darkmode-switch" />
-      Dark Mode
-    </label>
-  </div>
 </header>
 
 <main role="main" aria-live="polite">
@@ -432,26 +350,11 @@ button:disabled {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  const settingsBtn = document.getElementById('settings-btn');
-  const settingsDropdown = document.getElementById('settings-dropdown');
-  const darkmodeSwitch = document.getElementById('darkmode-switch');
-
-  if (!settingsBtn || !settingsDropdown || !darkmodeSwitch) {
-    console.warn('⚠️ Darkmode/Settings-Element(e) fehlen. Prüfe IDs: settings-btn, settings-dropdown, darkmode-switch.');
+  const darkmodeSwitch = document.getElementById('darkmode-switch-main');
+  if (!darkmodeSwitch) {
+    console.warn('⚠️ Darkmode-Switch #darkmode-switch-main nicht gefunden.');
     return;
   }
-
-  // Dropdown ein-/ausblenden beim Klick
-  settingsBtn.addEventListener('click', () => {
-    settingsDropdown.classList.toggle('hidden');
-  });
-
-  // Schließen bei Klick außerhalb
-  document.addEventListener('click', (e) => {
-    if (!settingsDropdown.contains(e.target) && e.target !== settingsBtn) {
-      settingsDropdown.classList.add('hidden');
-    }
-  });
 
   function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
@@ -459,6 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
     darkmodeSwitch.checked = theme === 'dark';
   }
 
+  // Gespeicherten Wert oder Systemvoreinstellung laden
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) {
     setTheme(savedTheme);
@@ -467,6 +371,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTheme(prefersDark ? 'dark' : 'light');
   }
 
+  // Umschalten
   darkmodeSwitch.addEventListener('change', () => {
     setTheme(darkmodeSwitch.checked ? 'dark' : 'light');
   });
@@ -526,8 +431,7 @@ const clockInBtn = document.getElementById('clock-in-btn');
 const clockOutBtn = document.getElementById('clock-out-btn');
 
 // Settings (Dropdown oben rechts)
-const themeSwitcher = document.getElementById('darkmode-switch'); // Header Switch
-const themeSwitcherMain = document.getElementById('darkmode-switch-main'); // Einstellungen-Switch
+const darkModeSwitch = document.getElementById('darkmode-switch-main');
 
 // Bereiche / Views
 const qrSection = document.getElementById('qr-generator-section'); // Generator für Vorarbeiter
@@ -900,9 +804,12 @@ async function updateUIAfterLogin(user) {
 
   loggedInUser = user;
 
+  // Haupt-App-Oberfläche anzeigen
+  document.getElementById('app-view')?.classList.remove('hidden');
+  document.getElementById('bottom-nav')?.classList.remove('hidden'); // 👈 ergänzt
+
   // UI-Sektionen anpassen
-  document.getElementById('app-view')?.classList.remove('hidden');  // 👈 DAS HAT GEFHLT
-  showSection(timeTrackingSection); // das ist z.B. zeiterfassung-section
+  showSection(timeTrackingSection);
   loginSection.classList.add('hidden');
   registerSection.classList.add('hidden');
   qrSection?.classList.add('hidden');
