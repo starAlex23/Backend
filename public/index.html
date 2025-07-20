@@ -640,41 +640,49 @@ const config = {
 
 let scannerIsRunning = false;
 let html5QrCode = null;
+let qrScanErfolgt = false; // Status-Flag, ob QR-Scan bereits erfolgreich war
 
-// QR-Scanner starten und anzeigen
+// QR-Scanner starten und QR-Gate anzeigen
 async function showQrGate() {
+  const qrSection = document.getElementById('qr-section');
+  if (!qrSection) {
+    console.error("QR-Section nicht gefunden!");
+    return;
+  }
   qrSection.classList.remove('hidden');
   qrSection.setAttribute('aria-hidden', 'false');
 
   await startQrScanner();
 }
 
-// QR-Gate ausblenden
-function hideQrGate() {
+// QR-Gate ausblenden und Scanner stoppen
+async function hideQrGate() {
+  const qrSection = document.getElementById('qr-section');
+  if (!qrSection) {
+    console.error("QR-Section nicht gefunden!");
+    return;
+  }
   qrSection.classList.add('hidden');
   qrSection.setAttribute('aria-hidden', 'true');
 
-  stopQrScanner(); // Scanner stoppen, falls aktiv
+  await stopQrScanner();
 }
 
-// Event-Listener für Navigation
+// Event-Listener für Bottom-Nav-Buttons
 document.querySelectorAll('#bottom-nav button').forEach(btn => {
-  btn.addEventListener('click', async (ev) => {
+  btn.addEventListener('click', async () => {
     const targetId = btn.getAttribute('data-target');
     if (!targetId) return;
 
-    // Wenn Ziel Zeiterfassung ist
     if (targetId === 'zeiterfassung-section') {
       if (qrScanErfolgt) {
-        hideQrGate();
-        showSection(timeTrackingSection);
+        await hideQrGate();
+        showSection(document.getElementById('zeiterfassung-section'));
       } else {
-        // QR-Gate zeigen, Zeiterfassung noch nicht
         await showQrGate();
       }
     } else {
-      // Andere Section: QR-Gate verstecken, Ziel anzeigen
-      hideQrGate();
+      await hideQrGate();
 
       const targetSection = document.getElementById(targetId);
       if (targetSection) {
@@ -684,43 +692,21 @@ document.querySelectorAll('#bottom-nav button').forEach(btn => {
   });
 });
 
-// QR-Scan erfolgreich – Status setzen und QR-Gate ausblenden
-async function onQrCodeDetected(decodedText) {
-  try {
-    console.log("➡️ QR-Code erkannt:", decodedText);
-    await validateQrCode(decodedText);
-
-    console.log("✅ QR-Code gültig – Gate passiert.");
-    qrScanErfolgt = true;
-
-    hideQrGate();
-    showSection(timeTrackingSection);
-  } catch (err) {
-    console.warn("⛔ QR ungültig:", err.message);
-    alert("Ungültiger QR-Code: " + err.message);
-    await startQrScanner();
-  }
-}
-
-// Wird aufgerufen, wenn QR-Code erkannt wurde
+// Wird aufgerufen, wenn ein QR-Code erkannt wird
 async function onQrCodeDetected(decodedText) {
   try {
     console.log("➡️ QR-Code erkannt:", decodedText);
     await validateQrCode(decodedText);
 
     console.log("✅ QR-Code gültig – Zeiterfassung wird geöffnet.");
-    qrScanErfolgt = true;  // Setze Status, dass QR gescannt wurde
+    qrScanErfolgt = true;
 
-    // Verstecke QR-Scan-Bereich
-    qrSection.classList.add('hidden');
-    qrSection.setAttribute('aria-hidden', 'true');
-
-    // Zeige Zeiterfassungsbereich
-    showSection(timeTrackingSection);
+    await hideQrGate();
+    showSection(document.getElementById('zeiterfassung-section'));
   } catch (err) {
     console.warn("⛔ QR ungültig:", err.message);
     alert("Ungültiger QR-Code: " + err.message);
-    await startQrScanner();  // Scanner neu starten
+    await startQrScanner();
   }
 }
 
@@ -739,7 +725,7 @@ async function startQrScanner() {
     await html5QrCode.start(
       { facingMode: "environment" },
       config,
-      async (decodedText, decodedResult) => {
+      async (decodedText) => {
         console.log("QR-Code erkannt:", decodedText);
         await stopQrScanner();
         await onQrCodeDetected(decodedText);
@@ -768,7 +754,7 @@ async function stopQrScanner() {
 }
 
 async function validateQrCode(qr) {
-  const csrfToken = localStorage.getItem('csrfToken'); // oder aus Cookie extrahieren, je nach Implementierung
+  const csrfToken = localStorage.getItem('csrfToken');
 
   const res = await fetch(`${API_BASE}/validate-qr`, {
     method: 'POST',
