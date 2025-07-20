@@ -290,6 +290,13 @@ button:disabled {
     </label>
   </section>
 
+<!-- QR-Gate Sektion (QR-Scanner vor Zeiterfassung) -->
+<section id="qr-section" class="card view hidden" aria-label="QR-Gate">
+  <h2>QR-Code scannen</h2>
+  <div id="qr-reader" style="margin-top: 2rem;"></div>
+  <p id="qr-message"></p>
+</section>
+
 </div>
 
 </main>
@@ -622,18 +629,19 @@ function showSection(section) {
     return;
   }
 
-  // Alle "App-Views" verstecken, also alle Sektionen innerhalb #app-view mit Klasse view
-  const appView = document.getElementById('app-view');
-  if (appView) {
-    appView.querySelectorAll('.view').forEach(s => {
-      s.classList.add('hidden');
-      s.setAttribute('aria-hidden', 'true');
-    });
-  }
+  // Alle Sektionen mit Klasse .view ausblenden
+  document.querySelectorAll('.view').forEach(s => {
+    s.classList.add('hidden');
+    s.setAttribute('aria-hidden', 'true');
+  });
 
-  // Zeige die gewünschte Section (egal ob Login/Register oder App-View)
+  // Gewünschte Section anzeigen
   section.classList.remove('hidden');
   section.setAttribute('aria-hidden', 'false');
+
+  // Falls gewünscht, kannst du hier weitere Logik ergänzen,
+  // z.B. Scrollposition zurücksetzen:
+  // window.scrollTo(0,0);
 }
 
 // === QR Scanner ===
