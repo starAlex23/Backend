@@ -472,35 +472,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
- // Navigationsleiste
-document.addEventListener('DOMContentLoaded', () => {
-  const navButtons = document.querySelectorAll('#bottom-nav button');
-  if (!navButtons.length) {
-    console.warn('⚠️ Keine Navigations-Buttons gefunden.');
-    return;
-  }
-
-  navButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const target = btn.dataset.target;
-      if (!target) {
-        console.warn('⚠️ Kein data-target-Attribut vorhanden.');
-        return;
-      }
-
-      document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
-
-      const section = document.getElementById(target);
-      if (!section) {
-        console.warn(`⚠️ Ziel-Section mit ID "${target}" nicht gefunden.`);
-        return;
-      }
-
-      section.classList.remove('hidden');
-    });
-  });
-});
-
 // Zeitstatus prüfen
 document.addEventListener('DOMContentLoaded', async () => {
   const token = sessionStorage.getItem('accessToken');
@@ -676,7 +647,6 @@ const url = path.startsWith('http') ? path : (API_BASE_URL + path);
   }
 }
 
-
 // Login-Funktion: speichert Access- und CSRF-Token
 async function login(email, passwort) {
   if (!email || !passwort) {
@@ -700,19 +670,16 @@ async function login(email, passwort) {
 
     if (res.csrfToken) {
       localStorage.setItem('csrfToken', res.csrfToken);
-      csrfToken = res.csrfToken; // globale Variable updaten
+      csrfToken = res.csrfToken;
     }
 
     loggedInUser = res.user;
 
-    // Vorarbeiter-Token ist HttpOnly-Cookie, hier also nur UI-Anpassung:
     if (res.user.rolle === 'vorarbeiter') {
       console.log('Vorarbeiter eingeloggt, Vorarbeiter-Token wurde serverseitig gesetzt');
-      // Du kannst hier ggf. UI anpassen oder Status setzen
     }
 
     await updateUIAfterLogin(res.user);
-    showSection(timeTrackingSection);
 
   } catch (err) {
     console.error('❌ Login fehlgeschlagen:', err.message);
@@ -919,7 +886,7 @@ async function updateUIAfterLogin(user) {
     return;
   }
 
-  // Benutzername anzeigen, wenn möglich
+  // Benutzername anzeigen
   const nameEl = document.getElementById('user-name');
   if (nameEl) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
@@ -945,6 +912,20 @@ async function updateUIAfterLogin(user) {
 
   // Logout-Button sichtbar machen
   logoutBtn.classList.remove('hidden');
+
+  // Letzten Zeitstatus abrufen und UI entsprechend anpassen
+  try {
+    const status = await getLetzterStatus();
+
+    if (status) {
+      console.log('Letzter Zeitstatus:', status);
+      updateZeitUI(status); // Diese Funktion musst du definieren, siehe unten
+    } else {
+      console.warn('⚠️ Kein Zeitstatus zurückgegeben.');
+    }
+  } catch (err) {
+    console.error('❌ Fehler beim Laden des letzten Status:', err);
+  }
 
   // Zeitbuttons (Start/Pause/Stop) aktualisieren
   await updateTimeButtons();
@@ -1136,6 +1117,35 @@ async function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+ // Navigationsleiste
+document.addEventListener('DOMContentLoaded', () => {
+  const navButtons = document.querySelectorAll('#bottom-nav button');
+  if (!navButtons.length) {
+    console.warn('⚠️ Keine Navigations-Buttons gefunden.');
+    return;
+  }
+
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      if (!target) {
+        console.warn('⚠️ Kein data-target-Attribut vorhanden.');
+        return;
+      }
+
+      document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
+
+      const section = document.getElementById(target);
+      if (!section) {
+        console.warn(`⚠️ Ziel-Section mit ID "${target}" nicht gefunden.`);
+        return;
+      }
+
+      section.classList.remove('hidden');
+    });
+  });
+});
 
 async function fetchUserProfile() {
   const response = await apiFetch('/api/me');
