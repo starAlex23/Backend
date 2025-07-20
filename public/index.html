@@ -957,13 +957,20 @@ logoutBtn.addEventListener('click', async () => {
     await apiFetch('/api/logout', { method: 'POST' });
 
     handleLogoutCleanup();
-    showSection(loginSection); // ← Zur Login-Ansicht zurückkehren
+    showSection(loginSection);
+
+    const navBar = document.getElementById('bottom-nav');
+    if (bottom-nav) {
+      bottom-nav.classList.add('hidden');
+    }
+
     alert('Logout erfolgreich!');
   } catch (err) {
     console.error(err);
     alert('Logout Fehler: ' + err.message);
   }
 });
+
 
 // === Register-Link im Login-Form ===
 showRegisterBtn.addEventListener('click', () => {
