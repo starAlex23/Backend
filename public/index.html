@@ -646,6 +646,14 @@ let scannerIsRunning = false;
 let html5QrCode = null;
 let qrScanErfolgt = false; // Status-Flag, ob QR-Scan bereits erfolgreich war
 
+async function safeStartQrScanner() {
+  if (scannerIsRunning) {
+    console.log("Scanner läuft, stoppe zuerst...");
+    await stopQrScanner();
+  }
+  await startQrScanner();
+}
+
 // QR-Scanner starten und QR-Gate anzeigen
 async function showQrGate() {
   const qrSection = document.getElementById('qr-section');
