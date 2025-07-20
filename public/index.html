@@ -135,6 +135,29 @@ button:disabled {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+#auth-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 100px); /* Platz für Header */
+  padding: 2rem 1rem;
+}
+
+#auth-container section.view {
+  width: 100%;
+  max-width: 400px;
+  background: var(--card-bg, #f9f9f9);
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  transition: opacity 0.3s ease;
+}
+
+#auth-container section.view.hidden {
+  display: none;
+}
+    
 .view {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
 }
@@ -196,8 +219,6 @@ button:disabled {
   </section>
 </div>
 
-
-  
   <!-- App-Ansicht nach Login -->
   <div id="app-view" class="hidden">
 
@@ -905,6 +926,16 @@ registerForm.addEventListener('submit', async (ev) => {
   }
 });
 
+document.getElementById('show-register-btn').onclick = () => {
+  document.getElementById('login-view').classList.add('hidden');
+  document.getElementById('register-view').classList.remove('hidden');
+};
+
+document.getElementById('show-login-btn').onclick = () => {
+  document.getElementById('register-view').classList.add('hidden');
+  document.getElementById('login-view').classList.remove('hidden');
+};
+  
 // === Zeit erfassen (Start) ===
 // === Zeit erfassen (Start & danach sofort Logout) ===
 clockInBtn.addEventListener('click', async () => {
