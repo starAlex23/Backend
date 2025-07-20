@@ -537,20 +537,6 @@ const url = path.startsWith('http') ? path : (API_BASE_URL + path);
   }
 }
   
-  async function prüfeVorarbeiterTokenOderZeigeQR() {
-  const res = await fetch('/api/verify-vorarbeiter-token', {
-    credentials: 'include'
-  });
-
-  if (res.ok) {
-    console.log('✅ Vorarbeiter erkannt – QR-Scan übersprungen');
-    zeigeLoginMaske();
-  } else {
-    console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner wird gestartet');
-    zeigeQRScanner();
-  }
-}
-
 // Login-Funktion: speichert Access- und CSRF-Token
 async function login(email, passwort) {
   if (!email || !passwort) {
@@ -720,35 +706,6 @@ async function validateQrCode(qr) {
 
   return await res.json();
 }
-
-// Prüft beim Seitenstart, ob Vorarbeiter-Token gültig ist, sonst QR-Scanner starten
-async function checkAccessAtStart() {
-  try {
-    const res = await fetch('/api/verify-vorarbeiter-token', { credentials: 'include' });
-    if (res.ok) {
-      console.log('✅ Vorarbeiter-Token gültig – QR-Scan überspringen, Login anzeigen');
-      qrSection.classList.add('hidden');
-      loginSection.classList.remove('hidden');
-      return;
-    }
-  } catch (e) {
-    // Fehler ignorieren, normal QR-Scanner starten
-  }
-
-  console.log('ℹ️ Kein gültiger Vorarbeiter-Token – QR-Scanner starten');
-  qrSection.classList.remove('hidden');
-  loginSection.classList.add('hidden');
-  await startQrScanner();
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  checkAccessAtStart();
-});
-
-// Direkt beim Laden starten
-document.addEventListener('DOMContentLoaded', () => {
-  checkAccessAtStart();
-});
 
  function showPopupMessage(msg, duration = 3000) {
   const popup = document.getElementById('popup-message');
