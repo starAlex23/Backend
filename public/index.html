@@ -440,8 +440,8 @@ const darkModeSwitch = document.getElementById('darkmode-switch-main');
 
 // Bereiche / Views
 const qrSection = document.getElementById('qr-generator-section'); // Generator für Vorarbeiter
-const loginSection = document.getElementById('login-section');
-const registerSection = document.getElementById('register-section');
+const loginSection = document.getElementById('login-view');
+const registerSection = document.getElementById('register-view');
 const timeTrackingSection = document.getElementById('zeiterfassung-section');
 
 const qrReaderElem = document.getElementById('qr-reader');
@@ -1068,7 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       // qrSection (login) aus der Navigation ausschließen
-      if (targetId === 'login-section' || targetId === 'qr-section') {
+      if (targetId === 'login-view' || targetId === 'qr-section') {
         console.warn('⚠️ Login/QR-Section ist nicht über Navigation erreichbar.');
         return;
       }
