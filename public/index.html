@@ -920,7 +920,7 @@ registerForm.addEventListener('submit', async (ev) => {
   const vorname = registerForm['firstname'].value.trim();
   const nachname = registerForm['lastname'].value.trim();
   const email = registerForm['email'].value.trim();
-  const passwort = registerForm['password'].value.trim();
+  const passwort = registerForm['passwort'].value.trim();
 
   try {
     const res = await apiFetch('/api/register', {
