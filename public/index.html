@@ -139,6 +139,39 @@ button:disabled {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
 }
 
+/* Sichtbarkeit */
+.hidden {
+  display: none !important;
+}
+
+/* Umfasst Login & Registrierung */
+#auth-container {
+  max-width: 420px;
+  margin: 5rem auto 2rem;
+  padding: 1rem;
+}
+
+/* Karte für Login & Registrierung */
+.card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  padding: 2rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Buttons zum Umschalten (Login/Register) */
+.link-btn {
+  background: none;
+  border: none;
+  color: #007bff;
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
 /* Optional: Media-Query für sehr kleine Geräte */
 @media (max-width: 360px) {
   header h1 {
@@ -169,52 +202,31 @@ button:disabled {
 
 <main role="main" aria-live="polite">
 
-  <!-- Login bleibt Einstiegspunkt -->
-<section id="login-section" class="card view" aria-label="Login Formular">
+<!-- === AUTH-BEREICH: Login & Registrierung === -->
+<div id="auth-container">
+  <section id="login-section" class="card view">
     <h2>Login</h2>
-    <form id="login-form" novalidate>
-      <label for="login-email">E-Mail</label>
-      <input type="email" id="login-email" name="email" required autocomplete="email" />
-
-      <label for="login-password">Passwort</label>
-      <input type="password" id="login-password" name="passwort" required autocomplete="current-password" />
-
+    <form id="login-form">
+      <input type="email" name="email" placeholder="E-Mail" required />
+      <input type="password" name="password" placeholder="Passwort" required />
       <button type="submit">Einloggen</button>
     </form>
-
-    <div class="link">
-      Noch keinen Account? <button id="show-register-btn" type="button">Jetzt registrieren</button>
-    </div>
-
-    <p id="login-error" class="error-message"></p>
+    <button id="show-register-btn" class="link-btn">Noch kein Konto?</button>
   </section>
 
-  <!-- Registrierung -->
-<section id="register-section" class="card view hidden" aria-label="Registrierung Formular">
+  <section id="register-section" class="card view hidden">
     <h2>Registrieren</h2>
-    <form id="register-form" novalidate>
-      <label for="register-firstname">Vorname</label>
-      <input type="text" id="register-firstname" name="firstname" required autocomplete="given-name" />
-
-      <label for="register-lastname">Nachname</label>
-      <input type="text" id="register-lastname" name="lastname" required autocomplete="family-name" />
-
-      <label for="register-email">E-Mail</label>
-      <input type="email" id="register-email" name="email" required autocomplete="email" />
-
-      <label for="register-password">Passwort</label>
-      <input type="password" id="register-password" name="password" required autocomplete="new-password" />
-
+    <form id="register-form">
+      <input type="text" name="firstname" placeholder="Vorname" required />
+      <input type="text" name="lastname" placeholder="Nachname" required />
+      <input type="email" name="email" placeholder="E-Mail" required />
+      <input type="password" name="password" placeholder="Passwort" required />
       <button type="submit">Registrieren</button>
     </form>
-
-    <div class="link">
-      Schon einen Account? <button id="show-login-btn" type="button">Jetzt einloggen</button>
-    </div>
-
-    <div id="logout-message"></div>
+    <button id="show-login-btn" class="link-btn">Zurück zum Login</button>
   </section>
-
+</div>
+  
   <!-- App-Ansicht nach Login -->
   <div id="app-view" class="hidden">
 
