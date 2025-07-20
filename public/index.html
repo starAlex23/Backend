@@ -234,7 +234,8 @@ button:disabled {
   <!-- QR-Gate vor der Zeiterfassung -->
   <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
     <h2>QR-Code scannen</h2>
-    <div id="qr-reader" style="width: 100%; height: 250px;"></div>
+   <!-- Bereich für den QR-Scanner -->
+<div id="qr-reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
     <p>Bitte scanne deinen QR-Code, um zur Zeiterfassung zu gelangen.</p>
   </section>
 
@@ -350,43 +351,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // QR Scanner starten
   async function startQrScanner() {
-    if (scannerIsRunning) {
-      console.log("Scanner läuft schon, Start übersprungen");
-      return;
-    }
-    if (!html5QrCode) {
-      html5QrCode = new Html5Qrcode("qr-reader");
-    }
-    try {
-      scannerIsRunning = true;
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
-        async (decodedText) => {
-          console.log("QR-Code erkannt:", decodedText);
-          await stopQrScanner();
-          await onQrCodeDetected(decodedText);
-        }
-      );
-      console.log("Scanner gestartet");
-    } catch (error) {
-      console.error("Fehler beim Starten des QR-Scanners:", error);
-      scannerIsRunning = false;
-    }
+  if (html5QrCode) {
+    console.log("📷 Scanner läuft schon, Start übersprungen");
+    return;
   }
 
+  const qrReaderElement = document.getElementById('qr-reader');
+  if (!qrReaderElement) {
+    console.error("❌ #qr-reader nicht gefunden!");
+    return;
+  }
+
+  html5QrCode = new Html5Qrcode("qr-reader");
+
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.333, // Optional: 4:3
+      },
+      async (decodedText, decodedResult) => {
+        if (qrScanErfolgt) return;
+        qrScanErfolgt = true;
+
+        console.log("✅ QR-Code erkannt:", decodedText);
+
+        await handleQrLogin(decodedText); // Deine Login-Logik
+
+        await stopQrScanner();
+      },
+      (errorMessage) => {
+        // Keine Sorge, viele Fehler hier sind "keine Codes gefunden"
+      }
+    );
+  } catch (err) {
+    console.error("Fehler beim Starten des QR-Scanners:", err);
+  }
+}
+
   // QR Scanner stoppen
-  async function stopQrScanner() {
-    if (!scannerIsRunning || !html5QrCode) return;
+ async function stopQrScanner() {
+  if (html5QrCode) {
     try {
       await html5QrCode.stop();
-      await html5QrCode.clear();
-      scannerIsRunning = false;
-      console.log("QR-Scanner gestoppt");
+      html5QrCode.clear();
     } catch (err) {
-      console.error("Fehler beim Stoppen des QR-Scanners:", err);
+      console.error("❌ Fehler beim Stoppen des Scanners:", err);
+    } finally {
+      html5QrCode = null;
     }
   }
+  qrScanErfolgt = false;
+}
 
   // QR-Gate anzeigen und Scanner starten
   async function showQrGate() {
