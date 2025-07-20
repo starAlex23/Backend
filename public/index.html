@@ -765,16 +765,18 @@ async function updateUIAfterLogin(user) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
   }
 
-  // Kompletten Auth-Container (Login+Register) ausblenden
+  // Auth-Container verstecken
   const authContainer = document.getElementById('auth-container');
   if (authContainer) {
     authContainer.classList.add('hidden');
+    authContainer.setAttribute('aria-hidden', 'true');
   }
 
   // App-View anzeigen
   const appView = document.getElementById('app-view');
   if (appView) {
     appView.classList.remove('hidden');
+    appView.setAttribute('aria-hidden', 'false');
   }
 
   // Zeiterfassungsansicht aktivieren
@@ -785,17 +787,15 @@ async function updateUIAfterLogin(user) {
     logoutBtn.classList.remove('hidden');
   }
 
-  // Vorarbeiter-Sicht steuern
-  const isVorarbeiter = user.rolle === 'vorarbeiter';
-
-  // QR-Scanner zeigen oder verstecken
-  const qrReader = document.getElementById('qr-reader');
-  if (qrReader) {
-    qrReader.style.display = isVorarbeiter ? 'none' : 'block';
+  // Bottom-Navigation anzeigen
+  const bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) {
+    bottomNav.classList.remove('hidden');
   }
 
   // QR-Generator anzeigen/verstecken
   const qrGen = document.getElementById('qr-generator-container');
+  const isVorarbeiter = user.rolle === 'vorarbeiter';
   if (qrGen) {
     if (isVorarbeiter) {
       qrGen.classList.remove('hidden');
@@ -806,22 +806,17 @@ async function updateUIAfterLogin(user) {
     }
   }
 
-  // Buttons aktivieren
-  await updateTimeButtons();
-}
-
-async function updateTimeButtons() {
-  try {
-    const result = await apiFetch('/api/status'); // keine Auth-Header nötig
-    const eingestempelt = result.ist_eingestempelt;
-
-    clockInBtn.disabled = eingestempelt;
-    clockOutBtn.disabled = !eingestempelt;
-  } catch (err) {
-    console.warn('Status konnte nicht geladen werden:', err);
-    clockInBtn.disabled = true;
-    clockOutBtn.disabled = true;
+  // QR-Scanner zeigen oder verstecken
+  const qrReader = document.getElementById('qr-reader');
+  if (qrReader) {
+    qrReader.style.display = isVorarbeiter ? 'none' : 'block';
   }
+
+  // Falls du noch Buttons hast, die aktiviert/deaktiviert werden müssen, hier anpassen
+  if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
+  if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
+
+  // Falls noch andere UI-Elemente beim Login sichtbar werden müssen, hier hinzufügen
 }
 
 // === Logout Cleanup ===
