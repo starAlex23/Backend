@@ -1001,92 +1001,33 @@ async function init() {
     return;
   }
 
-  // Prüfen ob Nutzer eingeloggt ist (z.B. loggedInUser oder Session prüfen)
-  if (!loggedInUser) {
-    // Noch nicht eingeloggt: Zeige nur Login & Registrierung
-    const loginSection = document.getElementById('login-section');
-    const registerSection = document.getElementById('register-section');
+  // Start-Section anzeigen: Login / QR
+  showSection(qrSection);
 
-    // Alle anderen Sektionen ausblenden
-    const otherSections = [
-      document.getElementById('mein-tag-section'),
-      document.getElementById('arbeitsplanung-section'),
-      document.getElementById('chat-section'),
-      document.getElementById('settings-section'),
-      document.getElementById('qr-generator-section'),
-      document.getElementById('zeiterfassung-section')
-    ];
-    otherSections.forEach(s => {
-      if (s) {
-        s.classList.add('hidden');
-        s.setAttribute('aria-hidden', 'true');
-      }
-    });
-
-    // Login + Register anzeigen
-    if (loginSection) {
-      loginSection.classList.remove('hidden');
-      loginSection.setAttribute('aria-hidden', 'false');
-    }
-    if (registerSection) {
-      registerSection.classList.remove('hidden');
-      registerSection.setAttribute('aria-hidden', 'false');
-    }
-
-    // Bottom Nav & Logout Button ausblenden
-    document.getElementById('bottom-nav')?.classList.add('hidden');
-    logoutBtn.classList.add('hidden');
-
-  } else {
-    // Eingeloggt: nur Zeiterfassung anzeigen
-    const sectionsToHide = [
-      document.getElementById('mein-tag-section'),
-      document.getElementById('arbeitsplanung-section'),
-      document.getElementById('chat-section'),
-      document.getElementById('settings-section'),
-      document.getElementById('qr-generator-section'),
-      document.getElementById('login-section'),
-      document.getElementById('register-section')
-    ];
-
-    sectionsToHide.forEach(section => {
-      if (section) {
-        section.classList.add('hidden');
-        section.setAttribute('aria-hidden', 'true');
-      }
-    });
-
-    const timeTrackingSection = document.getElementById('zeiterfassung-section');
-    if (timeTrackingSection) {
-      timeTrackingSection.classList.remove('hidden');
-      timeTrackingSection.setAttribute('aria-hidden', 'false');
-    }
-    showSection(timeTrackingSection);
-
-    document.getElementById('bottom-nav')?.classList.remove('hidden');
-    logoutBtn.classList.remove('hidden');
-
+  // QR-Scanner starten (falls Funktion vorhanden)
+  if (typeof startQrScanner === 'function') {
     await startQrScanner();
+  }
 
-    try {
-      const status = await getLetzterStatus();
-      if (status?.aktion === 'start' || status?.eingestempelt === true) {
-        clockInBtn.disabled = true;
-        clockOutBtn.disabled = false;
-      } else {
-        clockInBtn.disabled = false;
-        clockOutBtn.disabled = true;
-      }
-    } catch (err) {
-      console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
+  // Status abfragen und Buttons anpassen
+  try {
+    const status = await getLetzterStatus();
+    if (status?.aktion === 'start' || status?.eingestempelt === true) {
+      clockInBtn.disabled = true;
+      clockOutBtn.disabled = false;
+    } else {
+      clockInBtn.disabled = false;
+      clockOutBtn.disabled = true;
     }
+  } catch (err) {
+    console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
   }
 }
 
-document.addEventListener('DOMContentLoaded', init);
-
- // Navigationsleiste
 document.addEventListener('DOMContentLoaded', () => {
+  init();
+
+  // Navigation-Setup
   const navButtons = document.querySelectorAll('#bottom-nav button');
   if (!navButtons.length) {
     console.warn('⚠️ Keine Navigations-Buttons gefunden.');
@@ -1095,21 +1036,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      const target = btn.dataset.target;
-      if (!target) {
+      const targetId = btn.dataset.target;
+      if (!targetId) {
         console.warn('⚠️ Kein data-target-Attribut vorhanden.');
         return;
       }
 
-      document.querySelectorAll('.view').forEach(sec => sec.classList.add('hidden'));
+      // Alle Views verstecken
+      document.querySelectorAll('.view').forEach(sec => {
+        sec.classList.add('hidden');
+        sec.setAttribute('aria-hidden', 'true');
+      });
 
-      const section = document.getElementById(target);
-      if (!section) {
-        console.warn(`⚠️ Ziel-Section mit ID "${target}" nicht gefunden.`);
+      // qrSection (login) aus der Navigation ausschließen
+      if (targetId === 'login-section' || targetId === 'qr-section') {
+        console.warn('⚠️ Login/QR-Section ist nicht über Navigation erreichbar.');
         return;
       }
 
-      section.classList.remove('hidden');
+      // Gewünschte Section anzeigen
+      const targetSection = document.getElementById(targetId);
+      if (!targetSection) {
+        console.warn(`⚠️ Ziel-Section mit ID "${targetId}" nicht gefunden.`);
+        return;
+      }
+
+      targetSection.classList.remove('hidden');
+      targetSection.setAttribute('aria-hidden', 'false');
     });
   });
 });
