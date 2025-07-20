@@ -243,21 +243,30 @@ button:disabled {
     </section>
 
     <!-- 3. Zeiterfassung (inkl. QR-Scanner) -->
-    <section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
-      <h2>Zeiterfassung</h2>
+<!-- 3. Zeiterfassung (inkl. QR-Scanner und ggf. QR-Generator für Vorarbeiter) -->
+<section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
+  <h2>Zeiterfassung</h2>
 
-      <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
-      <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+  <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
+  <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
 
-      <p id="time-message"></p>
+  <p id="time-message"></p>
 
-      <div id="qr-reader" style="margin-top: 2rem;"></div>
-      <p id="qr-message"></p>
+  <div id="qr-reader" style="margin-top: 2rem;"></div>
+  <p id="qr-message"></p>
 
-      <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
-        Ausloggen
-      </button>
-    </section>
+  <!-- QR-Code Generator (nur sichtbar für Vorarbeiter) -->
+  <div id="qr-generator-container" class="hidden" style="margin-top: 2rem;">
+    <h3>QR-Code für Arbeiter</h3>
+    <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
+    <div id="qr-container" style="margin-top: 1rem;"></div>
+    <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
+  </div>
+
+  <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
+    Ausloggen
+  </button>
+</section>
 
     <!-- 4. Chat -->
     <section id="chat-section" class="card view hidden" aria-label="Chat">
@@ -272,14 +281,6 @@ button:disabled {
         <input type="checkbox" id="darkmode-switch-main" />
         Dark Mode
       </label>
-    </section>
-
-    <!-- 6. QR-Code Generator (nur für Vorarbeiter sichtbar) -->
-    <section id="qr-generator-section" class="card view hidden" aria-label="QR-Code für Arbeiter generieren">
-      <h2>QR-Code für Arbeiter</h2>
-      <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
-      <div id="qr-container" style="margin-top: 1rem;"></div>
-      <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
     </section>
 
   </div>
@@ -776,7 +777,7 @@ async function updateUIAfterLogin(user) {
   }
 
   // QR-Generator zeigen oder verstecken
- const qrGen = document.getElementById('qr-generator-section');
+const qrGen = document.getElementById('qr-generator-container'); // neu!
 if (qrGen) {
   if (isVorarbeiter) {
     qrGen.classList.remove('hidden');
