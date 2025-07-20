@@ -304,9 +304,7 @@ button:disabled {
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
 
 document.addEventListener("DOMContentLoaded", () => {
-  // === Konstanten und DOM-Elemente ===
-  const API_BASE = "/api";
-
+ 
   // Sections
   const qrSection = document.getElementById("qr-section");
   const zeiterfassungSection = document.getElementById("zeiterfassung-section");
@@ -600,8 +598,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // API-Konstanten
+const BASE = '/api';
 const API_BASE = '/api';
-
+const API_BASE_URL = '';
+  
 // DOM-Elemente
 const loginForm = document.getElementById('login-form');
 const registerForm = document.getElementById('register-form');
