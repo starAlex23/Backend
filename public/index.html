@@ -604,11 +604,7 @@ async function updateProfile() {
   
 // === Sections anzeigen ===
 function showSection(section) {
-  // Nur die Haupt-Views verstecken – qr-generator-section NICHT!
-  const viewsToHide = [qrSection, loginSection, registerSection, timeTrackingSection];
-
-  viewsToHide.forEach(s => {
-    if (!s) return console.warn("⚠️ showSection: DOM-Element nicht gefunden");
+  document.querySelectorAll('.main-section').forEach(s => {
     s.classList.add('hidden');
     s.setAttribute('aria-hidden', 'true');
   });
