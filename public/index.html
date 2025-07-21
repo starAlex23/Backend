@@ -698,6 +698,7 @@ async function updateUIAfterLogin(user) {
 
   loggedInUser = user;
   isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
+  qrScanErfolgt = isVorarbeiterGlobal; // ← QR-Bedingung direkt setzen
 
   // Benutzername anzeigen
   const nameEl = document.getElementById('user-name');
@@ -719,37 +720,58 @@ async function updateUIAfterLogin(user) {
     appView.setAttribute('aria-hidden', 'false');
   }
 
-  // Starte mit passender Section
-  if (isVorarbeiterGlobal) {
-    showSection('zeiterfassung-section');
-  } else {
-    showSection('qr-section');
-  }
-
-  // Logout sichtbar machen
-  if (logoutBtn) logoutBtn.classList.remove('hidden');
-
-  // Bottom-Navigation anzeigen
-  const bottomNav = document.getElementById('bottom-nav');
-  if (bottomNav) bottomNav.classList.remove('hidden');
-
-  // QR-Generator für Vorarbeiter
+  // QR-Generator nur für Vorarbeiter sichtbar
   const qrGen = document.getElementById('qr-generator-container');
   if (qrGen) {
     qrGen.classList.toggle('hidden', !isVorarbeiterGlobal);
     qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
   }
 
-  // QR-Scanner nur für normale Nutzer
+  // QR-Scanner nur für normale Nutzer sichtbar
   const qrReader = document.getElementById('qr-reader');
   if (qrReader) {
     qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
     qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
   }
 
-  // Buttons aktivieren/deaktivieren
+  // Navigation & Logout sichtbar
+  if (logoutBtn) logoutBtn.classList.remove('hidden');
+  const bottomNav = document.getElementById('bottom-nav');
+  if (bottomNav) bottomNav.classList.remove('hidden');
+
+  // Buttons vorbereiten
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
+
+  // Zeiterfassungssection vorbereiten
+  if (isVorarbeiterGlobal || qrScanErfolgt) {
+    await hideQrGate(); // ← QR-Gate garantiert ausblenden
+    showSection('zeiterfassung-section');
+  } else {
+    await showQrGate();
+    showSection('qr-section');
+  }
+
+  await init(); // ← Zeiterfassungsdaten laden, ganz am Ende
+  await updateButtonsBasedOnStatus(); // ← Buttons korrekt setzen
+}
+
+async function updateButtonsBasedOnStatus() {
+  try {
+    const res = await apiFetch('/api/status'); // oder wie dein Status-Endpunkt heißt
+    const status = await res.json();
+
+    if (status.eingestempelt) {
+      if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = true;
+      if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = false;
+    } else {
+      if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
+      if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
+    }
+
+  } catch (err) {
+    console.error("❌ Fehler beim Laden des Status für die Buttons:", err);
+  }
 }
 
 // === Logout Cleanup ===
