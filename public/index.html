@@ -434,14 +434,16 @@ const registerForm = document.getElementById('register-form');
 const showRegisterBtn = document.getElementById('show-register-btn');
 const showLoginBtn = document.getElementById('show-login-btn');
 const logoutBtn = document.getElementById('logout-btn');
-
 const userNameSpan = document.getElementById('user-name');
 const clockInBtn = document.getElementById('clock-in-btn');
 const clockOutBtn = document.getElementById('clock-out-btn');
-
 const qrSection = document.getElementById('qr-section');
-
 const navButtons = Array.from(document.querySelectorAll('#bottom-nav button'));
+const zeiterfassungSection = document.getElementById("zeiterfassung-section");
+const meinTagSection = document.getElementById("mein-tag-section");
+const arbeitsplanungSection = document.getElementById("arbeitsplanung-section");
+const chatSection = document.getElementById("chat-section");
+const settingsSection = document.getElementById("settings-section");
 
 // Navbar Button (großer Zeiterfassungsbutton)
 const zeiterfassungBtn = document.querySelector('button.main-button[data-target="zeiterfassung-section"]');
@@ -467,6 +469,11 @@ let loggedInUser = null;
 
 // Globale Rolle merken (wird beim Login gesetzt)
 let isVorarbeiterGlobal = false; 
+
+// Statusvariablen
+let scannerIsRunning = false;
+let html5QrCode = null;
+let qrScanErfolgt = false;
   
 // Hilfsfunktion: Cookie auslesen
 function getCookie(name) {
@@ -1015,13 +1022,6 @@ document.addEventListener('DOMContentLoaded', () => {
   
   document.addEventListener("DOMContentLoaded", () => {
  
-  // Sections
-  const zeiterfassungSection = document.getElementById("zeiterfassung-section");
-  const meinTagSection = document.getElementById("mein-tag-section");
-  const arbeitsplanungSection = document.getElementById("arbeitsplanung-section");
-  const chatSection = document.getElementById("chat-section");
-  const settingsSection = document.getElementById("settings-section");
-
   // Alle Sections als Array (für showSection)
   const sections = [
     meinTagSection,
@@ -1031,11 +1031,6 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsSection,
     qrSection
   ].filter(Boolean);
-
-  // Statusvariablen
-  let scannerIsRunning = false;
-  let html5QrCode = null;
-  let qrScanErfolgt = false;
 
   // --- Funktionen ---
   // QR Scanner starten
