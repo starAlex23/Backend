@@ -1158,33 +1158,29 @@ document.addEventListener('DOMContentLoaded', () => {
 navButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     const targetId = btn.dataset.target;
-    if (!targetId) return;
-
-    // Login-View und QR-Section darf man per Nav nicht erreichen
-    if (targetId === "login-view" || targetId === "qr-section") return;
+    if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
 
     if (targetId === "zeiterfassung-section") {
       if (isVorarbeiterGlobal) {
-        // Vorarbeiter direkt Zeiterfassung, QR-Gate nie
+        // Direkt zur Zeiterfassung – Vorarbeiter brauchen nie QR
         await hideQrGate();
-        showSection('zeiterfassung-section');
-        await init(); // Daten aktualisieren
+        showSection(zeiterfassungSection);
       } else {
         if (qrScanErfolgt) {
           await hideQrGate();
-          showSection('zeiterfassung-section');
-          await init();
+          showSection(zeiterfassungSection);
         } else {
-          await showQrGate(); // QR-Scanner starten
+          await showQrGate(); // startet QR-Scanner
         }
       }
     } else {
       await hideQrGate();
       const targetSection = document.getElementById(targetId);
-      if (targetSection) showSection(targetSection);
+      showSection(targetSection);
     }
   });
 });
+    
   // Beispiel: So setzt du isVorarbeiterGlobal beim Login
   //  muss dann isVorarbeiterGlobal setzen und qrScanErfolgt entsprechend:
 window.updateUIAfterLogin = function(user) {
