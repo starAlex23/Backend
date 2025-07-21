@@ -846,8 +846,7 @@ async function updateUIAfterLogin(user) {
 async function updateButtonsBasedOnStatus() {
   try {
     const res = await apiFetch('/api/status'); // oder wie dein Status-Endpunkt heißt
-    const status = await res.json();
-
+   
     if (status.eingestempelt) {
       if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = true;
       if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = false;
