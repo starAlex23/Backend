@@ -1132,22 +1132,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // === Navigation Button Handler ===
- navButtons.forEach((btn) => {
+navButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     const targetId = btn.dataset.target;
     if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
 
     if (targetId === "zeiterfassung-section") {
       if (isVorarbeiterGlobal) {
-        // Direkt zur Zeiterfassung – Vorarbeiter brauchen nie QR
         await hideQrGate();
-        showSection(zeiterfassungSection);
+        showSection("zeiterfassung-section");
+        await init();  // WICHTIG: Status & Buttons aktualisieren
       } else {
         if (qrScanErfolgt) {
           await hideQrGate();
-          showSection(zeiterfassungSection);
+          showSection("zeiterfassung-section");
+          await init();  // WICHTIG: Status & Buttons aktualisieren
         } else {
-          await showQrGate(); // startet QR-Scanner
+          await showQrGate(); // QR-Scanner starten
         }
       }
     } else {
@@ -1160,16 +1161,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Beispiel: So setzt du isVorarbeiterGlobal beim Login
   //  muss dann isVorarbeiterGlobal setzen und qrScanErfolgt entsprechend:
-  window.updateUIAfterLogin = function(user) {
-    isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
-    if (isVorarbeiterGlobal) {
-      qrScanErfolgt = true;  // Vorarbeiter überspringt QR-Gate
-      showSection(zeiterfassungSection);
-    } else {
-      qrScanErfolgt = false;
-      showSection(qrSection);
-    }
-  };
+window.updateUIAfterLogin = async function(user) {
+  isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
+  loggedInUser = user;
+
+  if (isVorarbeiterGlobal) {
+    qrScanErfolgt = true;  // Vorarbeiter überspringt QR-Gate
+    showSection("zeiterfassung-section");
+  } else {
+    qrScanErfolgt = false; // normale Nutzer müssen QR scannen
+    showSection("qr-section");
+  }
+
+  await init();  // Buttons & Status richtig setzen
+};
 
 });
   
