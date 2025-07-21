@@ -1158,25 +1158,38 @@ document.addEventListener('DOMContentLoaded', () => {
 navButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     const targetId = btn.dataset.target;
-    if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
+
+    // Kein target oder Login-View oder qr-section (letzteres grundsätzlich gesperrt)
+    if (!targetId || targetId === "login-view") return;
+
+    // Vorarbeiter dürfen nicht zur qr-section navigieren
+    if (targetId === "qr-section" && isVorarbeiterGlobal) return;
 
     if (targetId === "zeiterfassung-section") {
       if (isVorarbeiterGlobal) {
-        // Direkt zur Zeiterfassung – Vorarbeiter brauchen nie QR
+        // Vorarbeiter: immer direkt zur Zeiterfassung, kein QR-Gate
         await hideQrGate();
-        showSection(zeiterfassungSection);
+        showSection('zeiterfassung-section');
       } else {
         if (qrScanErfolgt) {
           await hideQrGate();
-          showSection(zeiterfassungSection);
+          showSection('zeiterfassung-section');
         } else {
-          await showQrGate(); // startet QR-Scanner
+          await showQrGate(); // QR-Scanner starten
         }
       }
     } else {
       await hideQrGate();
+
+      // Vorarbeiter dürfen auch nicht auf QR-Section landen, falls ID irgendwo anders verwendet wird
+      if (isVorarbeiterGlobal && targetId === 'qr-section') return;
+
       const targetSection = document.getElementById(targetId);
-      showSection(targetSection);
+      if (targetSection) {
+        showSection(targetSection);
+      } else {
+        console.warn("⚠️ Zielsection nicht gefunden:", targetId);
+      }
     }
   });
 });
