@@ -1155,36 +1155,33 @@ app.post('/api/zeit', authMiddleware, csrfMiddleware, async (req, res) => {
   }
 });
 
-
-
 // GET /api/zeit/letzter-status
 // Ruft den letzten Zeitstempel-Status eines Benutzers ab.
 router.get('/api/zeit/letzter-status', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
 
-    try {
-        const userId = req.user.id;
+    const result = await pool.query(
+      'SELECT aktion, zeit FROM zeiten WHERE user_id = $1 ORDER BY zeit DESC LIMIT 1',
+      [userId]
+    );
 
-        // Hole die letzte Aktion des Users
-        const result = await pool.query(
-            'SELECT aktion, zeit FROM zeiten WHERE user_id = $1 ORDER BY zeit DESC LIMIT 1',
-            [userId]
-        );
-
-        if (result.rowCount === 0) {
-            return res.json({ eingestempelt: false, letzteAktion: null, message: 'Keine Zeitstempel gefunden.' });
-        }
-
-        const letzteAktion = result.rows[0].aktion;
-
-        // Eingestempelt? -> Wenn letzte Aktion 'start' oder 'resume', gilt als eingestempelt
-        const eingestempelt = ['start', 'resume'].includes(letzteAktion);
-
-        res.json({ eingestempelt, letzteAktion, message: 'Letzter Status erfolgreich abgerufen.' });
-    } catch (err) {
-        console.error('Fehler bei /api/zeit/letzter-status:', err);
-        sendError(res, 500, 'Interner Serverfehler.');
+    if (result.rowCount === 0) {
+      return res.json({ eingestempelt: false, letzteAktion: null, message: 'Keine Zeitstempel gefunden.' });
     }
+
+    const letzteAktion = result.rows[0].aktion;
+    const eingestempelt = ['start', 'resume'].includes(letzteAktion);
+
+    res.json({ eingestempelt, letzteAktion, message: 'Letzter Status erfolgreich abgerufen.' });
+  } catch (err) {
+    console.error('Fehler bei /api/zeit/letzter-status:', err);
+    res.status(500).json({ error: 'Interner Serverfehler' });
+  }
 });
+
+// 🔥 Wichtig: Router einbinden!
+app.use(router); // <- DAS aktiviert alle router.get(...) & Co
 
 // Beispiel für geschützte Route mit CSRF-Schutz
 app.post('/api/sichere-aktion', authMiddleware, csrfMiddleware, async (req, res) => {
