@@ -627,19 +627,20 @@ function showSection(section) {
 
   // Falls String übergeben wurde → DOM-Element holen
   if (typeof section === 'string') {
-    section = document.getElementById(section);
-    if (!section) {
+    const el = document.getElementById(section);
+    if (!el) {
       console.error("❌ showSection: Kein Element gefunden mit ID:", section);
       return;
     }
+    section = el;
   }
 
   // Alle ".view"-Sektionen im #app-view ausblenden
   const appView = document.getElementById('app-view');
   if (appView) {
-    appView.querySelectorAll('.view').forEach(s => {
-      s.classList.add('hidden');
-      s.setAttribute('aria-hidden', 'true');
+    appView.querySelectorAll('.view').forEach(sec => {
+      sec.classList.add('hidden');
+      sec.setAttribute('aria-hidden', 'true');
     });
   }
 
@@ -689,7 +690,7 @@ async function updateUIAfterLogin(user) {
   }
 
   loggedInUser = user;
-  const isVorarbeiter = user.rolle === 'vorarbeiter';
+  isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
 
   // Benutzername anzeigen
   const nameEl = document.getElementById('user-name');
@@ -711,54 +712,37 @@ async function updateUIAfterLogin(user) {
     appView.setAttribute('aria-hidden', 'false');
   }
 
-  // Zeiterfassungsansicht aktivieren
-if (isVorarbeiter) {
-  showSection('zeiterfassung-section');
-} else {
-  showSection('qr-section');
-}
-
+  // Starte mit passender Section
+  if (isVorarbeiterGlobal) {
+    showSection('zeiterfassung-section');
+  } else {
+    showSection('qr-section');
+  }
 
   // Logout sichtbar machen
-  if (logoutBtn) {
-    logoutBtn.classList.remove('hidden');
-  }
+  if (logoutBtn) logoutBtn.classList.remove('hidden');
 
   // Bottom-Navigation anzeigen
   const bottomNav = document.getElementById('bottom-nav');
-  if (bottomNav) {
-    bottomNav.classList.remove('hidden');
-  }
+  if (bottomNav) bottomNav.classList.remove('hidden');
 
-  // QR-Generator nur für Vorarbeiter sichtbar machen
+  // QR-Generator für Vorarbeiter
   const qrGen = document.getElementById('qr-generator-container');
   if (qrGen) {
-    if (isVorarbeiter) {
-      qrGen.classList.remove('hidden');
-      qrGen.setAttribute('aria-hidden', 'false');
-    } else {
-      qrGen.classList.add('hidden');
-      qrGen.setAttribute('aria-hidden', 'true');
-    }
+    qrGen.classList.toggle('hidden', !isVorarbeiterGlobal);
+    qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
   }
 
-  // QR-Scanner nur für normale Nutzer sichtbar machen
+  // QR-Scanner nur für normale Nutzer
   const qrReader = document.getElementById('qr-reader');
   if (qrReader) {
-    if (isVorarbeiter) {
-      qrReader.classList.add('hidden');
-      qrReader.setAttribute('aria-hidden', 'true');
-    } else {
-      qrReader.classList.remove('hidden');
-      qrReader.setAttribute('aria-hidden', 'false');
-    }
+    qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
+    qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
   }
 
   // Buttons aktivieren/deaktivieren
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
-
-  // Hier ggf. weitere UI-Anpassungen, z.B. spezielle Bereiche für Rollen
 }
 
 // === Logout Cleanup ===
@@ -1028,19 +1012,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let isVorarbeiterGlobal = false;
     
   // --- Funktionen ---
-
-  // Zeigt eine Section an, versteckt alle anderen
- function showSection(section) {
-    sections.forEach(sec => {
-      sec.classList.add("hidden");
-      sec.setAttribute("aria-hidden", "true");
-    });
-    if (section) {
-      section.classList.remove("hidden");
-      section.setAttribute("aria-hidden", "false");
-    }
-  }
-
   // QR Scanner starten
   async function startQrScanner() {
     if (html5QrCode) {
@@ -1105,12 +1076,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // QR-Gate anzeigen und Scanner starten
-  async function showQrGate() {
-    if (!qrSection) return;
-    qrSection.classList.remove("hidden");
-    qrSection.setAttribute("aria-hidden", "false");
-    await startQrScanner();
-  }
+ async function showQrGate() {
+  if (isVorarbeiter) return; // Schutzregel
+  if (!qrSection) return;
+  qrSection.classList.remove("hidden");
+  qrSection.setAttribute("aria-hidden", "false");
+  await startQrScanner();
+}
 
   // QR-Gate verstecken und Scanner stoppen
   async function hideQrGate() {
@@ -1156,28 +1128,34 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // === Navigation Button Handler ===
-  navButtons.forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const targetId = btn.dataset.target;
-      if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
+ navButtons.forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const targetId = btn.dataset.target;
+    if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
 
-      if (targetId === "zeiterfassung-section") {
-        if (qrScanErfolgt || isVorarbeiterGlobal) {
+    if (targetId === "zeiterfassung-section") {
+      if (isVorarbeiter) {
+        // Direkt zur Zeiterfassung – Vorarbeiter brauchen nie QR
+        await hideQrGate();
+        showSection(zeiterfassungSection);
+      } else {
+        if (qrScanErfolgt) {
           await hideQrGate();
           showSection(zeiterfassungSection);
         } else {
-          await showQrGate();
+          await showQrGate(); // startet QR-Scanner
         }
-      } else {
-        await hideQrGate();
-        const targetSection = document.getElementById(targetId);
-        showSection(targetSection);
       }
-    });
+    } else {
+      await hideQrGate();
+      const targetSection = document.getElementById(targetId);
+      showSection(targetSection);
+    }
   });
+});
 
   // Beispiel: So setzt du isVorarbeiterGlobal beim Login
-  // updateUIAfterLogin muss dann isVorarbeiterGlobal setzen und qrScanErfolgt entsprechend:
+  //  muss dann isVorarbeiterGlobal setzen und qrScanErfolgt entsprechend:
   window.updateUIAfterLogin = function(user) {
     isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
     if (isVorarbeiterGlobal) {
