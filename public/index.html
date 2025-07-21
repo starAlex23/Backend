@@ -712,7 +712,12 @@ async function updateUIAfterLogin(user) {
   }
 
   // Zeiterfassungsansicht aktivieren
-showSection('qr-section');
+if (isVorarbeiter) {
+  showSection('zeiterfassung-section');
+} else {
+  showSection('qr-section');
+}
+
 
   // Logout sichtbar machen
   if (logoutBtn) {
@@ -1019,10 +1024,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let html5QrCode = null;
   let qrScanErfolgt = false;
 
+  // Globale Rolle merken (wird beim Login gesetzt)
+  let isVorarbeiterGlobal = false;
+    
   // --- Funktionen ---
 
   // Zeigt eine Section an, versteckt alle anderen
-  function showSection(section) {
+ function showSection(section) {
     sections.forEach(sec => {
       sec.classList.add("hidden");
       sec.setAttribute("aria-hidden", "true");
@@ -1035,60 +1043,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // QR Scanner starten
   async function startQrScanner() {
-  if (html5QrCode) {
-    console.log("📷 Scanner läuft schon, Start übersprungen");
-    return;
-  }
+    if (html5QrCode) {
+      console.log("📷 Scanner läuft schon, Start übersprungen");
+      return;
+    }
 
-  const qrReaderElement = document.getElementById('qr-reader');
-  if (!qrReaderElement) {
-    console.error("❌ #qr-reader nicht gefunden!");
-    return;
-  }
+    if (isVorarbeiterGlobal) {
+      console.log("👷 Vorarbeiter - QR-Scanner wird nicht gestartet.");
+      qrScanErfolgt = true; // Gate überspringen
+      return;
+    }
 
-  html5QrCode = new Html5Qrcode("qr-reader");
+    const qrReaderElement = document.getElementById('qr-reader');
+    if (!qrReaderElement) {
+      console.error("❌ #qr-reader nicht gefunden!");
+      return;
+    }
 
-  try {
-    await html5QrCode.start(
-      { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        aspectRatio: 1.333, // Optional: 4:3
-      },
-      async (decodedText, decodedResult) => {
-        if (qrScanErfolgt) return;
-        qrScanErfolgt = true;
+    html5QrCode = new Html5Qrcode("qr-reader");
 
-        console.log("✅ QR-Code erkannt:", decodedText);
-
-        await handleQrLogin(decodedText); // Deine Login-Logik
-
-        await stopQrScanner();
-      },
-      (errorMessage) => {
-        // Keine Sorge, viele Fehler hier sind "keine Codes gefunden"
-      }
-    );
-  } catch (err) {
-    console.error("Fehler beim Starten des QR-Scanners:", err);
-  }
-}
-
-  // QR Scanner stoppen
- async function stopQrScanner() {
-  if (html5QrCode) {
     try {
-      await html5QrCode.stop();
-      html5QrCode.clear();
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.333, // Optional: 4:3
+        },
+        async (decodedText, decodedResult) => {
+          if (qrScanErfolgt) return;
+          qrScanErfolgt = true;
+
+          console.log("✅ QR-Code erkannt:", decodedText);
+
+          await handleQrLogin(decodedText); // Deine Login-Logik
+
+          await stopQrScanner();
+        },
+        (errorMessage) => {
+          // Viele Fehler hier sind "keine Codes gefunden", ignoriere ruhig
+        }
+      );
     } catch (err) {
-      console.error("❌ Fehler beim Stoppen des Scanners:", err);
-    } finally {
-      html5QrCode = null;
+      console.error("Fehler beim Starten des QR-Scanners:", err);
     }
   }
-  qrScanErfolgt = false;
-}
+
+  // QR Scanner stoppen
+  async function stopQrScanner() {
+    if (html5QrCode) {
+      try {
+        await html5QrCode.stop();
+        html5QrCode.clear();
+      } catch (err) {
+        console.error("❌ Fehler beim Stoppen des Scanners:", err);
+      } finally {
+        html5QrCode = null;
+      }
+    }
+    qrScanErfolgt = false;
+  }
 
   // QR-Gate anzeigen und Scanner starten
   async function showQrGate() {
@@ -1148,7 +1162,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
 
       if (targetId === "zeiterfassung-section") {
-        if (qrScanErfolgt) {
+        if (qrScanErfolgt || isVorarbeiterGlobal) {
           await hideQrGate();
           showSection(zeiterfassungSection);
         } else {
@@ -1161,7 +1175,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
- });   
+
+  // Beispiel: So setzt du isVorarbeiterGlobal beim Login
+  // updateUIAfterLogin muss dann isVorarbeiterGlobal setzen und qrScanErfolgt entsprechend:
+  window.updateUIAfterLogin = function(user) {
+    isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
+    if (isVorarbeiterGlobal) {
+      qrScanErfolgt = true;  // Vorarbeiter überspringt QR-Gate
+      showSection(zeiterfassungSection);
+    } else {
+      qrScanErfolgt = false;
+      showSection(qrSection);
+    }
+  };
+
+});
+  
 </script>
 
 </body>
