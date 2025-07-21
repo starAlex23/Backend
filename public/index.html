@@ -583,8 +583,12 @@ async function login(email, passwort) {
 
     loggedInUser = res.user;
 
+    // ❗️Hier fehlt es bei dir:
     if (res.user.rolle === 'vorarbeiter') {
-      console.log('Vorarbeiter eingeloggt, Vorarbeiter-Token wurde serverseitig gesetzt');
+      isVorarbeiterGlobal = true;
+      console.log('Vorarbeiter eingeloggt → QR-Skip aktiv');
+    } else {
+      isVorarbeiterGlobal = false;
     }
 
     // UI anpassen:
