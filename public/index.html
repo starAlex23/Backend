@@ -308,7 +308,9 @@ button:disabled {
   const generateBtn = document.getElementById('generate-qr-btn');
   const qrContainer = document.getElementById('qr-container');
   const qrValidUntil = document.getElementById('qr-valid-until');
-
+  // Globale Rolle merken (wird beim Login gesetzt)
+  let isVorarbeiterGlobal = false;
+   
   if (!generateBtn || !qrContainer || !qrValidUntil) {
     console.warn('⚠️ QR-Code-UI-Element(e) fehlen: Button, Container oder Gültigkeitsanzeige nicht gefunden.');
     return;
@@ -1008,9 +1010,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let html5QrCode = null;
   let qrScanErfolgt = false;
 
-  // Globale Rolle merken (wird beim Login gesetzt)
-  let isVorarbeiterGlobal = false;
-    
   // --- Funktionen ---
   // QR Scanner starten
   async function startQrScanner() {
