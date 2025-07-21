@@ -308,8 +308,6 @@ button:disabled {
   const generateBtn = document.getElementById('generate-qr-btn');
   const qrContainer = document.getElementById('qr-container');
   const qrValidUntil = document.getElementById('qr-valid-until');
-  // Globale Rolle merken (wird beim Login gesetzt)
-  let isVorarbeiterGlobal = false;
    
   if (!generateBtn || !qrContainer || !qrValidUntil) {
     console.warn('⚠️ QR-Code-UI-Element(e) fehlen: Button, Container oder Gültigkeitsanzeige nicht gefunden.');
@@ -467,6 +465,9 @@ const loginError = document.getElementById('login-error');
 let csrfToken = localStorage.getItem('csrfToken') || '';
 let loggedInUser = null;
 
+// Globale Rolle merken (wird beim Login gesetzt)
+let isVorarbeiterGlobal = false; 
+  
 // Hilfsfunktion: Cookie auslesen
 function getCookie(name) {
   const cookies = document.cookie.split(';').map(c => c.trim());
