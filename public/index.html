@@ -821,7 +821,7 @@ async function updateUIAfterLogin(user) {
     qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
   }
 
-  // QR-Section für Vorarbeiter **immer unsichtbar** setzen
+  // QR-Section immer ausblenden bei Vorarbeitern
   const qrSection = document.getElementById('qr-section');
   if (qrSection) {
     qrSection.classList.toggle('hidden', isVorarbeiterGlobal);
@@ -837,17 +837,22 @@ async function updateUIAfterLogin(user) {
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-  // Zeiterfassungssection anzeigen
-  if (isVorarbeiterGlobal || qrScanErfolgt) {
-    await hideQrGate(); // QR-Gate sicher ausblenden
+  // Section auswählen
+  if (isVorarbeiterGlobal) {
+    await hideQrGate();
     showSection('zeiterfassung-section');
   } else {
-    await showQrGate();
-    showSection('qr-section');
+    if (qrScanErfolgt) {
+      await hideQrGate();
+      showSection('zeiterfassung-section');
+    } else {
+      await showQrGate();
+      showSection('qr-section');
+    }
   }
 
   await init(); // Statusdaten laden
-  await updateButtonsBasedOnStatus(); // Buttons richtig setzen
+  await updateButtonsBasedOnStatus(); // Buttons korrekt setzen
 }
   
 async function updateButtonsBasedOnStatus() {
