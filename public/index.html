@@ -1081,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // QR-Gate anzeigen und Scanner starten
  async function showQrGate() {
-  if (isVorarbeiter) return; // Schutzregel
+  if (isVorarbeiterGlobal) return; // Schutzregel
   if (!qrSection) return;
   qrSection.classList.remove("hidden");
   qrSection.setAttribute("aria-hidden", "false");
@@ -1138,7 +1138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!targetId || targetId === "login-view" || targetId === "qr-section") return;
 
     if (targetId === "zeiterfassung-section") {
-      if (isVorarbeiter) {
+      if (isVorarbeiterGlobal) {
         // Direkt zur Zeiterfassung – Vorarbeiter brauchen nie QR
         await hideQrGate();
         showSection(zeiterfassungSection);
