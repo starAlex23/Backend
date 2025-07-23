@@ -814,7 +814,14 @@ async function updateUIAfterLogin(user) {
     qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
   }
 
-  // QR-Section komplett entfernen für Vorarbeiter
+  // QR-Scanner nur für normale Nutzer sichtbar
+  const qrReader = document.getElementById('qr-reader');
+  if (qrReader) {
+    qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
+    qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
+  }
+
+  // QR-Section ggf. komplett aus DOM entfernen
   const qrSection = document.getElementById('qr-section');
   if (isVorarbeiterGlobal && qrSection) {
     qrSection.remove();
@@ -829,18 +836,16 @@ async function updateUIAfterLogin(user) {
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-  // Section auswählen
+  // Richtige Section anzeigen
   if (isVorarbeiterGlobal) {
-    await hideQrGate(); // redundanz, kann evtl. weg
+    await hideQrGate();
+    showSection('zeiterfassung-section');
+  } else if (qrScanErfolgt) {
+    await hideQrGate();
     showSection('zeiterfassung-section');
   } else {
-    if (qrScanErfolgt) {
-      await hideQrGate();
-      showSection('zeiterfassung-section');
-    } else {
-      await showQrGate();
-      showSection('qr-section');
-    }
+    await showQrGate();
+    showSection('qr-section');
   }
 
   await init(); // Statusdaten laden
