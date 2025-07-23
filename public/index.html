@@ -843,7 +843,7 @@ async function updateUIAfterLogin(user) {
 
   // === Aktuellen Zeitstatus vom Server holen ===
   try {
-    const zeiten = await apiFetch('/api/zeit/heute');
+    const zeiten = await apiFetch('/api/zeit/letzter-status');
     const aktive = zeiten.find(z => !z.ende);
     const timeMessage = document.getElementById('time-message');
 
