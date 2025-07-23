@@ -486,6 +486,41 @@ function getCookie(name) {
   return null;
 }
 
+  // QR-Code validieren (API-Aufruf)
+  async function validateQrCode(qr) {
+    const csrfToken = localStorage.getItem("csrfToken");
+    const res = await fetch(`${API_BASE}/validate-qr`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken,
+      },
+      credentials: "include",
+      body: JSON.stringify({ qr }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Ungültiger QR-Code");
+    }
+    return await res.json();
+  }
+
+  // QR-Code wurde erkannt und validiert
+  async function onQrCodeDetected(decodedText) {
+    try {
+      console.log("➡️ QR-Code erkannt:", decodedText);
+      await validateQrCode(decodedText);
+      console.log("✅ QR-Code gültig – Zeiterfassung wird geöffnet.");
+      qrScanErfolgt = true;
+      await hideQrGate();
+      showSection(zeiterfassungSection);
+    } catch (err) {
+      console.warn("⛔ QR ungültig:", err.message);
+      alert("Ungültiger QR-Code: " + err.message);
+      await startQrScanner();
+    }
+  }
+  
 // QR-Gate anzeigen und Scanner starten
 async function showQrGate() {
   if (isVorarbeiterGlobal) return; // Schutzregel
@@ -1087,42 +1122,6 @@ async function getLetzterStatus() {
     settingsSection,
     qrSection
   ].filter(Boolean);
-
-  // --- Funktionen ---
-  // QR-Code validieren (API-Aufruf)
-  async function validateQrCode(qr) {
-    const csrfToken = localStorage.getItem("csrfToken");
-    const res = await fetch(`${API_BASE}/validate-qr`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-      },
-      credentials: "include",
-      body: JSON.stringify({ qr }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Ungültiger QR-Code");
-    }
-    return await res.json();
-  }
-
-  // QR-Code wurde erkannt und validiert
-  async function onQrCodeDetected(decodedText) {
-    try {
-      console.log("➡️ QR-Code erkannt:", decodedText);
-      await validateQrCode(decodedText);
-      console.log("✅ QR-Code gültig – Zeiterfassung wird geöffnet.");
-      qrScanErfolgt = true;
-      await hideQrGate();
-      showSection(zeiterfassungSection);
-    } catch (err) {
-      console.warn("⛔ QR ungültig:", err.message);
-      alert("Ungültiger QR-Code: " + err.message);
-      await startQrScanner();
-    }
-  }
 
   // === Navigation Button Handler ===
 navButtons.forEach((btn) => {
