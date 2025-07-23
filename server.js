@@ -178,7 +178,7 @@ app.use(cookieParser());
 // Begrenzt die Anzahl der Login-Versuche pro IP-Adresse innerhalb eines bestimmten Zeitfensters, um Brute-Force-Angriffe zu verhindern.
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 Minuten
-    max: 5, // Maximal 5 Versuche pro IP
+    max: 10, // Maximal 5 Versuche pro IP
     message: 'Zu viele Login-Versuche. Bitte warte 15 Minuten.',
     standardHeaders: true, // Standard-RateLimit-Header (RFC 6585)
     legacyHeaders: false, // Deaktiviert X-RateLimit-* Header
@@ -774,9 +774,7 @@ if (user.rolle === 'vorarbeiter') {
 
     console.log(`✅ Vorarbeiter-Token gesetzt für ${user.email}`);
   }
-}
-
-    
+}  
 res.json({
   message: 'Login erfolgreich',
   csrfToken,
