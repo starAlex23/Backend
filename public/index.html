@@ -843,16 +843,18 @@ async function updateUIAfterLogin(user) {
 
   // === Aktuellen Zeitstatus vom Server holen ===
   try {
-    const zeiten = await apiFetch('/api/zeit/letzter-status');
-    const aktive = zeiten.find(z => !z.ende);
+    const status = await apiFetch('/api/zeit/letzter-status');
+    const eingestempelt = status.eingestempelt;
+    const letzteAktion = status.letzteAktion; // z.B. 'start', 'stop', 'pause'
+
     const timeMessage = document.getElementById('time-message');
 
-    if (aktive) {
-      console.log("✅ Bereits eingestempelt seit", aktive.start);
+    if (eingestempelt) {
+      console.log("✅ Bereits eingestempelt (letzte Aktion):", letzteAktion);
       if (clockInBtn) clockInBtn.disabled = true;
       if (clockOutBtn) clockOutBtn.disabled = false;
       if (timeMessage) {
-        timeMessage.textContent = `Du bist seit ${new Date(aktive.start).toLocaleTimeString()} eingestempelt.`;
+        timeMessage.textContent = `Du bist aktuell eingestempelt (letzte Aktion: ${letzteAktion}).`;
       }
     } else {
       console.log("🕒 Noch nicht eingestempelt.");
