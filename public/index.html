@@ -157,6 +157,20 @@ button:disabled {
 #auth-container section.view.hidden {
   display: none;
 }
+
+.welcome-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+  text-align: center;
+  color: #444;
+  background: linear-gradient(to bottom right, #f0f4f8, #dbe9f4);
+  border-radius: 2rem;
+  padding: 2rem;
+  box-shadow: 0 0 15px rgba(0,0,0,0.05);
+}
     
 .view {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
@@ -231,6 +245,14 @@ button:disabled {
     <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
   </nav>
 
+<!-- 0. Idle-Ansicht nach dem Login -->
+<section id="idle-section" class="card view hidden" aria-label="Startansicht">
+  <div class="welcome-screen">
+    <h2>Willkommen!</h2>
+    <p>Bitte wähle eine Funktion über die Navigation unten.</p>
+  </div>
+</section>
+  
   <!-- QR-Gate vor der Zeiterfassung -->
   <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
     <h2>QR-Code scannen</h2>
@@ -836,13 +858,13 @@ async function updateUIAfterLogin(user) {
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-if (isVorarbeiterGlobal || qrScanErfolgt) {
-  qrScanErfolgt = true; // sicherstellen
+if (isVorarbeiterGlobal) {
   await hideQrGate();
-  console.log("➡️ Zeiterfassung anzeigen");
+  showSection('idle-section'); // statt direkt Zeiterfassung
+} else if (qrScanErfolgt) {
+  await hideQrGate();
   showSection('zeiterfassung-section');
 } else {
-  console.log("➡️ QR-Gate anzeigen");
   await showQrGate();
   showSection('qr-section');
 }
