@@ -836,17 +836,16 @@ async function updateUIAfterLogin(user) {
   if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
-  // Richtige Section anzeigen
-  if (isVorarbeiterGlobal) {
-    await hideQrGate();
-    showSection('zeiterfassung-section');
-  } else if (qrScanErfolgt) {
-    await hideQrGate();
-    showSection('zeiterfassung-section');
-  } else {
-    await showQrGate();
-    showSection('qr-section');
-  }
+if (isVorarbeiterGlobal || qrScanErfolgt) {
+  qrScanErfolgt = true; // sicherstellen
+  await hideQrGate();
+  console.log("➡️ Zeiterfassung anzeigen");
+  showSection('zeiterfassung-section');
+} else {
+  console.log("➡️ QR-Gate anzeigen");
+  await showQrGate();
+  showSection('qr-section');
+}
 
   await init(); // Statusdaten laden
   await updateButtonsBasedOnStatus(); // Buttons korrekt setzen
