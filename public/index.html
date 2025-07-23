@@ -504,48 +504,52 @@ async function hideQrGate() {
   }
 
  // QR Scanner starten
-  async function startQrScanner() {
-    if (html5QrCode) {
-      console.log("📷 Scanner läuft schon, Start übersprungen");
-      return;
-    }
-
-    if (isVorarbeiterGlobal) {
-      console.log("👷 Vorarbeiter - QR-Scanner wird nicht gestartet.");
-      qrScanErfolgt = true; // Gate überspringen
-      return;
-    }
-
-    const qrReaderElement = document.getElementById('qr-reader');
-    if (!qrReaderElement) {
-      console.error("❌ #qr-reader nicht gefunden!");
-      return;
-    }
-
-    html5QrCode = new Html5Qrcode("qr-reader");
-
-    try {
-await html5QrCode.start(
-  { facingMode: "environment" },
-  {
-    fps: 10,
-    qrbox: { width: 250, height: 250 },
-    aspectRatio: 1.333,
-  },
-  async (decodedText, decodedResult) => {
-    if (qrScanErfolgt) return;
-    qrScanErfolgt = true;
-
-    console.log("✅ QR-Code erkannt:", decodedText);
-
-    await onQrCodeDetected(decodedText);
-
-    await stopQrScanner();
-  },
-  (errorMessage) => {
-    // Fehler ignorieren, wenn keine Codes gefunden
+ async function startQrScanner() {
+  if (html5QrCode) {
+    console.log("📷 Scanner läuft schon, Start übersprungen");
+    return;
   }
-);
+
+  if (isVorarbeiterGlobal) {
+    console.log("👷 Vorarbeiter - QR-Scanner wird nicht gestartet.");
+    qrScanErfolgt = true; // Gate überspringen
+    return;
+  }
+
+  const qrReaderElement = document.getElementById('qr-reader');
+  if (!qrReaderElement) {
+    console.error("❌ #qr-reader nicht gefunden!");
+    return;
+  }
+
+  html5QrCode = new Html5Qrcode("qr-reader");
+
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      {
+        fps: 10,
+        qrbox: { width: 250, height: 250 },
+        aspectRatio: 1.333,
+      },
+      async (decodedText, decodedResult) => {
+        if (qrScanErfolgt) return;
+        qrScanErfolgt = true;
+
+        console.log("✅ QR-Code erkannt:", decodedText);
+
+        await onQrCodeDetected(decodedText);
+
+        await stopQrScanner();
+      },
+      (errorMessage) => {
+        // Fehler ignorieren, wenn keine Codes gefunden
+      }
+    );
+  } catch (err) {
+    console.error("Fehler beim Starten des QR-Scanners:", err);
+  }
+}
 
   // QR Scanner stoppen
   async function stopQrScanner() {
