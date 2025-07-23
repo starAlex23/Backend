@@ -525,31 +525,27 @@ async function hideQrGate() {
     html5QrCode = new Html5Qrcode("qr-reader");
 
     try {
-      await html5QrCode.start(
-        { facingMode: "environment" },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.333, // Optional: 4:3
-        },
-        async (decodedText, decodedResult) => {
-          if (qrScanErfolgt) return;
-          qrScanErfolgt = true;
+await html5QrCode.start(
+  { facingMode: "environment" },
+  {
+    fps: 10,
+    qrbox: { width: 250, height: 250 },
+    aspectRatio: 1.333,
+  },
+  async (decodedText, decodedResult) => {
+    if (qrScanErfolgt) return;
+    qrScanErfolgt = true;
 
-          console.log("✅ QR-Code erkannt:", decodedText);
+    console.log("✅ QR-Code erkannt:", decodedText);
 
-          await handleQrLogin(decodedText); // Deine Login-Logik
+    await onQrCodeDetected(decodedText);
 
-          await stopQrScanner();
-        },
-        (errorMessage) => {
-          // Viele Fehler hier sind "keine Codes gefunden", ignoriere ruhig
-        }
-      );
-    } catch (err) {
-      console.error("Fehler beim Starten des QR-Scanners:", err);
-    }
+    await stopQrScanner();
+  },
+  (errorMessage) => {
+    // Fehler ignorieren, wenn keine Codes gefunden
   }
+);
 
   // QR Scanner stoppen
   async function stopQrScanner() {
