@@ -814,18 +814,10 @@ async function updateUIAfterLogin(user) {
     qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
   }
 
-  // QR-Scanner nur für normale Nutzer sichtbar
-  const qrReader = document.getElementById('qr-reader');
-  if (qrReader) {
-    qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
-    qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
-  }
-
-  // QR-Section immer ausblenden bei Vorarbeitern
+  // QR-Section komplett entfernen für Vorarbeiter
   const qrSection = document.getElementById('qr-section');
-  if (qrSection) {
-    qrSection.classList.toggle('hidden', isVorarbeiterGlobal);
-    qrSection.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
+  if (isVorarbeiterGlobal && qrSection) {
+    qrSection.remove();
   }
 
   // Navigation & Logout sichtbar machen
@@ -839,7 +831,7 @@ async function updateUIAfterLogin(user) {
 
   // Section auswählen
   if (isVorarbeiterGlobal) {
-    await hideQrGate();
+    await hideQrGate(); // redundanz, kann evtl. weg
     showSection('zeiterfassung-section');
   } else {
     if (qrScanErfolgt) {
@@ -854,7 +846,7 @@ async function updateUIAfterLogin(user) {
   await init(); // Statusdaten laden
   await updateButtonsBasedOnStatus(); // Buttons korrekt setzen
 }
-  
+
 async function updateButtonsBasedOnStatus() {
   try {
     const res = await apiFetch('/api/status'); // oder wie dein Status-Endpunkt heißt
