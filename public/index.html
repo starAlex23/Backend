@@ -157,31 +157,7 @@ button:disabled {
 #auth-container section.view.hidden {
   display: none;
 }
-
-.welcome-screen {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  min-height: 60vh;
-  text-align: center;
-  color: #444;
-  background: linear-gradient(to bottom right, #f0f4f8, #dbe9f4);
-  border-radius: 2rem;
-  padding: 2rem;
-  box-shadow: 0 0 15px rgba(0,0,0,0.05);
-}
-
-   .view {
-  display: none;
-}
-.view:not(#vorarbeiter-start) {
-  display: none;
-}
-#vorarbeiter-start {
-  display: block;
-} 
-    
+   
 .view {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
 }
@@ -255,14 +231,6 @@ button:disabled {
     <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
   </nav>
 
-<!-- 0. Idle-Ansicht nach dem Login -->
-<section id="vorarbeiter-start" class="card view" aria-label="Startansicht Vorarbeiter">
-  <div class="welcome-screen">
-    <h2> SIR maybe mit Logo später mal</h2>
-    <p> Cooler slogan der passt </p></p>
-  </div>
-</section>
-  
   <!-- QR-Gate vor der Zeiterfassung -->
   <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
     <h2>QR-Code scannen</h2>
@@ -775,19 +743,6 @@ function showSection(section) {
   section.setAttribute('aria-hidden', 'false');
 }
 
-function showOnlySection(sectionId) {
-  const allSections = document.querySelectorAll('.view');
-  allSections.forEach(sec => {
-    if (sec.id === sectionId) {
-      sec.style.display = 'block';
-      sec.setAttribute('aria-hidden', 'false');
-    } else {
-      sec.style.display = 'none';
-      sec.setAttribute('aria-hidden', 'true');
-    }
-  });
-}
-  
  function showPopupMessage(msg, duration = 3000) {
   const popup = document.getElementById('popup-message');
   popup.textContent = msg;
@@ -882,13 +837,15 @@ async function updateUIAfterLogin(user) {
   if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
 
  if (isVorarbeiterGlobal) {
-    // Zeige explizit die Vorarbeiter-Startsection
-    showOnlySection('vorarbeiter-start');
-  } else if (qrScanErfolgt) {
-    showOnlySection('zeiterfassung-section');
-  } else {
-    showOnlySection('qr-section');
-  }
+  await hideQrGate();
+  showSection('zeiterfassung-section');
+} else if (qrScanErfolgt) {
+  await hideQrGate();
+  showSection('zeiterfassung-section');
+} else {
+  await showQrGate();
+  showSection('qr-section');
+}
 
   await init(); // Statusdaten laden
   await updateButtonsBasedOnStatus(); // Buttons korrekt setzen
@@ -1203,7 +1160,7 @@ navButtons.forEach((btn) => {
   btn.addEventListener("click", async () => {
     const targetId = btn.dataset.target;
 
-    // Kein target oder Login-View → abbrechen
+    // Kein target oder Login-View oder qr-section (letzteres grundsätzlich gesperrt)
     if (!targetId || targetId === "login-view") return;
 
     // Vorarbeiter dürfen nicht zur qr-section navigieren
@@ -1213,25 +1170,24 @@ navButtons.forEach((btn) => {
       if (isVorarbeiterGlobal) {
         // Vorarbeiter: immer direkt zur Zeiterfassung, kein QR-Gate
         await hideQrGate();
-        showOnlySection('zeiterfassung-section');
+        showSection('zeiterfassung-section');
       } else {
         if (qrScanErfolgt) {
           await hideQrGate();
-          showOnlySection('zeiterfassung-section');
+          showSection('zeiterfassung-section');
         } else {
           await showQrGate(); // QR-Scanner starten
-          showOnlySection('qr-section');
         }
       }
     } else {
       await hideQrGate();
 
-      // Vorarbeiter dürfen auch nicht auf QR-Section landen, falls ID woanders verwendet wird
+      // Vorarbeiter dürfen auch nicht auf QR-Section landen, falls ID irgendwo anders verwendet wird
       if (isVorarbeiterGlobal && targetId === 'qr-section') return;
 
       const targetSection = document.getElementById(targetId);
       if (targetSection) {
-        showOnlySection(targetId);
+        showSection(targetSection);
       } else {
         console.warn("⚠️ Zielsection nicht gefunden:", targetId);
       }
