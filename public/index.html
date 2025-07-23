@@ -793,78 +793,79 @@ async function updateUIAfterLogin(user) {
     nameEl.textContent = user.name || user.email || 'Benutzer';
   }
 
-  // Auth-Container verstecken
+  // Auth-Container ausblenden
   const authContainer = document.getElementById('auth-container');
   if (authContainer) {
     authContainer.classList.add('hidden');
     authContainer.setAttribute('aria-hidden', 'true');
   }
 
-  // App-View anzeigen
+  // App-Ansicht anzeigen
   const appView = document.getElementById('app-view');
   if (appView) {
     appView.classList.remove('hidden');
     appView.setAttribute('aria-hidden', 'false');
   }
 
-  // QR-Generator nur für Vorarbeiter sichtbar
+  // QR-Generator (nur für Vorarbeiter)
   const qrGen = document.getElementById('qr-generator-container');
   if (qrGen) {
     qrGen.classList.toggle('hidden', !isVorarbeiterGlobal);
     qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
   }
 
-  // QR-Scanner nur für normale Nutzer sichtbar
+  // QR-Reader (nur für normale Nutzer)
   const qrReader = document.getElementById('qr-reader');
   if (qrReader) {
     qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
     qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
   }
 
-  // QR-Section ggf. komplett aus DOM entfernen
+  // QR-Section ggf. entfernen (für Vorarbeiter)
   const qrSection = document.getElementById('qr-section');
   if (isVorarbeiterGlobal && qrSection) {
     qrSection.remove();
   }
 
-  // Navigation & Logout sichtbar machen
+  // Navigation & Logout anzeigen
   if (logoutBtn) logoutBtn.classList.remove('hidden');
   const bottomNav = document.getElementById('bottom-nav');
   if (bottomNav) bottomNav.classList.remove('hidden');
 
-  // Buttons initial setzen
-  if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
-  if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
+  // === QR-Logik & Sichtbare Section ===
+  if (isVorarbeiterGlobal || qrScanErfolgt) {
+    await hideQrGate();
+    showSection('zeiterfassung-section');
+  } else {
+    await showQrGate();
+    showSection('qr-section');
+  }
 
- if (isVorarbeiterGlobal) {
-  await hideQrGate();
-  showSection('zeiterfassung-section');
-} else if (qrScanErfolgt) {
-  await hideQrGate();
-  showSection('zeiterfassung-section');
-} else {
-  await showQrGate();
-  showSection('qr-section');
-}
-
-  await init(); // Statusdaten laden
-  await updateButtonsBasedOnStatus(); // Buttons korrekt setzen
-}
-
-async function updateButtonsBasedOnStatus() {
+  // === Aktuellen Zeitstatus vom Server holen ===
   try {
-    const res = await apiFetch('/api/status'); // oder wie dein Status-Endpunkt heißt
-   
-    if (status.eingestempelt) {
-      if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = true;
-      if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = false;
-    } else {
-      if (typeof clockInBtn !== 'undefined') clockInBtn.disabled = false;
-      if (typeof clockOutBtn !== 'undefined') clockOutBtn.disabled = true;
-    }
+    const zeiten = await apiFetch('/api/zeit/heute');
+    const aktive = zeiten.find(z => !z.ende);
+    const timeMessage = document.getElementById('time-message');
 
+    if (aktive) {
+      console.log("✅ Bereits eingestempelt seit", aktive.start);
+      if (clockInBtn) clockInBtn.disabled = true;
+      if (clockOutBtn) clockOutBtn.disabled = false;
+      if (timeMessage) {
+        timeMessage.textContent = `Du bist seit ${new Date(aktive.start).toLocaleTimeString()} eingestempelt.`;
+      }
+    } else {
+      console.log("🕒 Noch nicht eingestempelt.");
+      if (clockInBtn) clockInBtn.disabled = false;
+      if (clockOutBtn) clockOutBtn.disabled = true;
+      if (timeMessage) {
+        timeMessage.textContent = "Noch nicht eingestempelt.";
+      }
+    }
   } catch (err) {
-    console.error("❌ Fehler beim Laden des Status für die Buttons:", err);
+    console.error("❌ Fehler beim Laden des Zeitstatus:", err);
+    const timeMessage = document.getElementById('time-message');
+    if (timeMessage) timeMessage.textContent = "Fehler beim Laden des Zeitstatus.";
   }
 }
 
@@ -1073,40 +1074,6 @@ async function getLetzterStatus() {
   }
 }
   
-// === Initial Setup ===
-async function init() {
-  if (!clockInBtn || !clockOutBtn) {
-    console.warn('⚠️ ClockIn/ClockOut Button nicht gefunden.');
-    return;
-  }
-
-  // Start-Section anzeigen: Login / QR
-  showSection(qrSection);
-
-  // QR-Scanner starten (falls Funktion vorhanden)
-  if (typeof startQrScanner === 'function') {
-    await startQrScanner();
-  }
-
-  // Status abfragen und Buttons anpassen
-  try {
-    const status = await getLetzterStatus();
-    if (status?.aktion === 'start' || status?.eingestempelt === true) {
-      clockInBtn.disabled = true;
-      clockOutBtn.disabled = false;
-    } else {
-      clockInBtn.disabled = false;
-      clockOutBtn.disabled = true;
-    }
-  } catch (err) {
-    console.warn('⚠️ Status konnte nicht geladen werden:', err.message);
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  init();
-});
-  
   document.addEventListener("DOMContentLoaded", () => {
  
   // Alle Sections als Array (für showSection)
@@ -1194,26 +1161,6 @@ navButtons.forEach((btn) => {
     }
   });
 });
-    
-  // Beispiel: So setzt du isVorarbeiterGlobal beim Login
-  //  muss dann isVorarbeiterGlobal setzen und qrScanErfolgt entsprechend:
-window.updateUIAfterLogin = async function(user) {
-  if (!user) {
-    console.warn('Kein Benutzer übergeben');
-    return;
-  }
-
-  isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
-  qrScanErfolgt = isVorarbeiterGlobal;  // Vorarbeiter überspringen QR-Gate
-
-  if (isVorarbeiterGlobal) {
-    await hideQrGate();
-    showSection('zeiterfassung-section');
-  } else {
-    await showQrGate();
-    showSection('qr-section');
-  }
-};
 });
   
 </script>
