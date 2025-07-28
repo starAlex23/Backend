@@ -196,18 +196,18 @@ button:disabled {
 <div id="auth-container">
   <!-- Login-Ansicht -->
   <section id="login-view" class="view">
-    <h2>Login</h2>
-    <form id="login-form">
-      <input name="email" type="email" required />
-      <input name="passwort" type="password" required />
-      <button type="submit">Einloggen</button>
-    </form>
-     <p id="verifyWarning" class="hidden" style="color: red;">
-     Deine E-Mail ist noch nicht verifiziert. <br />
-     <button id="resendBtn" type="button">Code erneut senden</button>
-     </p>
-    <button id="show-register-btn">Noch kein Konto?</button>
-  </section>
+  <h2>Login</h2>
+  <form id="login-form">
+    <input name="email" type="email" required autocomplete="email" />
+    <input name="passwort" type="password" required autocomplete="current-password" />
+    <button type="submit">Einloggen</button>
+  </form>
+  <p id="verifyWarning" class="hidden" style="color: red; margin-top: 10px;">
+    Deine E-Mail ist noch nicht verifiziert. <br />
+    <button id="resendBtn" type="button" disabled>Code erneut senden</button>
+  </p>
+  <button id="show-register-btn">Noch kein Konto?</button>
+</section>
 
   <!-- Registrierung -->
   <section id="register-view" class="view hidden">
@@ -662,13 +662,16 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!response.ok) {
-    let msg = `Fehler: HTTP ${response.status}`;
-    try {
-      const err = await response.json();
-      msg = err?.error || err?.message || msg;
-    } catch {}
-    throw new Error(msg);
-  }
+  let code = 'HTTP_ERROR';
+  let message = `Fehler: HTTP ${response.status}`;
+  try {
+    const err = await response.json();
+    code = err?.code || code;
+    message = err?.error || err?.message || message;
+  } catch {}
+
+  throw { code, message };
+}
 
   try {
     return await response.json();
@@ -703,25 +706,19 @@ async function login(email, passwort) {
 
     loggedInUser = res.user;
 
-    if (res.user.rolle === 'vorarbeiter') {
-      isVorarbeiterGlobal = true;
+    isVorarbeiterGlobal = res.user.rolle === 'vorarbeiter';
+    if (isVorarbeiterGlobal) {
       console.log('Vorarbeiter eingeloggt → QR-Skip aktiv');
-    } else {
-      isVorarbeiterGlobal = false;
     }
 
     await updateUIAfterLogin(res.user);
-    
-  } catch (err) {
-    // Fehler aus apiFetch oder Netzwerk
-    if (err?.code) throw err; // explizit weitergeben (wenn apiFetch z.B. sowas zurückgibt)
 
-    const message = err?.message || 'Unbekannter Fehler beim Login.';
-    
-    if (message.includes('E-Mail ist noch nicht verifiziert')) {
-      throw { code: 'EMAIL_NOT_VERIFIED', message };
+  } catch (err) {
+    if (err?.code === 'EMAIL_NOT_VERIFIED') {
+      throw err; // gezielt weiterreichen
     }
 
+    const message = err?.message || 'Unbekannter Fehler beim Login.';
     throw { code: 'LOGIN_FAILED', message };
   }
 }
@@ -729,28 +726,38 @@ async function login(email, passwort) {
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
-  const email = loginForm.email.value;
+  const email = loginForm.email.value.trim();
   const passwort = loginForm.passwort.value;
 
+  // Hinweis ausblenden und Button deaktivieren
   verifyWarning.classList.add('hidden');
+  resendBtn.disabled = true;
+  resendBtn.dataset.email = '';
 
   try {
+    // login() ist deine bestehende Login-Funktion, die Fehler wirft
     await login(email, passwort);
   } catch (err) {
     console.error('Login fehlgeschlagen:', err);
 
-    if (err?.code === 'EMAIL_NOT_VERIFIED') {
+    // Prüfe, ob Fehler vom Backend wegen nicht verifizierter E-Mail kommt
+    if (err.code === 'LOGIN_FAILED' && err.message.includes('E-Mail')) {
+      // Zeige Warnung
       verifyWarning.classList.remove('hidden');
+
+      // Button aktivieren und E-Mail speichern
       resendBtn.disabled = false;
       resendBtn.dataset.email = email;
     } else {
-      alert(err?.message || 'Unbekannter Fehler beim Login.');
+      alert(err.message || 'Unbekannter Fehler beim Login.');
     }
   }
 });
 
+// Klick auf "Code erneut senden"
 resendBtn.addEventListener('click', async () => {
   const email = resendBtn.dataset.email;
+  if (!email) return;
 
   resendBtn.disabled = true;
   resendBtn.textContent = 'Sende...';
@@ -758,22 +765,29 @@ resendBtn.addEventListener('click', async () => {
   try {
     const res = await apiFetch('/api/resend-verification', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
 
-    resendBtn.textContent = 'Code gesendet!';
-    setTimeout(() => {
-      resendBtn.textContent = 'Code erneut senden';
+    if (res.success) {
+      resendBtn.textContent = 'Code gesendet!';
+      setTimeout(() => {
+        resendBtn.textContent = 'Code erneut senden';
+        resendBtn.disabled = false;
+      }, 15000); // 15 Sekunden Sperre
+    } else {
+      alert(res.message || 'Fehler beim Senden');
       resendBtn.disabled = false;
-    }, 15000);
+      resendBtn.textContent = 'Code erneut senden';
+    }
   } catch (err) {
-    console.error(err);
-    alert('Netzwerkfehler beim Senden');
+    console.error('Fehler beim erneuten Senden:', err);
+    alert('Netzwerkfehler beim Senden.');
     resendBtn.disabled = false;
     resendBtn.textContent = 'Code erneut senden';
   }
 });
-
+  
 async function updateProfile() {
   try {
     const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
