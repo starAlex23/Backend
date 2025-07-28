@@ -109,39 +109,44 @@ app.use(cors(corsOptions));
 // Diese Funktion prüft, ob alle notwendigen Umgebungsvariablen gesetzt sind.
 // Wenn eine Variable fehlt oder ungültig ist, wird eine Fehlermeldung ausgegeben und die Anwendung beendet.
 function validateEnv() {
-    const requiredVars = [
+  const requiredVars = [
     'DATABASE_URL',
     'JWT_SECRET',
     'REFRESH_SECRET',
     'JWT_ISSUER',
     'CORS_ORIGIN',
-];
+    'EMAIL_USER',
+    'EMAIL_PASS',
+  ];
 
-    for (const key of requiredVars) {
-        if (!process.env[key]) {
-            console.error(`❌ Fehlende Umgebungsvariable: ${key}`);
-            process.exit(1);
-        }
-    }
+  // Prüfen ob Variablen fehlen
+  const missingVars = requiredVars.filter(key => !process.env[key]);
+  if (missingVars.length > 0) {
+    console.error('❌ Fehlende Umgebungsvariablen:', missingVars.join(', '));
+    process.exit(1);
+  }
 
-    if (process.env.JWT_SECRET.length < 32) {
-        console.error('❌ JWT_SECRET ist zu kurz. Mindestens 32 Zeichen erforderlich.');
-        process.exit(1);
-    }
+  // Zusätzliche Prüfungen auf Länge oder Format
+  if (process.env.JWT_SECRET.length < 32) {
+    console.error('❌ JWT_SECRET ist zu kurz. Mindestens 32 Zeichen erforderlich.');
+    process.exit(1);
+  }
 
-    if (process.env.REFRESH_SECRET.length < 32) {
-        console.error('❌ REFRESH_SECRET ist zu kurz. Mindestens 32 Zeichen erforderlich.');
-        process.exit(1);
-    }
+  if (process.env.REFRESH_SECRET.length < 32) {
+    console.error('❌ REFRESH_SECRET ist zu kurz. Mindestens 32 Zeichen erforderlich.');
+    process.exit(1);
+  }
 
-    const port = parseInt(process.env.DB_PORT, 10);
-    if (isNaN(port)) {
-        console.error('❌ DB_PORT muss eine gültige Zahl sein.');
-        process.exit(1);
-    }
+  const port = parseInt(process.env.DB_PORT, 10);
+  if (isNaN(port)) {
+    console.error('❌ DB_PORT muss eine gültige Zahl sein.');
+    process.exit(1);
+  }
 }
 
+// Funktion aufrufen
 validateEnv();
+
 // --- Pool Konfiguration für PostgreSQL ---
 // Hier werden die Datenbankverbindungseinstellungen aus den Umgebungsvariablen gelesen.
 const pool = new Pool({
@@ -306,17 +311,24 @@ async function initDb() {
     await pool.query(`SET TIME ZONE 'Europe/Berlin'`);
 
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        vorname TEXT NOT NULL,
-        nachname TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        passwort TEXT NOT NULL,
-        rolle TEXT DEFAULT 'user',
-        fehlversuche INTEGER DEFAULT 0,
-        gesperrt_bis TIMESTAMPTZ,
-        biometric_enabled BOOLEAN DEFAULT FALSE,
-        ist_eingestempelt BOOLEAN DEFAULT FALSE
+  CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  vorname TEXT NOT NULL,
+  nachname TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  passwort TEXT NOT NULL,
+  rolle TEXT DEFAULT 'user',
+  fehlversuche INTEGER DEFAULT 0,
+  gesperrt_bis TIMESTAMPTZ,
+  biometric_enabled BOOLEAN DEFAULT FALSE,
+  ist_eingestempelt BOOLEAN DEFAULT FALSE,
+
+  verifiziert BOOLEAN DEFAULT FALSE,
+  verifizierung_token TEXT,
+  verifizierung_token_expires TIMESTAMPTZ,
+
+  token_resend_count INT DEFAULT 0,
+  token_resend_last TIMESTAMP
       )
     `);
 
@@ -598,7 +610,7 @@ app.get('/api/qr/verify/:code', async (req, res) => {
 
 // Route zur Benutzerregistrierung
 const transporter = nodemailer.createTransport({
-    host: 'smtp.example.com', // z. B. smtp.strato.de oder smtp.gmail.com
+    host: 'smtp.gmail.com',
     port: 587,
     secure: false,
     auth: {
