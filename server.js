@@ -775,7 +775,7 @@ app.post('/api/resend-verification', async (req, res) => {
             html: `
                 <p>Hallo ${user.vorname},</p>
                 <p>Hier ist dein neuer Verifizierungslink:</p>
-                <p><a href="https://deine-domain.de/api/verify?id=${user.id}&token=${token}">Jetzt bestätigen</a></p>
+                <p><a href="https://backend-869x.onrender.com/api/verify?id=${user.id}&token=${token}">Jetzt bestätigen</a></p>
                 <p>Der Link ist 24 Stunden gültig.</p>
             `
         });
