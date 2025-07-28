@@ -20,6 +20,7 @@ import { fileURLToPath } from 'url'; // Für __dirname bei ES-Modulen
 import cron from 'node-cron';
 import { verifyRegistrationResponse } from '@simplewebauthn/server'; // Hinzugefügt für WebAuthn
 import cors from 'cors';
+import nodemailer from 'nodemailer';
 // --- Eigene Module (mit .js-Endung!) ---
 import { REFRESH_TOKEN_SECRET } from './config/env.js';
 import { DATABASE_URL } from './config/env.js';
@@ -470,31 +471,6 @@ app.post('/api/validate-qr', async (req, res) => {
   }
 });
 
-
-
-
-app.get('/api/verify-vorarbeiter-token', (req, res) => {
-  const token = req.cookies.vorarbeiterToken;
-
-  if (!token) {
-    return res.status(401).json({ ok: false, error: 'Kein Token vorhanden' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-
-    if (!decoded || decoded.rolle !== 'vorarbeiter') {
-      return res.status(403).json({ ok: false, error: 'Keine Vorarbeiter-Berechtigung' });
-    }
-
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error('❌ Fehler beim Vorarbeiter-Token:', err);
-    return res.status(401).json({ ok: false, error: 'Token ungültig oder abgelaufen' });
-  }
-});
-
-
 /**
  * Prüft, ob der QR-Code (Token) gültig ist, also entweder in qr_tokens existiert und noch gültig ist
  * oder alternativ als universal_code in settings hinterlegt ist.
@@ -620,9 +596,17 @@ app.get('/api/qr/verify/:code', async (req, res) => {
   }
 });
 
-
-
 // Route zur Benutzerregistrierung
+const transporter = nodemailer.createTransport({
+    host: 'smtp.example.com', // z. B. smtp.strato.de oder smtp.gmail.com
+    port: 587,
+    secure: false,
+    auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+    },
+});
+
 app.post('/api/register', async (req, res) => {
     const { vorname, nachname, email, passwort } = req.body;
 
@@ -630,39 +614,165 @@ app.post('/api/register', async (req, res) => {
         return sendError(res, 400, 'Alle Felder sind Pflicht.');
     }
 
-    // Passwort-Regeln: min 8 Zeichen, mindestens 1 Großbuchstabe, mindestens 1 Zahl
     if (
         passwort.length < 8 ||
         !/[A-Z]/.test(passwort) ||
         !/[0-9]/.test(passwort)
     ) {
-        return sendError(
-            res,
-            400,
-            'Passwort muss mindestens 8 Zeichen lang sein, eine Zahl und einen Großbuchstaben enthalten.'
-        );
+        return sendError(res, 400, 'Passwort muss mindestens 8 Zeichen lang sein, eine Zahl und einen Großbuchstaben enthalten.');
     }
 
-    // E-Mail-Validierung
     if (!istGueltigeEmail(email)) {
         return sendError(res, 400, 'Ungültige E-Mail-Adresse.');
     }
 
     try {
         const hashedPassword = await bcrypt.hash(passwort, SALT_ROUNDS);
+
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h gültig
+
         const result = await pool.query(
-            `INSERT INTO users(vorname, nachname, email, passwort) VALUES($1, $2, $3, $4) RETURNING id`,
-            [vorname, nachname, email, hashedPassword]
+            `INSERT INTO users(vorname, nachname, email, passwort, verifizierung_token, verifizierung_token_expires)
+             VALUES($1, $2, $3, $4, $5, $6)
+             RETURNING id`,
+            [vorname, nachname, email, hashedPassword, token, expires]
         );
 
-        res.json({ success: true, id: result.rows[0].id, message: 'Registrierung erfolgreich!' });
+        await transporter.sendMail({
+            from: `"Dein Tool" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Bitte bestätige deine Registrierung",
+            html: `
+                <p>Hallo ${vorname},</p>
+                <p>Bitte bestätige deine Registrierung durch Klick auf folgenden Link:</p>
+                <p><a href="https://deine-domain.de/api/verify?id=${result.rows[0].id}&token=${token}">Jetzt bestätigen</a></p>
+                <p>Der Link ist 24 Stunden gültig.</p>
+            `
+        });
+
+        res.json({ success: true, message: 'Registrierung erfolgreich! Bitte E-Mail bestätigen.' });
+
     } catch (err) {
-        // PostgreSQL Fehlercode für unique violation (E-Mail bereits vergeben)
         if (err.code === '23505') {
             return sendError(res, 409, 'E-Mail-Adresse bereits vergeben.');
         }
         console.error('Fehler bei der Registrierung:', err);
         return sendError(res, 500, 'Serverfehler bei der Registrierung.');
+    }
+});
+
+app.get('/api/verify', async (req, res) => {
+    const { id, token } = req.query;
+
+    if (!id || !token) {
+        return sendError(res, 400, 'Ungültiger Verifizierungslink.');
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT verifizierung_token, verifizierung_token_expires FROM users WHERE id = $1`,
+            [id]
+        );
+
+        const user = result.rows[0];
+        if (!user || user.verifizierung_token !== token) {
+            return sendError(res, 400, 'Token ungültig oder Benutzer nicht gefunden.');
+        }
+
+        if (new Date(user.verifizierung_token_expires) < new Date()) {
+            return sendError(res, 400, 'Token ist abgelaufen.');
+        }
+
+        await pool.query(
+            `UPDATE users SET verifiziert = TRUE, verifizierung_token = NULL, verifizierung_token_expires = NULL WHERE id = $1`,
+            [id]
+        );
+
+        res.send("✅ Dein Account wurde erfolgreich bestätigt.");
+
+    } catch (err) {
+        console.error('Fehler bei der Verifizierung:', err);
+        sendError(res, 500, 'Fehler bei der Verifizierung.');
+    }
+});
+
+app.post('/api/resend-verification', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email || !istGueltigeEmail(email)) {
+        return sendError(res, 400, 'Ungültige E-Mail-Adresse.');
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT id, vorname, verifiziert, token_resend_last, token_resend_count FROM users WHERE email = $1`,
+            [email]
+        );
+
+        const user = result.rows[0];
+
+        if (!user) {
+            return sendError(res, 404, 'Benutzer nicht gefunden.');
+        }
+
+        if (user.verifiziert) {
+            return sendError(res, 400, 'Benutzer ist bereits verifiziert.');
+        }
+
+        const now = new Date();
+        const lastSent = user.token_resend_last ? new Date(user.token_resend_last) : null;
+
+        // 24-Stunden-Fenster für Zähler
+        const isSameDay =
+            lastSent &&
+            now - lastSent < 24 * 60 * 60 * 1000;
+
+        // Eskalation: Sperre nach 10 Versuchen
+        if (isSameDay && user.token_resend_count >= 10) {
+            return sendError(res, 429, 'Zu viele Versuche. Bitte versuche es morgen erneut.');
+        }
+
+        // Minimum-Wartezeit: 5 Minuten zwischen einzelnen Versuchen
+        if (lastSent && now - lastSent < 5 * 60 * 1000) {
+            const verbleibend = Math.ceil((5 * 60 * 1000 - (now - lastSent)) / 1000);
+            return sendError(res, 429, `Bitte warte ${verbleibend} Sekunden, bevor du es erneut versuchst.`);
+        }
+
+        // Generiere neuen Token
+        const token = crypto.randomBytes(32).toString('hex');
+        const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24h gültig
+
+        await pool.query(
+            `UPDATE users 
+             SET verifizierung_token = $1,
+                 verifizierung_token_expires = $2,
+                 token_resend_last = $3,
+                 token_resend_count = CASE 
+                     WHEN $4 THEN token_resend_count + 1
+                     ELSE 1
+                 END
+             WHERE id = $5`,
+            [token, expires, now, isSameDay, user.id]
+        );
+
+        await transporter.sendMail({
+            from: `"Dein Tool" <${process.env.EMAIL_USER}>`,
+            to: email,
+            subject: "Neuer Verifizierungslink",
+            html: `
+                <p>Hallo ${user.vorname},</p>
+                <p>Hier ist dein neuer Verifizierungslink:</p>
+                <p><a href="https://deine-domain.de/api/verify?id=${user.id}&token=${token}">Jetzt bestätigen</a></p>
+                <p>Der Link ist 24 Stunden gültig.</p>
+            `
+        });
+
+        res.json({ success: true, message: 'Neuer Verifizierungslink wurde gesendet.' });
+
+    } catch (err) {
+        console.error('Fehler beim Token-Resend:', err);
+        sendError(res, 500, 'Serverfehler.');
     }
 });
 
@@ -674,18 +784,21 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   if (!email || !passwort) return sendError(res, 400, 'Alle Felder sind Pflicht.');
 
   try {
+    // Nutzer abrufen
     const result = await pool.query(`SELECT * FROM users WHERE email = $1`, [email]);
     const user = result.rows[0];
     if (!user) return sendError(res, 401, 'Nutzer nicht gefunden.');
 
+    // Konto gesperrt?
     if (user.gesperrt_bis && new Date(user.gesperrt_bis) > new Date()) {
-      const minuten = Math.ceil((new Date(user.gesperrt_bis).getTime() - new Date().getTime()) / 60000);
-      return sendError(res, 403, `Konto gesperrt. Versuche es in ${minuten} Minuten.`);
+      const minuten = Math.ceil((new Date(user.gesperrt_bis).getTime() - Date.now()) / 60000);
+      return sendError(res, 403, `Konto gesperrt. Versuche es in ${minuten} Minuten erneut.`);
     }
 
+    // Passwort prüfen
     const match = await bcrypt.compare(passwort, user.passwort);
     if (!match) {
-      const neueFehlversuche = user.fehlversuche + 1;
+      const neueFehlversuche = (user.fehlversuche || 0) + 1;
       const istGesperrt = neueFehlversuche >= 5;
       const sperrzeit = istGesperrt ? new Date(Date.now() + 15 * 60 * 1000) : null;
 
@@ -694,104 +807,90 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         [neueFehlversuche, sperrzeit, user.id]
       );
 
-      return sendError(
-        res,
-        401,
-        istGesperrt ? 'Zu viele Fehlversuche. Konto gesperrt für 15 Minuten.' : 'Falsches Passwort.'
+      return sendError(res, 401, istGesperrt
+        ? 'Zu viele Fehlversuche. Konto gesperrt für 15 Minuten.'
+        : 'Falsches Passwort.'
       );
     }
 
+    // Fehlversuche zurücksetzen bei Erfolg
     await pool.query(`UPDATE users SET fehlversuche = 0, gesperrt_bis = NULL WHERE id = $1`, [user.id]);
 
+    // AccessToken erzeugen
     const issuedAt = Math.floor(Date.now() / 1000);
     const expiresAt = issuedAt + 15 * 60;
     const jti = uuidv4();
-
     const accessToken = jwt.sign(
       { id: user.id, rolle: user.rolle, jti, iat: issuedAt, nbf: issuedAt },
       JWT_SECRET,
       { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
     );
 
-    const refreshToken = uuidv4();
-    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
+    // AccessToken speichern
     await pool.query(
       `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at) VALUES($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
       [accessToken, user.id, jti, issuedAt, expiresAt]
     );
-
     await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
 
+    // RefreshToken
+    const refreshToken = uuidv4();
+    const refreshExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     await pool.query(
       `INSERT INTO refresh_tokens (token, user_id, expires_at) VALUES ($1, $2, $3)`,
       [refreshToken, user.id, refreshExpiresAt]
     );
 
-    // ✅ Richtig geschriebene Variable verwenden
+    // CSRF-Token
     const csrfToken = crypto.randomBytes(32).toString('hex');
 
+    // Cookies setzen
     res.cookie('token', accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax',
-      maxAge: 15 * 60 * 1000
+      httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 15 * 60 * 1000
     });
 
-   res.cookie('refreshToken', refreshToken, {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'Lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 Tage
-  path: '/api/refresh'
-});
-
-res.cookie('csrfToken', csrfToken, {
-  httpOnly: false,
-  secure: true,
-  sameSite: 'Lax',
-  maxAge: 24 * 60 * 60 * 1000
-});
-
-// Nur wenn Vorarbeiter
-if (user.rolle === 'vorarbeiter') {
-  const existingToken = req.cookies.vorarbeiterToken;
-
-  // Wenn keiner da → neuen Vorarbeiter-Token setzen
-  if (!existingToken) {
-    const vToken = jwt.sign(
-      { id: user.id, rolle: 'vorarbeiter' },
-      JWT_SECRET,
-      { expiresIn: '30d', issuer: process.env.JWT_ISSUER }
-    );
-
-    res.cookie('vorarbeiterToken', vToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 Tage
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000, path: '/api/refresh'
     });
 
-    console.log(`✅ Vorarbeiter-Token gesetzt für ${user.email}`);
-  }
-}  
-res.json({
-  message: 'Login erfolgreich',
-  csrfToken,
-  user: {
-    id: user.id,
-    name: `${user.vorname} ${user.nachname}`,
-    email: user.email,
-    rolle: user.rolle,
-  }
-});
+    res.cookie('csrfToken', csrfToken, {
+      httpOnly: false, secure: true, sameSite: 'Lax', maxAge: 24 * 60 * 60 * 1000
+    });
+
+    if (!user.verifiziert) {
+        return sendError(res, 403, 'Bitte bestätige zuerst deine E-Mail-Adresse.');
+    }
+
+    // Vorarbeiter-Login
+    if (user.rolle === 'vorarbeiter' && !req.cookies.vorarbeiterToken) {
+      const vToken = jwt.sign(
+        { id: user.id, rolle: 'vorarbeiter' },
+        JWT_SECRET,
+        { expiresIn: '30d', issuer: process.env.JWT_ISSUER }
+      );
+      res.cookie('vorarbeiterToken', vToken, {
+        httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 30 * 24 * 60 * 60 * 1000
+      });
+      console.log(`✅ Vorarbeiter-Token gesetzt für ${user.email}`);
+    }
+
+    // Login erfolgreich
+    res.json({
+      message: 'Login erfolgreich',
+      csrfToken,
+      user: {
+        id: user.id,
+        name: `${user.vorname} ${user.nachname}`,
+        email: user.email,
+        rolle: user.rolle,
+      }
+    });
+
   } catch (err) {
     console.error('❌ Login-Fehler:', err);
     sendError(res, 500, 'Interner Serverfehler');
   }
 });
-
-
 
 // Route für die Benutzerinformationen
 // HINWEIS: 'authenticateToken' ist hier ein Platzhalter und muss definiert/importiert werden.
