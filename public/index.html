@@ -202,6 +202,10 @@ button:disabled {
       <input name="passwort" type="password" required />
       <button type="submit">Einloggen</button>
     </form>
+     <p id="verify-warning" class="hidden" style="color: red;">
+     Deine E-Mail ist noch nicht verifiziert. <br />
+     <button id="resend-btn" type="button">Code erneut senden</button>
+     </p>
     <button id="show-register-btn">Noch kein Konto?</button>
   </section>
 
@@ -308,6 +312,8 @@ button:disabled {
   const generateBtn = document.getElementById('generate-qr-btn');
   const qrContainer = document.getElementById('qr-container');
   const qrValidUntil = document.getElementById('qr-valid-until');
+  const verifyWarning = document.getElementById('verify-warning');
+  const resendBtn = document.getElementById('resend-btn');
    
   if (!generateBtn || !qrContainer || !qrValidUntil) {
     console.warn('⚠️ QR-Code-UI-Element(e) fehlen: Button, Container oder Gültigkeitsanzeige nicht gefunden.');
@@ -610,20 +616,17 @@ async function apiFetch(path, options = {}, useAuthHeaderToken = false) {
   options.headers = options.headers || {};
   options.credentials = 'include'; // zwingend, damit Cookies gesendet werden
 
-  // CSRF-Token für schreibende Methoden aus localStorage setzen
-if (writeMethods.includes(method)) {
-  // Content-Type setzen, wenn noch nicht gesetzt
-  if (!options.headers['Content-Type']) {
-    options.headers['Content-Type'] = 'application/json';
-  }
+  if (writeMethods.includes(method)) {
+    if (!options.headers['Content-Type']) {
+      options.headers['Content-Type'] = 'application/json';
+    }
 
-  if (!csrfToken) {
-    console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
-  } else {
-    options.headers['X-CSRF-Token'] = csrfToken;
+    if (csrfToken) {
+      options.headers['X-CSRF-Token'] = csrfToken;
+    } else {
+      console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
+    }
   }
-}
-
 
   if (useAuthHeaderToken) {
     const token = getCookie('token');
@@ -632,7 +635,34 @@ if (writeMethods.includes(method)) {
     }
   }
 
-const url = path.startsWith('http') ? path : (API_BASE_URL + path);
+  const url = path.startsWith('http') ? path : (API_BASE_URL + path);
+
+  try {
+    const response = await fetch(url, options);
+    const contentType = response.headers.get('content-type') || '';
+
+    const isJson = contentType.includes('application/json');
+    const data = isJson ? await response.json() : await response.text();
+
+    if (!response.ok) {
+      // Backend gibt evtl. { code, message } zurück
+      const errObj = isJson && data?.message
+        ? { code: data.code || 'API_ERROR', message: data.message }
+        : { code: 'API_ERROR', message: data || `HTTP ${response.status}` };
+
+      throw errObj;
+    }
+
+    return data;
+  } catch (err) {
+    if (err.code && err.message) throw err;
+
+    throw {
+      code: 'NETWORK_ERROR',
+      message: err.message || 'Netzwerkfehler oder ungültige Antwort vom Server',
+    };
+  }
+}
 
   async function fetchWithCookies() {
     return fetch(url, options);
@@ -680,8 +710,7 @@ const url = path.startsWith('http') ? path : (API_BASE_URL + path);
 // Login-Funktion: speichert Access- und CSRF-Token
 async function login(email, passwort) {
   if (!email || !passwort) {
-    alert('Bitte Email und Passwort ausfüllen!');
-    return;
+    throw { code: 'MISSING_FIELDS', message: 'Bitte Email und Passwort ausfüllen!' };
   }
 
   try {
@@ -692,8 +721,7 @@ async function login(email, passwort) {
     });
 
     if (!res.user) {
-      alert('Login erfolgreich, aber kein Benutzerobjekt erhalten.');
-      return;
+      throw { code: 'NO_USER', message: 'Login erfolgreich, aber kein Benutzerobjekt erhalten.' };
     }
 
     console.log('✅ Eingeloggt:', res.user);
@@ -705,7 +733,6 @@ async function login(email, passwort) {
 
     loggedInUser = res.user;
 
-    // ❗️Hier fehlt es bei dir:
     if (res.user.rolle === 'vorarbeiter') {
       isVorarbeiterGlobal = true;
       console.log('Vorarbeiter eingeloggt → QR-Skip aktiv');
@@ -713,25 +740,76 @@ async function login(email, passwort) {
       isVorarbeiterGlobal = false;
     }
 
-    // UI anpassen:
     await updateUIAfterLogin(res.user);
-
+    
   } catch (err) {
-    console.error('❌ Login fehlgeschlagen:', err.message);
-    alert('Login fehlgeschlagen: ' + err.message);
+    // Fehler aus apiFetch oder Netzwerk
+    if (err?.code) throw err; // explizit weitergeben (wenn apiFetch z.B. sowas zurückgibt)
+
+    const message = err?.message || 'Unbekannter Fehler beim Login.';
+    
+    if (message.includes('E-Mail ist noch nicht verifiziert')) {
+      throw { code: 'EMAIL_NOT_VERIFIED', message };
+    }
+
+    throw { code: 'LOGIN_FAILED', message };
   }
 }
+
   
 loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault();  // Verhindert das Neuladen der Seite
+  event.preventDefault(); // Seite nicht neu laden
 
-  const email = loginForm.email.value;     // Annahme: <input name="email">
-  const passwort = loginForm.passwort.value; // Annahme: <input name="passwort">
+  const email = loginForm.email.value;
+  const passwort = loginForm.passwort.value;
+
+  // Hinweis ausblenden, falls sichtbar
+  verifyWarning.classList.add('hidden');
 
   try {
-    await login(email, passwort);  // Deine bereits bestehende login-Funktion
+    await login(email, passwort); // Deine bestehende Funktion
   } catch (err) {
     console.error('Login fehlgeschlagen:', err);
+
+    if (err?.code === 'EMAIL_NOT_VERIFIED') {
+      verifyWarning.classList.remove('hidden');
+      resendBtn.disabled = false;
+      resendBtn.dataset.email = email;
+    } else {
+      alert(err?.message || 'Unbekannter Fehler beim Login.');
+    }
+  }
+});
+
+resendBtn.addEventListener('click', async () => {
+  const email = resendBtn.dataset.email;
+
+  resendBtn.disabled = true;
+  resendBtn.textContent = 'Sende...';
+
+  try {
+    const res = await apiFetch('/api/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+
+    if (res.ok) {
+      resendBtn.textContent = 'Code gesendet!';
+      setTimeout(() => {
+        resendBtn.textContent = 'Code erneut senden';
+        resendBtn.disabled = false;
+      }, 15000); // 15 Sek Sperre
+    } else {
+      const data = await res.json();
+      alert(data.message || 'Fehler beim Senden');
+      resendBtn.disabled = false;
+      resendBtn.textContent = 'Code erneut senden';
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Netzwerkfehler beim Senden');
+    resendBtn.disabled = false;
+    resendBtn.textContent = 'Code erneut senden';
   }
 });
   
