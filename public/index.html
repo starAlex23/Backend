@@ -202,7 +202,7 @@ button:disabled {
       <input name="passwort" type="password" required />
       <button type="submit">Einloggen</button>
     </form>
-     <p id="verify-warning" class="hidden" style="color: red;">
+     <p id="verifyWarning" class="hidden" style="color: red;">
      Deine E-Mail ist noch nicht verifiziert. <br />
      <button id="resend-btn" type="button">Code erneut senden</button>
      </p>
@@ -312,9 +312,7 @@ button:disabled {
   const generateBtn = document.getElementById('generate-qr-btn');
   const qrContainer = document.getElementById('qr-container');
   const qrValidUntil = document.getElementById('qr-valid-until');
-  const verifyWarning = document.getElementById('verify-warning');
-  const resendBtn = document.getElementById('resend-btn');
-   
+
   if (!generateBtn || !qrContainer || !qrValidUntil) {
     console.warn('⚠️ QR-Code-UI-Element(e) fehlen: Button, Container oder Gültigkeitsanzeige nicht gefunden.');
     return;
@@ -450,6 +448,8 @@ const meinTagSection = document.getElementById("mein-tag-section");
 const arbeitsplanungSection = document.getElementById("arbeitsplanung-section");
 const chatSection = document.getElementById("chat-section");
 const settingsSection = document.getElementById("settings-section");
+const verifyWarning = document.getElementById('verifyWarning');
+const resendBtn = document.getElementById('resendBtn');
 
 // Navbar Button (großer Zeiterfassungsbutton)
 const zeiterfassungBtn = document.querySelector('button.main-button[data-target="zeiterfassung-section"]');
@@ -726,18 +726,16 @@ async function login(email, passwort) {
   }
 }
 
-  
 loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault(); // Seite nicht neu laden
+  event.preventDefault();
 
   const email = loginForm.email.value;
   const passwort = loginForm.passwort.value;
 
-  // Hinweis ausblenden, falls sichtbar
   verifyWarning.classList.add('hidden');
 
   try {
-    await login(email, passwort); // Deine bestehende Funktion
+    await login(email, passwort);
   } catch (err) {
     console.error('Login fehlgeschlagen:', err);
 
@@ -763,18 +761,11 @@ resendBtn.addEventListener('click', async () => {
       body: JSON.stringify({ email }),
     });
 
-    if (res.ok) {
-      resendBtn.textContent = 'Code gesendet!';
-      setTimeout(() => {
-        resendBtn.textContent = 'Code erneut senden';
-        resendBtn.disabled = false;
-      }, 15000); // 15 Sek Sperre
-    } else {
-      const data = await res.json();
-      alert(data.message || 'Fehler beim Senden');
-      resendBtn.disabled = false;
+    resendBtn.textContent = 'Code gesendet!';
+    setTimeout(() => {
       resendBtn.textContent = 'Code erneut senden';
-    }
+      resendBtn.disabled = false;
+    }, 15000);
   } catch (err) {
     console.error(err);
     alert('Netzwerkfehler beim Senden');
@@ -782,7 +773,7 @@ resendBtn.addEventListener('click', async () => {
     resendBtn.textContent = 'Code erneut senden';
   }
 });
-  
+
 async function updateProfile() {
   try {
     const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
