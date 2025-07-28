@@ -608,14 +608,15 @@ async function hideQrGate() {
   }
   
 // Haupt-Fetch mit automatischem Token-Refresh, CSRF-Token und Auth-Header
-async function apiFetch(path, options = {}, useAuthHeaderToken = false) {
+async function apiFetch(path, options = {}) {
   const method = (options.method || 'GET').toUpperCase();
   const writeMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
 
   options = { ...options };
   options.headers = options.headers || {};
-  options.credentials = 'include'; // zwingend, damit Cookies gesendet werden
+  options.credentials = 'include'; // wichtig für Cookies
 
+  // CSRF-Header bei schreibenden Requests
   if (writeMethods.includes(method)) {
     if (!options.headers['Content-Type']) {
       options.headers['Content-Type'] = 'application/json';
@@ -624,80 +625,49 @@ async function apiFetch(path, options = {}, useAuthHeaderToken = false) {
     if (csrfToken) {
       options.headers['X-CSRF-Token'] = csrfToken;
     } else {
-      console.warn('⚠️ Kein CSRF-Token im localStorage gefunden.');
-    }
-  }
-
-  if (useAuthHeaderToken) {
-    const token = getCookie('token');
-    if (token) {
-      options.headers['Authorization'] = 'Bearer ' + token;
+      console.warn('⚠️ Kein CSRF-Token vorhanden.');
     }
   }
 
   const url = path.startsWith('http') ? path : (API_BASE_URL + path);
 
-  try {
-    const response = await fetch(url, options);
-    const contentType = response.headers.get('content-type') || '';
-
-    const isJson = contentType.includes('application/json');
-    const data = isJson ? await response.json() : await response.text();
-
-    if (!response.ok) {
-      // Backend gibt evtl. { code, message } zurück
-      const errObj = isJson && data?.message
-        ? { code: data.code || 'API_ERROR', message: data.message }
-        : { code: 'API_ERROR', message: data || `HTTP ${response.status}` };
-
-      throw errObj;
-    }
-
-    return data;
-  } catch (err) {
-    if (err.code && err.message) throw err;
-
-    throw {
-      code: 'NETWORK_ERROR',
-      message: err.message || 'Netzwerkfehler oder ungültige Antwort vom Server',
-    };
-  }
-}
-
-  async function fetchWithCookies() {
-    return fetch(url, options);
-  }
+  const fetchWithCookies = () => fetch(url, options);
 
   let response = await fetchWithCookies();
 
-   if (response.status === 401) {
-    const refreshResponse = await fetch(`${API_BASE_URL}/api/refresh`, {
+  // Falls AccessToken abgelaufen → versuche Refresh
+  if (response.status === 401) {
+    const refreshRes = await fetch(`${API_BASE_URL}/api/refresh`, {
       method: 'POST',
       credentials: 'include',
     });
 
-    if (!refreshResponse.ok) {
-      throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
+    if (!refreshRes.ok) {
+      throw new Error('Login abgelaufen. Bitte neu einloggen.');
     }
 
+    // Neuen CSRF-Token übernehmen (optional)
+    const data = await refreshRes.json().catch(() => null);
+    if (data?.csrfToken) {
+      csrfToken = data.csrfToken;
+      localStorage.setItem('csrfToken', csrfToken);
+    }
+
+    // Wiederhole ursprünglichen Request
     response = await fetchWithCookies();
 
     if (response.status === 401) {
-      throw new Error('Token-Refresh fehlgeschlagen. Bitte neu einloggen.');
+      throw new Error('Token-Refresh gescheitert. Bitte neu einloggen.');
     }
   }
 
   if (!response.ok) {
-    let errorMsg = `Fehler: HTTP ${response.status}`;
+    let msg = `Fehler: HTTP ${response.status}`;
     try {
-      const errJson = await response.json();
-      if (errJson.error) errorMsg = errJson.error;
-      else if (errJson.message) errorMsg = errJson.message;
-    } catch {
-      const errText = await response.text().catch(() => '');
-      if (errText) errorMsg = errText;
-    }
-    throw new Error(errorMsg);
+      const err = await response.json();
+      msg = err?.error || err?.message || msg;
+    } catch {}
+    throw new Error(msg);
   }
 
   try {
