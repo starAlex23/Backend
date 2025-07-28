@@ -658,7 +658,7 @@ app.post('/api/register', async (req, res) => {
             html: `
                 <p>Hallo ${vorname},</p>
                 <p>Bitte bestätige deine Registrierung durch Klick auf folgenden Link:</p>
-                <p><a href="https://deine-domain.de/api/verify?id=${result.rows[0].id}&token=${token}">Jetzt bestätigen</a></p>
+                <p><a href="https://backend-869x.onrender.com/api/verify?id=${result.rows[0].id}&token=${token}">Jetzt bestätigen</a></p>
                 <p>Der Link ist 24 Stunden gültig.</p>
             `
         });
