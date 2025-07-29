@@ -608,17 +608,142 @@ app.get('/api/qr/verify/:code', async (req, res) => {
   }
 });
 
-// Route zur Benutzerregistrierung
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Emails senden
 const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
 });
 
+async function sendEmail({ to, subject, text }) {
+  await transporter.sendMail({
+    from: `"Zeiterfassungssystem" <${process.env.EMAIL_USER}>`,
+    to,
+    subject,
+    text
+  });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Passwort zurücksetzen
+router.post('/api/reset-request', async (req, res) => {
+  const { email, vorname, nachname } = req.body;
+  if (!email || !vorname || !nachname) return res.status(400).json({ error: 'Fehlende Felder' });
+
+  const user = await getUserByEmail(email); // implementieren: SELECT * FROM users WHERE email = $1
+  if (!user || user.vorname !== vorname || user.nachname !== nachname) {
+    return res.status(200).json({ message: 'Falls der Nutzer existiert, wurde ein Code verschickt' });
+  }
+
+  const code = String(crypto.randomInt(100000, 999999));
+  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 Minuten
+
+  await db.query(
+    'UPDATE users SET reset_code = $1, reset_expires = $2 WHERE id = $3',
+    [code, expires, user.id]
+  );
+
+  await sendEmail({
+    to: email,
+    subject: 'Passwort-Zurücksetzen',
+    text: `Hallo ${vorname},\n\nDein Bestätigungscode lautet: ${code}\n\nEr ist 15 Minuten gültig.\n\nFalls du das nicht warst, ignoriere diese Nachricht.`
+  });
+
+  res.status(200).json({ message: 'Falls korrekt, wurde ein Code verschickt' });
+});
+
+router.post('/api/reset-verify', async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) return res.status(400).json({ error: 'Fehlende Felder' });
+
+  const user = await getUserByEmail(email);
+  if (!user || user.reset_code !== code || new Date(user.reset_expires) < new Date()) {
+    return res.status(401).json({ error: 'Ungültiger oder abgelaufener Code' });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 Minuten gültig
+
+  await db.query(
+    'UPDATE users SET reset_token = $1, reset_token_expires = $2 WHERE id = $3',
+    [token, expires, user.id]
+  );
+
+  res.status(200).json({ resetToken: token });
+});
+
+router.post('/api/reset-password', async (req, res) => {
+  const { resetToken, neuesPasswort } = req.body;
+  if (!resetToken || !neuesPasswort) return res.status(400).json({ error: 'Fehlende Felder' });
+
+  const result = await db.query(
+    'SELECT * FROM users WHERE reset_token = $1 AND reset_token_expires > NOW()',
+    [resetToken]
+  );
+
+  const user = result.rows[0];
+  if (!user) return res.status(401).json({ error: 'Ungültiger oder abgelaufener Token' });
+
+  const hash = await bcrypt.hash(neuesPasswort, 12);
+
+  await db.query(
+    `UPDATE users
+     SET passwort = $1, reset_code = NULL, reset_expires = NULL,
+         reset_token = NULL, reset_token_expires = NULL
+     WHERE id = $2`,
+    [hash, user.id]
+  );
+
+  res.status(200).json({ message: 'Passwort aktualisiert' });
+});
+////////////////////////////////
+//Hilfsfunktion zum passwort ändern
+const user = await getUserByEmail(email);
+
+async function getUserByEmail(email) {
+  const res = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  return res.rows[0] || null;
+}
+
+async function updateUserResetCode(id, code, expires) {
+  await pool.query(
+    `UPDATE users
+     SET reset_code = $1, reset_expires = $2
+     WHERE id = $3`,
+    [code, expires, id]
+  );
+}
+
+async function updateUserResetToken(id, token, expires) {
+  await pool.query(
+    `UPDATE users
+     SET reset_token = $1, reset_token_expires = $2
+     WHERE id = $3`,
+    [token, expires, id]
+  );
+}
+
+async function updateUserPassword(id, hashedPassword) {
+  await pool.query(
+    `UPDATE users
+     SET passwort = $1,
+         reset_code = NULL,
+         reset_expires = NULL,
+         reset_token = NULL,
+         reset_token_expires = NULL
+     WHERE id = $2`,
+    [hashedPassword, id]
+  );
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// Route zur Benutzerregistrierung
 app.post('/api/register', async (req, res) => {
     const { vorname, nachname, email, passwort } = req.body;
 
