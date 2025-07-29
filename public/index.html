@@ -5,330 +5,337 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zeiterfassung</title>
   <style>
-  body {
-  font-family: 'Inter', sans-serif;
-  margin: 0; padding: 0;
-  background: var(--bg, #fff);
-  color: var(--fg, #000);
-  font-size: 16px;
-  line-height: 1.5;
-}
+    /* Basis Styles */
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0; padding: 0;
+      background: var(--bg, #fff);
+      color: var(--fg, #000);
+      font-size: 16px;
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
 
-[data-theme="dark"] {
-  --bg: #121212;
-  --fg: #eee;
-  --card-bg: #222;
-}
+    /* Dark Mode */
+    [data-theme="dark"] {
+      --bg: #121212;
+      --fg: #eee;
+      --card-bg: #222;
+    }
 
-header {
-  background: #4CAF50;
-  color: white;
-  padding: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  font-size: 1.2rem;
-}
+    header {
+      background: #4CAF50;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 1.2rem;
+      position: sticky;
+      top: 0;
+      z-index: 1100;
+    }
 
-main {
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 1rem;
-  box-sizing: border-box;
-}
+    main {
+      flex-grow: 1;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 1rem;
+      box-sizing: border-box;
+      min-height: calc(100vh - 160px); /* Header + Bottom Nav */
+    }
 
-.card {
-  background: var(--card-bg, #f9f9f9);
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-}
+    /* Karten-Style für Bereiche */
+    .card {
+      background: var(--card-bg, #f9f9f9);
+      padding: 1.5rem 1.8rem;
+      margin-bottom: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+    }
 
-.hidden {
-  display: none !important;
-}
+    /* Verstecken */
+    .hidden {
+      display: none !important;
+    }
 
-label {
-  display: block;
-  margin-top: 1rem;
-  font-weight: 500;
-}
+    /* Allgemeine Views innerhalb Auth oder App */
+    .view {
+      max-width: 400px;
+      margin: 0 auto 4rem auto;
+    }
 
-input[type="email"],
-input[type="password"],
-input[type="text"] {
-  width: 100%;
-  padding: 0.8rem;
-  margin-top: 0.4rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 1rem;
-  box-sizing: border-box;
-}
+    /* Inputs */
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 500;
+    }
 
-button {
-  display: block;
-  width: 100%;
-  margin-top: 1.2rem;
-  padding: 0.9rem;
-  font-size: 1.05rem;
-  border-radius: 6px;
-  background: #4CAF50;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: background 0.2s ease;
-}
+    input[type="email"],
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      padding: 0.8rem;
+      margin-top: 0.4rem;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
 
-button:hover {
-  background: #45a049;
-}
+    /* Buttons */
+    button {
+      display: block;
+      width: 100%;
+      margin-top: 1.2rem;
+      padding: 0.9rem;
+      font-size: 1.05rem;
+      border-radius: 6px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
 
-button:disabled {
-  background: #999;
-  cursor: not-allowed;
-}
+    button:hover:not(:disabled) {
+      background: #45a049;
+    }
 
-.link {
-  text-align: center;
-  margin-top: 1rem;
-}
+    button:disabled {
+      background: #999;
+      cursor: not-allowed;
+    }
 
-.link button {
-  background: none;
-  border: none;
-  color: #4CAF50;
-  text-decoration: underline;
-  font-size: 1rem;
-  padding: 0.4rem;
-}
+    /* Link-Style für Buttons die wie Links aussehen */
+    .link {
+      text-align: center;
+      margin-top: 1rem;
+    }
 
-#bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  background: #f2f2f2;
-  border-top: 1px solid #ccc;
-  padding: 0.5rem 0;
-  z-index: 1000;
-}
+    .link button {
+      background: none;
+      border: none;
+      color: #4CAF50;
+      text-decoration: underline;
+      font-size: 1rem;
+      padding: 0.4rem;
+      cursor: pointer;
+    }
 
-#bottom-nav button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  padding: 0.4rem;
-  color: #333;
-}
+    /* Bottom Navigation */
+    #bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      background: #f2f2f2;
+      border-top: 1px solid #ccc;
+      padding: 0.5rem 0;
+      z-index: 1000;
+    }
 
-#bottom-nav .main-button {
-  font-size: 2rem;
-  background: #4CAF50;
-  color: white;
-  border-radius: 50%;
-  padding: 0.6rem;
-  margin-top: -1.2rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-}
+    #bottom-nav button {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      padding: 0.4rem;
+      color: #333;
+      cursor: pointer;
+    }
 
-#auth-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - 100px); /* Platz für Header */
-  padding: 2rem 1rem;
-}
+    #bottom-nav .main-button {
+      font-size: 2rem;
+      background: #4CAF50;
+      color: white;
+      border-radius: 50%;
+      padding: 0.6rem;
+      margin-top: -1.2rem;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
 
-#auth-container section.view {
-  width: 100%;
-  max-width: 400px;
-  background: var(--card-bg, #f9f9f9);
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-  transition: opacity 0.3s ease;
-}
+    /* Auth Container (Login & Reset) */
+    #auth-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      min-height: calc(100vh - 160px);
+    }
 
-#auth-container section.view.hidden {
-  display: none;
-}
+    /* Sections innerhalb Auth Container */
+    #auth-container section.view {
+      background: var(--card-bg, #f9f9f9);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+      transition: opacity 0.3s ease;
+      width: 100%;
+      max-width: 400px;
+    }
 
-.hidden {
-  display: none;
-}
-    
-.view {
-  margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
-}
+    /* App View Container */
+    #app-view {
+      flex-grow: 1;
+      padding: 1rem;
+      min-height: calc(100vh - 160px);
+      overflow-y: auto;
+    }
 
-/* Optional: Media-Query für sehr kleine Geräte */
-@media (max-width: 360px) {
-  header h1 {
-    font-size: 1.1rem;
-  }
-
-  button {
-    font-size: 0.95rem;
-    padding: 0.75rem;
-  }
-
-  label {
-    font-size: 0.95rem;
-  }
-
-  input {
-    font-size: 0.95rem;
-  }
-}
-
+    /* Kleinere Geräte */
+    @media (max-width: 360px) {
+      header h1 {
+        font-size: 1.1rem;
+      }
+      button {
+        font-size: 0.95rem;
+        padding: 0.75rem;
+      }
+      label,
+      input {
+        font-size: 0.95rem;
+      }
+    }
   </style>
 </head>
-</body>
-
-<header role="banner" style="position: relative;">
+<body data-theme="light">
+<header role="banner" style="position: sticky; top: 0; z-index: 1100;">
   <h1 style="flex-grow:1;">Zeiterfassung</h1>
 </header>
 
 <main role="main" aria-live="polite">
 
-<!-- Auth-Hülle -->
-<section id="login-view" class="view">
-  <h2>Login</h2>
-  <form id="login-form">
-    <input name="email" type="email" required autocomplete="email" />
-    <input name="passwort" type="password" required autocomplete="current-password" />
-    <button type="submit">Einloggen</button>
-  </form>
-  
-  <!-- Passwort vergessen Link -->
-  <p style="margin-top: 10px;">
-    <a href="#" id="forgot-password-link">Passwort vergessen?</a>
-  </p>
+  <!-- Auth Container: Login, Registrierung, Passwort vergessen -->
+  <div id="auth-container" aria-live="polite">
+    <section id="login-view" class="view">
+      <h2>Login</h2>
+      <form id="login-form">
+        <input name="email" type="email" required autocomplete="email" placeholder="E-Mail" />
+        <input name="passwort" type="password" required autocomplete="current-password" placeholder="Passwort" />
+        <button type="submit">Einloggen</button>
+      </form>
+      <p style="margin-top: 10px; text-align: center;">
+        <a href="#" id="forgot-password-link">Passwort vergessen?</a>
+      </p>
+      <p id="verifyWarning" class="hidden" style="color: red; margin-top: 10px; text-align: center;">
+        Deine E-Mail ist noch nicht verifiziert. <br />
+        <button id="resendBtn" type="button" disabled>Code erneut senden</button>
+      </p>
+      <button id="show-register-btn" class="link" type="button">Noch kein Konto?</button>
+    </section>
 
-  <p id="verifyWarning" class="hidden" style="color: red; margin-top: 10px;">
-    Deine E-Mail ist noch nicht verifiziert. <br />
-    <button id="resendBtn" type="button" disabled>Code erneut senden</button>
-  </p>
-  <button id="show-register-btn">Noch kein Konto?</button>
-</section>
+    <section id="reset-request-view" class="view hidden" aria-label="Passwort zurücksetzen - Schritt 1">
+      <h2>Passwort zurücksetzen</h2>
+      <form id="reset-request-form">
+        <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
+        <input name="vorname" type="text" required placeholder="Vorname" />
+        <input name="nachname" type="text" required placeholder="Nachname" />
+        <button type="submit">Code anfordern</button>
+      </form>
+      <button id="back-to-login-from-request" class="link" type="button">Zurück zum Login</button>
+    </section>
 
-<!-- Passwort zurücksetzen Schritt 1: Email + Vorname + Nachname eingeben -->
-<section id="reset-request-view" class="view hidden">
-  <h2>Passwort zurücksetzen</h2>
-  <form id="reset-request-form">
-    <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
-    <input name="vorname" type="text" required placeholder="Vorname" />
-    <input name="nachname" type="text" required placeholder="Nachname" />
-    <button type="submit">Code anfordern</button>
-  </form>
-  <button id="back-to-login-from-request" type="button">Zurück zum Login</button>
-</section>
+    <section id="reset-verify-view" class="view hidden" aria-label="Passwort zurücksetzen - Schritt 2">
+      <h2>Code eingeben und neues Passwort setzen</h2>
+      <form id="reset-verify-form">
+        <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
+        <input name="code" type="text" required placeholder="Bestätigungscode" />
+        <input name="neuesPasswort" type="password" required placeholder="Neues Passwort" />
+        <button type="submit">Passwort ändern</button>
+      </form>
+      <button id="back-to-login-from-verify" class="link" type="button">Zurück zum Login</button>
+    </section>
 
-<!-- Passwort zurücksetzen Schritt 2: Code eingeben + neues Passwort -->
-<section id="reset-verify-view" class="view hidden">
-  <h2>Code eingeben und neues Passwort setzen</h2>
-  <form id="reset-verify-form">
-    <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
-    <input name="code" type="text" required placeholder="Bestätigungscode" />
-    <input name="neuesPasswort" type="password" required placeholder="Neues Passwort" />
-    <button type="submit">Passwort ändern</button>
-  </form>
-  <button id="back-to-login-from-verify" type="button">Zurück zum Login</button>
-</section>
+    <section id="register-view" class="view hidden" aria-label="Registrierung">
+      <h2>Registrieren</h2>
+      <form id="register-form">
+        <input name="firstname" placeholder="Vorname" required />
+        <input name="lastname" placeholder="Nachname" required />
+        <input name="email" placeholder="E-Mail" type="email" required />
+        <input name="passwort" placeholder="Passwort" type="password" required />
+        <button type="submit">Registrieren</button>
+      </form>
+      <button id="show-login-btn" class="link" type="button">Zurück zum Login</button>
+    </section>
+  </div>
 
-  <!-- Registrierung -->
-  <section id="register-view" class="view hidden">
-    <h2>Registrieren</h2>
-    <form id="register-form">
-      <input name="firstname" placeholder="Vorname" required />
-      <input name="lastname" placeholder="Nachname" required />
-      <input name="email" placeholder="E-Mail" type="email" required />
-      <input name="passwort" placeholder="Passwort" type="password" required />
-      <button type="submit">Registrieren</button>
-    </form>
-    <button id="show-login-btn">Zurück zum Login</button>
-  </section>
-</div>
+  <!-- App-Ansicht nach Login -->
+  <div id="app-view" class="hidden" aria-live="polite" tabindex="-1">
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" aria-label="Hauptnavigation">
+      <button data-target="mein-tag-section" aria-label="Mein Tag">🏠</button>
+      <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">👷‍♂️</button>
+      <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">📷</button>
+      <button data-target="chat-section" aria-label="Chat">💬</button>
+      <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
+    </nav>
 
-<!-- App-Ansicht nach Login -->
-<div id="app-view" class="hidden">
+    <!-- QR-Gate vor der Zeiterfassung -->
+    <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
+      <h2>QR-Code scannen</h2>
+      <div id="qr-reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
+      <p>Bitte scanne deinen QR-Code, um zur Zeiterfassung zu gelangen.</p>
+    </section>
 
-  <!-- Bottom Navigation -->
-  <nav id="bottom-nav" aria-label="Hauptnavigation">
-    <button data-target="mein-tag-section" aria-label="Mein Tag">🏠</button>
-    <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">👷‍♂️</button>
-    <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">📷</button>
-    <button data-target="chat-section" aria-label="Chat">💬</button>
-    <button data-target="settings-section" aria-label="Einstellungen">⚙️</button>
-  </nav>
+    <!-- 1. Mein Tag -->
+    <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
+      <h2>Mein Tag</h2>
+      <p>Hier siehst du deinen heutigen Einsatz.</p>
+      <div class="user-info">
+        Angemeldet als: <span id="user-name">…</span>
+      </div>
+    </section>
 
-  <!-- QR-Gate vor der Zeiterfassung -->
-  <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
-    <h2>QR-Code scannen</h2>
-   <!-- Bereich für den QR-Scanner -->
-<div id="qr-reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
-    <p>Bitte scanne deinen QR-Code, um zur Zeiterfassung zu gelangen.</p>
-  </section>
+    <!-- 2. Arbeitsplanung -->
+    <section id="arbeitsplanung-section" class="card view hidden" aria-label="Arbeitsplanung">
+      <h2>Arbeitsplanung</h2>
+      <p>(Hier kommt später die Einsatzplanung hin)</p>
+    </section>
 
-  <!-- 1. Mein Tag -->
-  <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
-    <h2>Mein Tag</h2>
-    <p>Hier siehst du deinen heutigen Einsatz.</p>
-    <div class="user-info">
-      Angemeldet als: <span id="user-name">…</span>
-    </div>
-  </section>
+    <!-- 3. Zeiterfassung (inkl. QR-Scanner und ggf. QR-Generator für Vorarbeiter) -->
+    <section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
+      <h2>Zeiterfassung</h2>
 
-  <!-- 2. Arbeitsplanung -->
-  <section id="arbeitsplanung-section" class="card view hidden" aria-label="Arbeitsplanung">
-    <h2>Arbeitsplanung</h2>
-    <p>(Hier kommt später die Einsatzplanung hin)</p>
-  </section>
+      <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
+      <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
 
-  <!-- 3. Zeiterfassung (inkl. QR-Scanner und ggf. QR-Generator für Vorarbeiter) -->
-  <section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
-    <h2>Zeiterfassung</h2>
+      <p id="time-message"></p>
 
-    <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
-    <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+      <!-- QR-Code Generator (nur sichtbar für Vorarbeiter) -->
+      <div id="qr-generator-container" class="hidden" style="margin-top: 2rem;">
+        <h3>QR-Code für Arbeiter</h3>
+        <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
+        <div id="qr-container" style="margin-top: 1rem;"></div>
+        <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
+      </div>
 
-    <p id="time-message"></p>
+      <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
+        Ausloggen
+      </button>
+    </section>
 
-    <!-- QR-Code Generator (nur sichtbar für Vorarbeiter) -->
-    <div id="qr-generator-container" class="hidden" style="margin-top: 2rem;">
-      <h3>QR-Code für Arbeiter</h3>
-      <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
-      <div id="qr-container" style="margin-top: 1rem;"></div>
-      <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
-    </div>
+    <!-- 4. Chat -->
+    <section id="chat-section" class="card view hidden" aria-label="Chat">
+      <h2>Chat</h2>
+      <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
+    </section>
 
-    <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
-      Ausloggen
-    </button>
-  </section>
-
-  <!-- 4. Chat -->
-  <section id="chat-section" class="card view hidden" aria-label="Chat">
-    <h2>Chat</h2>
-    <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
-  </section>
-
-  <!-- 5. Einstellungen -->
-  <section id="settings-section" class="card view hidden" aria-label="Einstellungen">
-    <h2>Einstellungen</h2>
-    <label for="darkmode-switch-main">
-      <input type="checkbox" id="darkmode-switch-main" />
-      Dark Mode
-    </label>
-  </section>
-
-</div>
-
+    <!-- 5. Einstellungen -->
+    <section id="settings-section" class="card view hidden" aria-label="Einstellungen">
+      <h2>Einstellungen</h2>
+      <label for="darkmode-switch-main">
+        <input type="checkbox" id="darkmode-switch-main" />
+        Dark Mode
+      </label>
+    </section>
+  </div>
 </main>
 <!-- QR-Scanner -->
 <script src="https://unpkg.com/html5-qrcode"></script>
