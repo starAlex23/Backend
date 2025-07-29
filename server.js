@@ -719,8 +719,15 @@ router.post('/api/reset-verify', async (req, res) => {
 // Passwort-Reset: 3. Neues Passwort setzen
 router.post('/api/reset-password', async (req, res) => {
   const { resetToken, neuesPasswort } = req.body;
+
   if (!resetToken || !neuesPasswort) {
     return res.status(400).json({ error: 'Fehlende Felder' });
+  }
+
+  if (!isValidPassword(neuesPasswort)) {
+    return res.status(400).json({
+      error: 'Passwort muss mindestens 8 Zeichen lang sein, mindestens einen Großbuchstaben, eine Zahl und ein Sonderzeichen enthalten.'
+    });
   }
 
   const result = await pool.query(
@@ -738,10 +745,20 @@ router.post('/api/reset-password', async (req, res) => {
 
   res.status(200).json({ message: 'Passwort aktualisiert' });
 });
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 // Route zur Benutzerregistrierung
+
+function isValidPassword(pwd) {
+  // Mindestens 8 Zeichen, mindestens 1 Großbuchstabe, 1 Zahl und 1 Sonderzeichen
+  return (
+    typeof pwd === 'string' &&
+    pwd.length >= 8 &&
+    /[A-Z]/.test(pwd) &&
+    /[0-9]/.test(pwd) &&
+    /[!@#$%^&*(),.?":{}|<>_\-\\\/\[\];'`~+=]/.test(pwd)
+  );
+}
+
 app.post('/api/register', async (req, res) => {
     const { vorname, nachname, email, passwort } = req.body;
 
@@ -749,13 +766,9 @@ app.post('/api/register', async (req, res) => {
         return sendError(res, 400, 'Alle Felder sind Pflicht.');
     }
 
-    if (
-        passwort.length < 8 ||
-        !/[A-Z]/.test(passwort) ||
-        !/[0-9]/.test(passwort)
-    ) {
-        return sendError(res, 400, 'Passwort muss mindestens 8 Zeichen lang sein, eine Zahl und einen Großbuchstaben enthalten.');
-    }
+    if (!isValidPassword(passwort)) {
+  return sendError(res, 400, 'Passwort muss mindestens 8 Zeichen lang sein, mindestens einen Großbuchstaben, eine Zahl und ein Sonderzeichen enthalten.');
+}
 
     if (!istGueltigeEmail(email)) {
         return sendError(res, 400, 'Ungültige E-Mail-Adresse.');
