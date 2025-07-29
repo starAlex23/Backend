@@ -157,7 +157,11 @@ button:disabled {
 #auth-container section.view.hidden {
   display: none;
 }
-   
+
+.hidden {
+  display: none;
+}
+    
 .view {
   margin-bottom: 4rem; /* Abstand zur Bottom-Nav */
 }
@@ -193,20 +197,48 @@ button:disabled {
 <main role="main" aria-live="polite">
 
 <!-- Auth-Hülle -->
-<div id="auth-container">
-  <!-- Login-Ansicht -->
-  <section id="login-view" class="view">
+<section id="login-view" class="view">
   <h2>Login</h2>
   <form id="login-form">
     <input name="email" type="email" required autocomplete="email" />
     <input name="passwort" type="password" required autocomplete="current-password" />
     <button type="submit">Einloggen</button>
   </form>
+  
+  <!-- Passwort vergessen Link -->
+  <p style="margin-top: 10px;">
+    <a href="#" id="forgot-password-link">Passwort vergessen?</a>
+  </p>
+
   <p id="verifyWarning" class="hidden" style="color: red; margin-top: 10px;">
     Deine E-Mail ist noch nicht verifiziert. <br />
     <button id="resendBtn" type="button" disabled>Code erneut senden</button>
   </p>
   <button id="show-register-btn">Noch kein Konto?</button>
+</section>
+
+<!-- Passwort zurücksetzen Schritt 1: Email + Vorname + Nachname eingeben -->
+<section id="reset-request-view" class="view hidden">
+  <h2>Passwort zurücksetzen</h2>
+  <form id="reset-request-form">
+    <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
+    <input name="vorname" type="text" required placeholder="Vorname" />
+    <input name="nachname" type="text" required placeholder="Nachname" />
+    <button type="submit">Code anfordern</button>
+  </form>
+  <button id="back-to-login-from-request" type="button">Zurück zum Login</button>
+</section>
+
+<!-- Passwort zurücksetzen Schritt 2: Code eingeben + neues Passwort -->
+<section id="reset-verify-view" class="view hidden">
+  <h2>Code eingeben und neues Passwort setzen</h2>
+  <form id="reset-verify-form">
+    <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
+    <input name="code" type="text" required placeholder="Bestätigungscode" />
+    <input name="neuesPasswort" type="password" required placeholder="Neues Passwort" />
+    <button type="submit">Passwort ändern</button>
+  </form>
+  <button id="back-to-login-from-verify" type="button">Zurück zum Login</button>
 </section>
 
   <!-- Registrierung -->
@@ -427,6 +459,108 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Alles zum passwort zurücksetzen
+  
+const authContainer = document.getElementById('auth-container');
+
+const views = {
+  login: document.getElementById('login-view'),
+  resetRequest: document.getElementById('reset-request-view'),
+  resetVerify: document.getElementById('reset-verify-view'),
+};
+
+function showView(viewName) {
+  Object.values(views).forEach(view => view.classList.add('hidden'));
+  views[viewName].classList.remove('hidden');
+}
+
+// Login → Passwort vergessen Link öffnet resetRequest
+document.getElementById('forgot-password-link').addEventListener('click', e => {
+  e.preventDefault();
+  // Login-E-Mail im Reset-Form vorausfüllen (optional)
+  const loginEmail = views.login.querySelector('input[name="email"]').value;
+  views.resetRequest.querySelector('input[name="email"]').value = loginEmail || '';
+  showView('resetRequest');
+});
+
+// Zurück-Buttons
+document.getElementById('back-to-login-from-request').addEventListener('click', () => showView('login'));
+document.getElementById('back-to-login-from-verify').addEventListener('click', () => showView('login'));
+
+// Passwort zurücksetzen - Schritt 1: Code anfordern
+document.getElementById('reset-request-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    email: form.email.value.trim(),
+    vorname: form.vorname.value.trim(),
+    nachname: form.nachname.value.trim(),
+  };
+
+  try {
+    const res = await fetch('/api/reset-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const json = await res.json();
+
+    if (!res.ok) throw new Error(json.error || 'Fehler beim Anfordern des Codes');
+
+    // Email auch im Verifizierungsformular vorausfüllen
+    views.resetVerify.querySelector('input[name="email"]').value = data.email;
+
+    alert('Code wurde verschickt. Bitte überprüfe deine E-Mails.');
+    showView('resetVerify');
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// Passwort zurücksetzen - Schritt 2: Code prüfen + Passwort ändern
+document.getElementById('reset-verify-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const form = e.target;
+
+  const verifyData = {
+    email: form.email.value.trim(),
+    code: form.code.value.trim(),
+  };
+
+  try {
+    // Code validieren + resetToken erhalten
+    let res = await fetch('/api/reset-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(verifyData),
+    });
+    let json = await res.json();
+
+    if (!res.ok) throw new Error(json.error || 'Code ungültig');
+
+    const resetToken = json.resetToken;
+
+    // Neues Passwort setzen
+    res = await fetch('/api/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        resetToken,
+        neuesPasswort: form.neuesPasswort.value.trim(),
+      }),
+    });
+    json = await res.json();
+
+    if (!res.ok) throw new Error(json.error || 'Fehler beim Passwort setzen');
+
+    alert('Passwort erfolgreich geändert. Bitte logge dich neu ein.');
+    showView('login');
+  } catch (err) {
+    alert(err.message);
+  }
+});
+  
 // API-Konstanten
 const BASE = '/api';
 const API_BASE = '/api';
