@@ -4,206 +4,215 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zeiterfassung</title>
-  <style>
-    /* Basis Styles */
-    body {
-      font-family: 'Inter', sans-serif;
-      margin: 0; padding: 0;
-      background: var(--bg, #fff);
-      color: var(--fg, #000);
-      font-size: 16px;
-      line-height: 1.5;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
+<style>
+  /* Basis Styles */
+  body {
+    font-family: 'Inter', sans-serif;
+    margin: 0; padding: 0;
+    background: var(--bg, #fff);
+    color: var(--fg, #000);
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 
-    /* Dark Mode */
-    [data-theme="dark"] {
-      --bg: #121212;
-      --fg: #eee;
-      --card-bg: #222;
-    }
+  /* Dark Mode */
+  [data-theme="dark"] {
+    --bg: #121212;
+    --fg: #eee;
+    --card-bg: #222;
+  }
 
-    header {
-      background: #4CAF50;
-      color: white;
-      padding: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      font-size: 1.2rem;
-      position: sticky;
-      top: 0;
-      z-index: 1100;
-    }
+  header {
+    background: #4CAF50;
+    color: white;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-size: 1.2rem;
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+  }
 
-    main {
-      flex-grow: 1;
-      max-width: 100%;
-      margin: 0 auto;
-      padding: 1rem;
-      box-sizing: border-box;
-      min-height: calc(100vh - 160px); /* Header + Bottom Nav */
-    }
+  main {
+    flex-grow: 1;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 1rem;
+    box-sizing: border-box;
+    min-height: calc(100vh - 160px); /* Header + Bottom Nav */
+  }
 
-    /* Karten-Style für Bereiche */
-    .card {
-      background: var(--card-bg, #f9f9f9);
-      padding: 1.5rem 1.8rem;
-      margin-bottom: 1.5rem;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-    }
+  /* Karten-Style für Bereiche */
+  .card {
+    background: var(--card-bg, #f9f9f9);
+    padding: 1.5rem 1.8rem;
+    margin-bottom: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  }
 
-    /* Verstecken */
-    .hidden {
-      display: none !important;
-    }
+  /* Verstecken */
+  .hidden {
+    display: none !important;
+  }
 
-    /* Allgemeine Views innerhalb Auth oder App */
-    .view {
-      max-width: 400px;
-      margin: 0 auto 4rem auto;
-    }
+  /* Allgemeine Views innerhalb Auth oder App */
+  .view {
+    max-width: 400px;
+    margin: 0 auto 4rem auto;
+  }
 
-    /* Inputs */
-    label {
-      display: block;
-      margin-top: 1rem;
-      font-weight: 500;
-    }
+  /* Inputs */
+  label {
+    display: block;
+    margin-top: 1rem;
+    font-weight: 500;
+  }
 
-    input[type="email"],
-    input[type="password"],
-    input[type="text"] {
-      width: 100%;
-      padding: 0.8rem;
-      margin-top: 0.4rem;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 1rem;
-      box-sizing: border-box;
-    }
+  input[type="email"],
+  input[type="password"],
+  input[type="text"] {
+    width: 100%;
+    padding: 0.8rem;
+    margin-top: 0.4rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
 
-    /* Buttons */
+  /* Buttons */
+  button {
+    display: block;
+    width: 100%;
+    margin-top: 1.2rem;
+    padding: 0.9rem;
+    font-size: 1.05rem;
+    border-radius: 6px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+  }
+
+  button:hover:not(:disabled) {
+    background: #45a049;
+  }
+
+  button:disabled {
+    background: #999;
+    cursor: not-allowed;
+  }
+
+  /* Link-Style für Buttons die wie Links aussehen */
+  .link {
+    text-align: center;
+    margin-top: 1rem;
+  }
+
+  .link button {
+    background: none;
+    border: none;
+    color: #4CAF50;
+    text-decoration: underline;
+    font-size: 1rem;
+    padding: 0.4rem;
+    cursor: pointer;
+  }
+
+  /* Bottom Navigation */
+  #bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    background: #f2f2f2;
+    border-top: 1px solid #ccc;
+    padding: 0.5rem 0;
+    z-index: 1000;
+  }
+
+  #bottom-nav button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    padding: 0.4rem;
+    color: #333;
+    cursor: pointer;
+  }
+
+  #bottom-nav .main-button {
+    font-size: 2rem;
+    background: #4CAF50;
+    color: white;
+    border-radius: 50%;
+    padding: 0.6rem;
+    margin-top: -1.2rem;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Auth Container (Login & Reset) */
+  #auth-container {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    min-height: calc(100vh - 160px);
+  }
+
+  /* Sections innerhalb Auth Container */
+  #auth-container section.view {
+    background: var(--card-bg, #f9f9f9);
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+    transition: opacity 0.3s ease;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  /* App View Container */
+  #app-view {
+    flex-grow: 1;
+    padding: 1rem;
+    min-height: calc(100vh - 160px);
+    overflow-y: auto;
+  }
+
+  /* Passwort Fehler-Meldung */
+  .password-error {
+    color: #e74c3c; /* dunkles rot */
+    font-size: 0.85rem;
+    margin-top: 0.3rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+  }
+
+  /* Kleinere Geräte */
+  @media (max-width: 360px) {
+    header h1 {
+      font-size: 1.1rem;
+    }
     button {
-      display: block;
-      width: 100%;
-      margin-top: 1.2rem;
-      padding: 0.9rem;
-      font-size: 1.05rem;
-      border-radius: 6px;
-      background: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background 0.2s ease;
+      font-size: 0.95rem;
+      padding: 0.75rem;
     }
-
-    button:hover:not(:disabled) {
-      background: #45a049;
+    label,
+    input {
+      font-size: 0.95rem;
     }
-
-    button:disabled {
-      background: #999;
-      cursor: not-allowed;
-    }
-
-    /* Link-Style für Buttons die wie Links aussehen */
-    .link {
-      text-align: center;
-      margin-top: 1rem;
-    }
-
-    .link button {
-      background: none;
-      border: none;
-      color: #4CAF50;
-      text-decoration: underline;
-      font-size: 1rem;
-      padding: 0.4rem;
-      cursor: pointer;
-    }
-
-    /* Bottom Navigation */
-    #bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-around;
-      background: #f2f2f2;
-      border-top: 1px solid #ccc;
-      padding: 0.5rem 0;
-      z-index: 1000;
-    }
-
-    #bottom-nav button {
-      background: none;
-      border: none;
-      font-size: 1.5rem;
-      padding: 0.4rem;
-      color: #333;
-      cursor: pointer;
-    }
-
-    #bottom-nav .main-button {
-      font-size: 2rem;
-      background: #4CAF50;
-      color: white;
-      border-radius: 50%;
-      padding: 0.6rem;
-      margin-top: -1.2rem;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Auth Container (Login & Reset) */
-    #auth-container {
-      flex-grow: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem 1rem;
-      min-height: calc(100vh - 160px);
-    }
-
-    /* Sections innerhalb Auth Container */
-    #auth-container section.view {
-      background: var(--card-bg, #f9f9f9);
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-      transition: opacity 0.3s ease;
-      width: 100%;
-      max-width: 400px;
-    }
-
-    /* App View Container */
-    #app-view {
-      flex-grow: 1;
-      padding: 1rem;
-      min-height: calc(100vh - 160px);
-      overflow-y: auto;
-    }
-
-    /* Kleinere Geräte */
-    @media (max-width: 360px) {
-      header h1 {
-        font-size: 1.1rem;
-      }
-      button {
-        font-size: 0.95rem;
-        padding: 0.75rem;
-      }
-      label,
-      input {
-        font-size: 0.95rem;
-      }
-    }
-  </style>
+  }
+</style>
 </head>
 <body data-theme="light">
 <header role="banner" style="position: sticky; top: 0; z-index: 1100;">
@@ -495,6 +504,49 @@ document.getElementById('forgot-password-link').addEventListener('click', e => {
 document.getElementById('back-to-login-from-request').addEventListener('click', () => showView('login'));
 document.getElementById('back-to-login-from-verify').addEventListener('click', () => showView('login'));
 
+// Hilfsfunktion zur Passwortvalidierung
+function isValidPassword(pwd) {
+  return (
+    typeof pwd === 'string' &&
+    pwd.length >= 8 &&
+    /[A-Z]/.test(pwd) &&
+    /[0-9]/.test(pwd) &&
+    /[!@#$%^&*(),.?":{}|<>_\-\\\/\[\];'`~+=]/.test(pwd)
+  );
+}
+
+// Optional: Fehlermeldung unter Passwortfeld anzeigen / entfernen
+function showPasswordError(input, message) {
+  let errorEl = input.nextElementSibling;
+  if (!errorEl || !errorEl.classList.contains('password-error')) {
+    errorEl = document.createElement('div');
+    errorEl.className = 'password-error';
+    errorEl.style.color = 'red';
+    errorEl.style.fontSize = '0.9rem';
+    errorEl.style.marginTop = '0.3rem';
+    input.parentNode.insertBefore(errorEl, input.nextSibling);
+  }
+  errorEl.textContent = message;
+}
+
+// Live-Validierung für Passwort im Reset-Verify-Form
+const resetPasswordInput = views.resetVerify.querySelector('input[name="neuesPasswort"]');
+if (resetPasswordInput) {
+  resetPasswordInput.setAttribute('autocomplete', 'new-password');
+  resetPasswordInput.addEventListener('input', () => {
+    if (resetPasswordInput.value === '') {
+      showPasswordError(resetPasswordInput, '');
+    } else if (!isValidPassword(resetPasswordInput.value)) {
+      showPasswordError(
+        resetPasswordInput,
+        'Passwort muss mindestens 8 Zeichen, 1 Großbuchstabe, 1 Zahl & 1 Sonderzeichen enthalten.'
+      );
+    } else {
+      showPasswordError(resetPasswordInput, '');
+    }
+  });
+}
+
 // Passwort zurücksetzen - Schritt 1: Code anfordern
 document.getElementById('reset-request-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -530,6 +582,15 @@ document.getElementById('reset-verify-form').addEventListener('submit', async e 
   e.preventDefault();
   const form = e.target;
 
+  const neuesPasswort = form.neuesPasswort.value.trim();
+
+  // Passwort validieren vor dem Absenden
+  if (!isValidPassword(neuesPasswort)) {
+    alert('Passwort muss mindestens 8 Zeichen lang sein und mindestens einen Großbuchstaben, eine Zahl und ein Sonderzeichen enthalten.');
+    form.neuesPasswort.focus();
+    return;
+  }
+
   const verifyData = {
     email: form.email.value.trim(),
     code: form.code.value.trim(),
@@ -554,7 +615,7 @@ document.getElementById('reset-verify-form').addEventListener('submit', async e 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         resetToken,
-        neuesPasswort: form.neuesPasswort.value.trim(),
+        neuesPasswort,
       }),
     });
     json = await res.json();
