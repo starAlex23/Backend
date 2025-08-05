@@ -187,6 +187,24 @@
   transform: scale(1.1);
 }
 
+#bottom-nav button.active {
+  position: relative;
+  color: #4CAF50;
+}
+
+#bottom-nav button.active::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 36px;
+  background: rgba(76, 175, 80, 0.15); /* leicht grün transparent */
+  border-radius: 50%;
+  z-index: -1;
+}
+  
 /* Mobile Optimierung */
 @media (max-width: 480px) {
   #bottom-nav {
@@ -202,7 +220,32 @@
     font-size: 1.8rem;
     padding: 0.7rem;
   }
+
+   #bottom-nav button.active::after {
+    width: 30px;
+    height: 30px;
+  }
 }
+
+  /* Dark Mode Bottom Nav */
+[data-theme="dark"] #bottom-nav {
+  background: #1e1e1e;
+  border-top: 1px solid #444;
+}
+
+[data-theme="dark"] #bottom-nav button {
+  color: #aaa;
+}
+
+[data-theme="dark"] #bottom-nav button:hover {
+  color: #4CAF50;
+}
+
+/* Aktiver Button im Dark Mode */
+[data-theme="dark"] #bottom-nav button.active {
+  color: #4CAF50;
+}
+
   /* Auth Container (Login & Reset) */
   #auth-container {
     flex-grow: 1;
@@ -1492,4 +1535,5 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
