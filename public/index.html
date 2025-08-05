@@ -383,16 +383,16 @@
   <!-- App-Ansicht nach Login -->
   <div id="app-view" class="hidden" aria-live="polite" tabindex="-1">
     <!-- Bottom Navigation -->
-   <nav id="bottom-nav" aria-label="Hauptnavigation">
+ <nav id="bottom-nav" aria-label="Hauptnavigation">
   <button data-target="mein-tag-section" aria-label="Mein Tag">
     <i data-lucide="calendar-days"></i>
   </button>
   <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">
     <i data-lucide="clipboard-list"></i>
   </button>
- <button class="main-button" data-target="zeiterfassung-section" aria-label="Zeiterfassung">
-  <Camera class="lucide-icon" />
-</button>
+  <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">
+    <i data-lucide="camera"></i>
+  </button>
   <button data-target="chat-section" aria-label="Chat">
     <i data-lucide="message-circle"></i>
   </button>
@@ -400,6 +400,7 @@
     <i data-lucide="settings"></i>
   </button>
 </nav>
+
 
     <!-- QR-Gate vor der Zeiterfassung -->
     <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
@@ -1563,6 +1564,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
