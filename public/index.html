@@ -145,7 +145,6 @@
 #bottom-nav button {
   background: none;
   border: none;
-  font-size: 1.6rem;
   color: #888;
   padding: 0.5rem;
   cursor: pointer;
@@ -156,18 +155,23 @@
   position: relative;
 }
 
+#bottom-nav button svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s ease;
+}
+
 #bottom-nav button:hover {
   color: #4CAF50;
   transform: translateY(-2px);
 }
 
-#bottom-nav button svg {
-  width: 24px;
-  height: 24px;
-  z-index: 1;
+/* Kamera-Button = leicht hervorgehoben */
+#bottom-nav .main-button svg {
+  height: 26px; /* etwas größer */
+  color: #4CAF50;
 }
 
-/* Aktiver Button */
 #bottom-nav button.active {
   color: #4CAF50;
 }
@@ -185,38 +189,14 @@
   z-index: 0;
 }
 
-/* Kamera-Button (zentral) */
-#bottom-nav .main-button {
-  background: linear-gradient(to right, #43cea2, #185a9d);
-  color: white !important;
-  font-size: 2rem;
-  border-radius: 50%;
-  padding: 0.8rem;
-  margin-top: -1.5rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  transition: transform 0.2s ease;
-  position: relative;
-  z-index: 2;
-}
-
-#bottom-nav .main-button:hover {
-  transform: scale(1.1);
-}
-
-/* Mobile Optimierung */
 @media (max-width: 480px) {
-  #bottom-nav {
-    font-size: 1.3rem;
-  }
-
   #bottom-nav button svg {
     width: 20px;
     height: 20px;
   }
 
-  #bottom-nav .main-button {
-    font-size: 1.8rem;
-    padding: 0.7rem;
+  #bottom-nav .main-button svg {
+    height: 22px;
   }
 
   #bottom-nav button.active::before {
@@ -225,7 +205,7 @@
   }
 }
 
-/* Dark Mode Bottom Nav */
+/* Dark Mode */
 [data-theme="dark"] #bottom-nav {
   background: #1e1e1e;
   border-top: 1px solid #444;
@@ -239,7 +219,6 @@
   color: #4CAF50;
 }
 
-/* Aktiver Button im Dark Mode */
 [data-theme="dark"] #bottom-nav button.active {
   color: #4CAF50;
 }
@@ -411,9 +390,9 @@
   <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">
     <i data-lucide="clipboard-list"></i>
   </button>
-  <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">
-    <i data-lucide="camera"></i>
-  </button>
+ <button class="main-button" data-target="zeiterfassung-section" aria-label="Zeiterfassung">
+  <Camera class="lucide-icon" />
+</button>
   <button data-target="chat-section" aria-label="Chat">
     <i data-lucide="message-circle"></i>
   </button>
@@ -1584,6 +1563,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
