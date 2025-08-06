@@ -5,75 +5,94 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zeiterfassung</title>
 <style>
-  /* Basis Styles */
-  body {
-    font-family: 'Inter', sans-serif;
-    margin: 0; padding: 0;
-    background: var(--bg, #fff);
-    color: var(--fg, #000);
-    font-size: 16px;
-    line-height: 1.6;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+/* Basis */
+body {
+  font-family: 'Inter', sans-serif;
+  margin: 0; padding: 0;
+  background: var(--bg, #fff);
+  color: var(--fg, #000);
+  font-size: 16px;
+  line-height: 1.6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
 
-  /* Dark Mode */
- [data-theme="dark"] {
+/* Dark Mode */
+[data-theme="dark"] {
   --bg: #121212;
   --fg: #eee;
   --card-bg: #1c1c1c;
 }
 
- header {
-  background: linear-gradient(90deg, #43cea2, #185a9d);
+/* Header */
+header {
+  background: #4CAF50;
   color: white;
-  padding: 1.2rem;
-  text-align: center;
+  padding: 0.9rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
   font-size: 1.4rem;
+  font-weight: 600;
   position: sticky;
   top: 0;
   z-index: 1100;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
-  main {
-    flex-grow: 1;
-    max-width: 100%;
-    margin: 0 auto;
-    padding: 1rem;
-    box-sizing: border-box;
-    min-height: calc(100vh - 160px); /* Header + Bottom Nav */
-  }
+header .logo {
+  height: 36px;
+  width: auto; /* bewahrt das Seitenverhältnis */
+  display: block;
+}
 
-  /* Karten-Style für Bereiche */
-  .card {
-    background: var(--card-bg, #f9f9f9);
-    padding: 1.5rem 1.8rem;
-    margin-bottom: 1.5rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-  }
+header .app-title {
+  letter-spacing: 0.4px;
+  user-select: none; /* verhindert Markierung */
+}
 
-  /* Verstecken */
-  .hidden {
-    display: none !important;
-  }
+main {
+  flex-grow: 1;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  min-height: calc(100vh - 160px);
+}
 
-  /* Allgemeine Views innerhalb Auth oder App */
-  .view {
-    max-width: 400px;
-    margin: 0 auto 4rem auto;
-  }
+/* Karten */
+.card {
+  background: var(--card-bg, #f9f9f9);
+  padding: 1.5rem 1.8rem;
+  margin-bottom: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
 
-  /* Inputs */
-  label {
-    display: block;
-    margin-top: 1rem;
-    font-weight: 500;
-  }
+.card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
 
- input[type="email"],
+.hidden {
+  display: none !important;
+}
+
+.view {
+  max-width: 400px;
+  margin: 0 auto 4rem auto;
+}
+
+/* Inputs */
+label {
+  display: block;
+  margin-top: 1rem;
+  font-weight: 500;
+}
+
+input[type="email"],
 input[type="password"],
 input[type="text"] {
   width: 100%;
@@ -93,15 +112,15 @@ input:focus {
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
 }
 
-  /* Buttons */
- button {
+/* Buttons */
+button {
   display: inline-flex;
   justify-content: center;
   align-items: center;
   margin-top: 1.2rem;
   padding: 0.8rem 1.4rem;
   font-size: 1rem;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #4CAF50;
   color: white;
   border: none;
@@ -120,17 +139,36 @@ button:disabled {
   cursor: not-allowed;
 }
 
-  /* Link-Style für Buttons die wie Links aussehen */
-  .link {
-    text-align: center;
-    margin-top: 1rem;
-  }
+/* Passwort vergessen Link */
+.forgot-password {
+  text-align: center;
+  margin-top: 1rem;
+}
 
-  .link button {
+.forgot-password a {
+  color: #4CAF50;
+  text-decoration: none;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.2s ease;
+}
+
+.forgot-password a:hover {
+  color: #388E3C;
+}
+
+/* Link-Button */
+.link {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.link button {
   background: none;
   border: 1px solid #4CAF50;
   color: #4CAF50;
-  text-decoration: none;
   font-size: 0.95rem;
   padding: 0.4rem 0.8rem;
   border-radius: 6px;
@@ -143,8 +181,7 @@ button:disabled {
   color: white;
 }
 
-  /* Bottom Navigation */
-/* Bottom Navigation - modernisiert */
+/* Bottom Navigation */
 #bottom-nav {
   position: fixed;
   bottom: 0;
@@ -183,9 +220,8 @@ button:disabled {
   transform: translateY(-2px);
 }
 
-/* Kamera-Button = leicht hervorgehoben */
 #bottom-nav .main-button svg {
-  height: 26px; /* etwas größer */
+  height: 22px;
   color: #4CAF50;
 }
 
@@ -199,9 +235,9 @@ button:disabled {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  background: rgba(76, 175, 80, 0.15);
+  width: 36px;
+  height: 36px;
+  background: rgba(76, 175, 80, 0.12);
   border-radius: 50%;
   z-index: 0;
 }
@@ -213,16 +249,16 @@ button:disabled {
   }
 
   #bottom-nav .main-button svg {
-    height: 22px;
+    height: 20px;
   }
 
   #bottom-nav button.active::before {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
   }
 }
 
-/* Dark Mode */
+/* Dark Mode für Bottom Nav */
 [data-theme="dark"] #bottom-nav {
   background: #1e1e1e;
   border-top: 1px solid #444;
@@ -240,7 +276,7 @@ button:disabled {
   color: #4CAF50;
 }
 
-/* Loadingscreen */
+/* Loading */
 #loading-overlay {
   position: fixed;
   inset: 0;
@@ -257,7 +293,6 @@ button:disabled {
   background: rgba(0, 0, 0, 0.5);
 }
 
-/* Spinner-Stil */
 .spinner {
   width: 48px;
   height: 48px;
@@ -267,28 +302,23 @@ button:disabled {
   animation: spin 1s linear infinite;
 }
 
-.hidden {
-  display: none !important;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
-  
-  /* Auth Container (Login & Reset) */
-  #auth-container {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem 1rem;
-    min-height: calc(100vh - 160px);
-  }
 
-  /* Sections innerhalb Auth Container */
+/* Auth Container */
+#auth-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  min-height: calc(100vh - 160px);
+}
+
 #auth-container section.view {
   background: var(--card-bg, #f9f9f9);
   padding: 2.5rem 2rem;
@@ -299,186 +329,170 @@ button:disabled {
   max-width: 480px;
 }
 
-  /* App View Container */
-  #app-view {
-    flex-grow: 1;
-    padding: 1rem;
-    min-height: calc(100vh - 160px);
-    overflow-y: auto;
-  }
+/* App View Container */
+#app-view {
+  flex-grow: 1;
+  padding: 1rem;
+  min-height: calc(100vh - 160px);
+  overflow-y: auto;
+}
 
-  /* Passwort Fehler-Meldung */
-  .password-error {
-    color: #e74c3c; /* dunkles rot */
-    font-size: 0.85rem;
-    margin-top: 0.3rem;
-    font-weight: 600;
-    font-family: 'Inter', sans-serif;
-  }
+/* Passwort-Fehler */
+.password-error {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 0.3rem;
+  font-weight: 600;
+}
 
-  /* Kleinere Geräte */
-  @media (max-width: 360px) {
-    header h1 {
-      font-size: 1.1rem;
-    }
-    button {
-      font-size: 0.95rem;
-      padding: 0.75rem;
-    }
-    label,
-    input {
-      font-size: 0.95rem;
-    }
+/* Kleinere Geräte */
+@media (max-width: 360px) {
+  header .app-title {
+    font-size: 1.1rem;
   }
+  button {
+    font-size: 0.95rem;
+    padding: 0.75rem;
+  }
+  label, input {
+    font-size: 0.95rem;
+  }
+}
 </style>
 </head>
 <body data-theme="light">
-<header role="banner" style="position: sticky; top: 0; z-index: 1100;">
-  <h1 style="flex-grow:1;">Zeiterfassung</h1>
+  <header>
+  <img src="https://sir-services.de/wp-content/uploads/elementor/thumbs/Favicon-ql1qqeuayu6uee1zxhdxn20wiix5u7x83t25j4zqt0.png" alt="Logo" class="logo" />
+  <span class="app-title">Zeiterfassung</span>
 </header>
 
-<div id="loading-overlay" class="hidden" aria-hidden="true">
-  <div class="spinner" role="status" aria-label="Ladevorgang läuft"></div>
-</div>
-
-<main role="main" aria-live="polite">
-
-  <!-- Auth Container: Login, Registrierung, Passwort vergessen -->
-  <div id="auth-container" aria-live="polite">
-    <section id="login-view" class="view">
-      <h2>Login</h2>
-      <form id="login-form">
-        <input name="email" type="email" required autocomplete="email" placeholder="E-Mail" />
-        <input name="passwort" type="password" required autocomplete="current-password" placeholder="Passwort" />
-        <button type="submit">Einloggen</button>
-      </form>
-      <p style="margin-top: 10px; text-align: center;">
-        <a href="#" id="forgot-password-link">Passwort vergessen?</a>
-      </p>
-      <p id="verifyWarning" class="hidden" style="color: red; margin-top: 10px; text-align: center;">
-        Deine E-Mail ist noch nicht verifiziert. <br />
-        <button id="resendBtn" type="button" disabled>Code erneut senden</button>
-      </p>
-      <button id="show-register-btn" class="link" type="button">Noch kein Konto?</button>
-    </section>
-
-    <section id="reset-request-view" class="view hidden" aria-label="Passwort zurücksetzen - Schritt 1">
-      <h2>Passwort zurücksetzen</h2>
-      <form id="reset-request-form">
-        <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
-        <input name="vorname" type="text" required placeholder="Vorname" />
-        <input name="nachname" type="text" required placeholder="Nachname" />
-        <button type="submit">Code anfordern</button>
-      </form>
-      <button id="back-to-login-from-request" class="link" type="button">Zurück zum Login</button>
-    </section>
-
-    <section id="reset-verify-view" class="view hidden" aria-label="Passwort zurücksetzen - Schritt 2">
-      <h2>Code eingeben und neues Passwort setzen</h2>
-      <form id="reset-verify-form">
-        <input name="email" type="email" required placeholder="E-Mail" autocomplete="email" />
-        <input name="code" type="text" required placeholder="Bestätigungscode" />
-        <input name="neuesPasswort" type="password" required placeholder="Neues Passwort" />
-        <button type="submit">Passwort ändern</button>
-      </form>
-      <button id="back-to-login-from-verify" class="link" type="button">Zurück zum Login</button>
-    </section>
-
-    <section id="register-view" class="view hidden" aria-label="Registrierung">
-      <h2>Registrieren</h2>
-      <form id="register-form">
-        <input name="firstname" placeholder="Vorname" required />
-        <input name="lastname" placeholder="Nachname" required />
-        <input name="email" placeholder="E-Mail" type="email" required />
-        <input name="passwort" placeholder="Passwort" type="password" required />
-        <button type="submit">Registrieren</button>
-      </form>
-      <button id="show-login-btn" class="link" type="button">Zurück zum Login</button>
-    </section>
+  <div id="loading-overlay" class="hidden" aria-hidden="true">
+    <div class="spinner" role="status" aria-label="Ladevorgang läuft"></div>
   </div>
 
-  <!-- App-Ansicht nach Login -->
-  <div id="app-view" class="hidden" aria-live="polite" tabindex="-1">
-    <!-- Bottom Navigation -->
- <nav id="bottom-nav" aria-label="Hauptnavigation">
-  <button data-target="mein-tag-section" aria-label="Mein Tag">
-    <i data-lucide="calendar-days"></i>
-  </button>
-  <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">
-    <i data-lucide="clipboard-list"></i>
-  </button>
-  <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">
-    <i data-lucide="camera"></i>
-  </button>
-  <button data-target="chat-section" aria-label="Chat">
-    <i data-lucide="message-circle"></i>
-  </button>
-  <button data-target="settings-section" aria-label="Einstellungen">
-    <i data-lucide="settings"></i>
-  </button>
-</nav>
+  <main role="main" aria-live="polite">
 
+    <!-- Auth Container -->
+    <div id="auth-container" aria-live="polite">
+      <section id="login-view" class="view">
+        <h2>Login</h2>
+        <form id="login-form">
+          <input name="email" type="email" required autocomplete="email" placeholder="E-Mail" />
+          <input name="passwort" type="password" required autocomplete="current-password" placeholder="Passwort" />
+          <button type="submit">Einloggen</button>
+        </form>
+        <p><a href="#" id="forgot-password-link">Passwort vergessen?</a></p>
+        <p id="verifyWarning" class="hidden">
+          Deine E-Mail ist noch nicht verifiziert. <br />
+          <button id="resendBtn" type="button" disabled>Code erneut senden</button>
+        </p>
+        <button id="show-register-btn" class="link" type="button">Noch kein Konto?</button>
+      </section>
 
-    <!-- QR-Gate vor der Zeiterfassung -->
-    <section id="qr-section" class="card view hidden" aria-label="QR-Scan Gate">
-      <h2>QR-Code scannen</h2>
-      <div id="qr-reader" style="width: 100%; max-width: 400px; margin: auto;"></div>
-      <p>Bitte scanne deinen QR-Code, um zur Zeiterfassung zu gelangen.</p>
-    </section>
+      <section id="reset-request-view" class="view hidden">
+        <h2>Passwort zurücksetzen</h2>
+        <form id="reset-request-form">
+          <input name="email" type="email" required placeholder="E-Mail" />
+          <input name="vorname" type="text" required placeholder="Vorname" />
+          <input name="nachname" type="text" required placeholder="Nachname" />
+          <button type="submit">Code anfordern</button>
+        </form>
+        <button id="back-to-login-from-request" class="link" type="button">Zurück zum Login</button>
+      </section>
 
-    <!-- 1. Mein Tag -->
-    <section id="mein-tag-section" class="card view" aria-label="Mein Tag">
-      <h2>Mein Tag</h2>
-      <p>Hier siehst du deinen heutigen Einsatz.</p>
-      <div class="user-info">
-        Angemeldet als: <span id="user-name">…</span>
-      </div>
-    </section>
+      <section id="reset-verify-view" class="view hidden">
+        <h2>Code eingeben und neues Passwort setzen</h2>
+        <form id="reset-verify-form">
+          <input name="email" type="email" required placeholder="E-Mail" />
+          <input name="code" type="text" required placeholder="Bestätigungscode" />
+          <input name="neuesPasswort" type="password" required placeholder="Neues Passwort" />
+          <button type="submit">Passwort ändern</button>
+        </form>
+        <button id="back-to-login-from-verify" class="link" type="button">Zurück zum Login</button>
+      </section>
 
-    <!-- 2. Arbeitsplanung -->
-    <section id="arbeitsplanung-section" class="card view hidden" aria-label="Arbeitsplanung">
-      <h2>Arbeitsplanung</h2>
-      <p>(Hier kommt später die Einsatzplanung hin)</p>
-    </section>
+      <section id="register-view" class="view hidden">
+        <h2>Registrieren</h2>
+        <form id="register-form">
+          <input name="firstname" placeholder="Vorname" required />
+          <input name="lastname" placeholder="Nachname" required />
+          <input name="email" type="email" placeholder="E-Mail" required />
+          <input name="passwort" type="password" placeholder="Passwort" required />
+          <button type="submit">Registrieren</button>
+        </form>
+        <button id="show-login-btn" class="link" type="button">Zurück zum Login</button>
+      </section>
+    </div>
 
-    <!-- 3. Zeiterfassung (inkl. QR-Scanner und ggf. QR-Generator für Vorarbeiter) -->
-    <section id="zeiterfassung-section" class="card view hidden" aria-label="Zeiterfassung">
-      <h2>Zeiterfassung</h2>
+    <!-- App View -->
+    <div id="app-view" class="hidden">
+      <nav id="bottom-nav">
+        <button data-target="mein-tag-section" aria-label="Mein Tag">
+          <i data-lucide="calendar-days"></i>
+        </button>
+        <button data-target="arbeitsplanung-section" aria-label="Arbeitsplanung">
+          <i data-lucide="clipboard-list"></i>
+        </button>
+        <button data-target="zeiterfassung-section" aria-label="Zeiterfassung" class="main-button">
+          <i data-lucide="camera"></i>
+        </button>
+        <button data-target="chat-section" aria-label="Chat">
+          <i data-lucide="message-circle"></i>
+        </button>
+        <button data-target="settings-section" aria-label="Einstellungen">
+          <i data-lucide="settings"></i>
+        </button>
+      </nav>
 
-      <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
-      <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+      <section id="qr-section" class="card view hidden">
+        <h2>QR-Code scannen</h2>
+        <div id="qr-reader"></div>
+        <p>Bitte scanne deinen QR-Code, um zur Zeiterfassung zu gelangen.</p>
+      </section>
 
-      <p id="time-message"></p>
+      <section id="mein-tag-section" class="card view">
+        <h2>Mein Tag</h2>
+        <p>Hier siehst du deinen heutigen Einsatz.</p>
+        <div class="user-info">Angemeldet als: <span id="user-name">...</span></div>
+      </section>
 
-      <!-- QR-Code Generator (nur sichtbar für Vorarbeiter) -->
-      <div id="qr-generator-container" class="hidden" style="margin-top: 2rem;">
-        <h3>QR-Code für Arbeiter</h3>
-        <button id="generate-qr-btn" type="button">QR-Code generieren (15 Min gültig)</button>
-        <div id="qr-container" style="margin-top: 1rem;"></div>
-        <p id="qr-valid-until" style="font-size: 0.9rem; color: #555;"></p>
-      </div>
+      <section id="arbeitsplanung-section" class="card view hidden">
+        <h2>Arbeitsplanung</h2>
+        <p>(Hier kommt später die Einsatzplanung hin)</p>
+      </section>
 
-      <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
-        Ausloggen
-      </button>
-    </section>
+      <section id="zeiterfassung-section" class="card view hidden">
+        <h2>Zeiterfassung</h2>
+        <button id="clock-in-btn" type="button">Einstempeln (Start)</button>
+        <button id="clock-out-btn" type="button" disabled>Ausstempeln (Stop)</button>
+        <p id="time-message"></p>
 
-    <!-- 4. Chat -->
-    <section id="chat-section" class="card view hidden" aria-label="Chat">
-      <h2>Chat</h2>
-      <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
-    </section>
+        <div id="qr-generator-container" class="hidden">
+          <h3>QR-Code für Arbeiter</h3>
+          <button id="generate-qr-btn" type="button">QR-Code generieren</button>
+          <div id="qr-container"></div>
+          <p id="qr-valid-until"></p>
+        </div>
 
-    <!-- 5. Einstellungen -->
-    <section id="settings-section" class="card view hidden" aria-label="Einstellungen">
-      <h2>Einstellungen</h2>
-      <label for="darkmode-switch-main">
-        <input type="checkbox" id="darkmode-switch-main" />
-        Dark Mode
-      </label>
-    </section>
-  </div>
-</main>
+        <button id="logout-btn" type="button" style="margin-top:2rem; background:#e74c3c; color:#fff;">
+          Ausloggen
+        </button>
+      </section>
+
+      <section id="chat-section" class="card view hidden">
+        <h2>Chat</h2>
+        <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
+      </section>
+
+      <section id="settings-section" class="card view hidden">
+        <h2>Einstellungen</h2>
+        <label for="darkmode-switch-main">
+          <input type="checkbox" id="darkmode-switch-main" />
+          Dark Mode
+        </label>
+      </section>
+    </div>
+  </main>
 <!-- QR-Scanner -->
 <script src="https://unpkg.com/html5-qrcode"></script>
 <!-- QR-Code-Generator Bibliothek -->
@@ -1581,6 +1595,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
