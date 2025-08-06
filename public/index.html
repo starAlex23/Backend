@@ -29,27 +29,34 @@ body {
 header {
   background: #4CAF50;
   color: white;
-  padding: 0.9rem 1rem;
+  padding: 0.8rem 1rem;
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  font-size: 1.4rem;
+  justify-content: start;
+  gap: 0.6rem;
+  font-size: 1.2rem;
   font-weight: 600;
   position: sticky;
   top: 0;
   z-index: 1100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 header .logo {
-  height: 36px;
-  width: auto; /* bewahrt das Seitenverhältnis */
-  display: block;
+  height: 32px;
+  max-width: 40px;
+  flex-shrink: 0;
 }
 
 header .app-title {
-  letter-spacing: 0.4px;
-  user-select: none; /* verhindert Markierung */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-grow: 1;
+  letter-spacing: 0.3px;
+  font-size: 1.1rem;
 }
 
 main {
@@ -1646,6 +1653,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
