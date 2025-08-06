@@ -12,31 +12,30 @@
     background: var(--bg, #fff);
     color: var(--fg, #000);
     font-size: 16px;
-    line-height: 1.5;
+    line-height: 1.6;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
   }
 
   /* Dark Mode */
-  [data-theme="dark"] {
-    --bg: #121212;
-    --fg: #eee;
-    --card-bg: #222;
-  }
+ [data-theme="dark"] {
+  --bg: #121212;
+  --fg: #eee;
+  --card-bg: #1c1c1c;
+}
 
-  header {
-    background: #4CAF50;
-    color: white;
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    font-size: 1.2rem;
-    position: sticky;
-    top: 0;
-    z-index: 1100;
-  }
+ header {
+  background: linear-gradient(90deg, #43cea2, #185a9d);
+  color: white;
+  padding: 1.2rem;
+  text-align: center;
+  font-size: 1.4rem;
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
 
   main {
     flex-grow: 1;
@@ -74,41 +73,52 @@
     font-weight: 500;
   }
 
-  input[type="email"],
-  input[type="password"],
-  input[type="text"] {
-    width: 100%;
-    padding: 0.8rem;
-    margin-top: 0.4rem;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 1rem;
-    box-sizing: border-box;
-  }
+ input[type="email"],
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
 
   /* Buttons */
-  button {
-    display: block;
-    width: 100%;
-    margin-top: 1.2rem;
-    padding: 0.9rem;
-    font-size: 1.05rem;
-    border-radius: 6px;
-    background: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: background 0.2s ease;
-  }
+ button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 1.2rem;
+  padding: 0.8rem 1.4rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
 
-  button:hover:not(:disabled) {
-    background: #45a049;
-  }
+button:hover:not(:disabled) {
+  background: #43a047;
+  transform: translateY(-2px);
+}
 
-  button:disabled {
-    background: #999;
-    cursor: not-allowed;
-  }
+button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
 
   /* Link-Style für Buttons die wie Links aussehen */
   .link {
@@ -117,14 +127,21 @@
   }
 
   .link button {
-    background: none;
-    border: none;
-    color: #4CAF50;
-    text-decoration: underline;
-    font-size: 1rem;
-    padding: 0.4rem;
-    cursor: pointer;
-  }
+  background: none;
+  border: 1px solid #4CAF50;
+  color: #4CAF50;
+  text-decoration: none;
+  font-size: 0.95rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.link button:hover {
+  background: #4CAF50;
+  color: white;
+}
 
   /* Bottom Navigation */
 /* Bottom Navigation - modernisiert */
@@ -272,15 +289,15 @@
   }
 
   /* Sections innerhalb Auth Container */
-  #auth-container section.view {
-    background: var(--card-bg, #f9f9f9);
-    padding: 2rem;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
-    transition: opacity 0.3s ease;
-    width: 100%;
-    max-width: 400px;
-  }
+#auth-container section.view {
+  background: var(--card-bg, #f9f9f9);
+  padding: 2.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+  width: 100%;
+  max-width: 480px;
+}
 
   /* App View Container */
   #app-view {
@@ -1564,6 +1581,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
