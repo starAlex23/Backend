@@ -281,6 +281,21 @@ button:disabled {
     text-overflow: ellipsis;
   }
 
+  /* 2. Navbar fixieren */
+nav.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Gib dem Content genug Platz unten */
+main {
+  padding-bottom: 4.5rem; /* Platz für die Nav-Leiste */
+}
+
   /* Auth Container etwas weniger padding, damit login kompakter ist */
   #auth-container {
     padding: 1.5rem 1rem;
@@ -439,7 +454,7 @@ html, body {
   <span class="app-title">Zeiterfassung</span>
 </header>
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   
   <div id="loading-overlay" class="hidden" aria-hidden="true">
     <div class="spinner" role="status" aria-label="Ladevorgang läuft"></div>
@@ -1670,6 +1685,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
