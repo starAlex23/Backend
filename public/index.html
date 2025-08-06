@@ -87,9 +87,12 @@ main {
   display: none !important;
 }
 
-.view {
-  max-width: 400px;
-  margin: 0 auto 4rem auto;
+.view,
+section.view {
+  width: 100%;
+  max-width: 480px;
+  box-sizing: border-box;
+  padding: 1rem;
 }
 
 /* Inputs */
@@ -324,10 +327,10 @@ button:disabled {
     font-size: 1rem;
   }
 
-  /* Views zentriert mit max-width reduziert */
-  .view {
-    max-width: 360px;
-    margin: 0 auto 3rem auto;
+  button, input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%;
+    font-size: 1.1rem;
+    padding: 1rem;
   }
 }
 
@@ -410,6 +413,18 @@ button:disabled {
   overflow-y: auto;
 }
 
+main, #auth-container, #app-view {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
 /* Passwort-Fehler */
 .password-error {
   color: #e74c3c;
@@ -424,6 +439,8 @@ button:disabled {
   <span class="app-title">Zeiterfassung</span>
 </header>
 
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
   <div id="loading-overlay" class="hidden" aria-hidden="true">
     <div class="spinner" role="status" aria-label="Ladevorgang läuft"></div>
   </div>
@@ -1653,6 +1670,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
