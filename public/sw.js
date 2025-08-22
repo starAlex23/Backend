@@ -31,15 +31,21 @@ self.addEventListener("activate", event => {
   self.clients.claim();
 });
 
-// Netzwerkabfragen abfangen
+// Netzwerkabfragen abfangen – nur für eigene (lokale) Requests
 self.addEventListener("fetch", event => {
-  event.respondWith(
-    caches.match(event.request).then(response => {
-      return response || fetch(event.request).catch(() => {
-        // Optional: Fallback-Seite anzeigen, falls offline
-        // return caches.match('/offline.html');
-      });
-    })
-  );
+  const url = new URL(event.request.url);
+
+  // nur Requests zum eigenen Server cachen
+  if (url.origin === location.origin) {
+    event.respondWith(
+      caches.match(event.request).then(response => {
+        return response || fetch(event.request).catch(() => {
+          // Optional: Offline-Fallback
+          // return caches.match('/offline.html');
+        });
+      })
+    );
+  }
+  // externe URLs werden normal geladen und nicht gecacht
 });
 
