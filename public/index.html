@@ -4,6 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Zeiterfassung</title>
+
+  <!-- Manifest einbinden -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Theme- und Hintergrundfarbe -->
+  <meta name="theme-color" content="#1976d2" />
+
+  <!-- iOS Unterstützung (Apple braucht spezielle Meta-Tags) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="StempelApp" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+
+  <!-- Fallback Favicon -->
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+  
 <style>
 /* Basis */
 body {
@@ -591,38 +607,38 @@ html, body {
 <script src="https://unpkg.com/lucide@latest"></script>
 <script type="module">
   
-if ("serviceWorker" in navigator) {
-      const swCode = `
-        const CACHE_NAME = "zeiterfassung-v1";
-        const FILES_TO_CACHE = [
-          "/",
-          "/index.html",
-          "/icons/icon-192.png",
-          "/icons/icon-512.png"
-        ];
+ // Service Worker registrieren
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log("Service Worker registriert:", reg))
+        .catch(err => console.error("SW Fehler:", err));
+    });
+  }
 
-        self.addEventListener("install", (event) => {
-          event.waitUntil(
-            caches.open(CACHE_NAME).then((cache) => cache.addAll(FILES_TO_CACHE))
-          );
-        });
+  // Fallback: sehr einfacher Service Worker direkt inlined
+  const swCode = `
+    const CACHE_NAME = "stempel-cache-v1";
+    const URLS_TO_CACHE = ["/", "/index.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
 
-        self.addEventListener("fetch", (event) => {
-          event.respondWith(
-            caches.match(event.request).then((response) => {
-              return response || fetch(event.request);
-            })
-          );
-        });
-      `;
+    self.addEventListener("install", event => {
+      event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))
+      );
+    });
 
-      const blob = new Blob([swCode], { type: "application/javascript" });
-      const swUrl = URL.createObjectURL(blob);
+    self.addEventListener("fetch", event => {
+      event.respondWith(
+        caches.match(event.request).then(response => response || fetch(event.request))
+      );
+    });
+  `;
 
-      navigator.serviceWorker.register(swUrl)
-        .then(() => console.log("✅ Inline Service Worker registriert"))
-        .catch((err) => console.error("❌ Service Worker Fehler:", err));
-    }
+  // Inline-Service-Worker schreiben (Hack, weil man normal sw.js extra hat)
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl);
+  ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
 
@@ -1719,6 +1735,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
