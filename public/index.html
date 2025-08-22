@@ -604,11 +604,35 @@ html, body {
 <script type="module">
 
   //Service worker
+// frontend (z.B. index.js oder main.js)
 if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log("Service Worker registriert:", reg))
-      .catch(err => console.error("SW Fehler:", err));
+      .then(reg => {
+        console.log("Service Worker registriert:", reg);
+
+        // Prüfen, ob ein Update verfügbar ist
+        reg.onupdatefound = () => {
+          const newWorker = reg.installing;
+          newWorker.onstatechange = () => {
+            if (newWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                // Neue Version verfügbar
+                console.log("Neue Version verfügbar. Seite neu laden, um SW zu aktivieren.");
+                // optional: automatisch reload
+                // window.location.reload();
+              } else {
+                // Erstinstallation
+                console.log("Service Worker installiert und aktiv.");
+              }
+            }
+          };
+        };
+      })
+      .catch(err => console.error("SW-Registrierungsfehler:", err));
+  });
 }
+
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
@@ -1706,6 +1730,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
