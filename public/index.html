@@ -6,19 +6,15 @@
   <title>Zeiterfassung</title>
 
   <!-- Manifest einbinden -->
-  <link rel="manifest" href="/manifest.json" />
+ <link rel="manifest" href="/manifest.json" />
 
-  <!-- Theme- und Hintergrundfarbe -->
-  <meta name="theme-color" content="#1976d2" />
+<!-- Theme- und Hintergrundfarbe -->
+<meta name="theme-color" content="#1976d2" />
 
-  <!-- iOS Unterstützung (Apple braucht spezielle Meta-Tags) -->
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="StempelApp" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-
-  <!-- Fallback Favicon -->
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<!-- iOS Unterstützung (Apple braucht spezielle Meta-Tags) -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="StempelApp" />
   
 <style>
 /* Basis */
@@ -612,7 +608,7 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => console.log("Service Worker registriert:", reg))
       .catch(err => console.error("SW Fehler:", err));
-  }
+}
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
@@ -1710,6 +1706,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
