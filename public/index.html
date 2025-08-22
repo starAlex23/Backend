@@ -606,38 +606,13 @@ html, body {
 <!-- Bibiothek für navbar icons --> 
 <script src="https://unpkg.com/lucide@latest"></script>
 <script type="module">
-  
- // Service Worker registrieren
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log("Service Worker registriert:", reg))
-        .catch(err => console.error("SW Fehler:", err));
-    });
+
+  //Service worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log("Service Worker registriert:", reg))
+      .catch(err => console.error("SW Fehler:", err));
   }
-
-  // Fallback: sehr einfacher Service Worker direkt inlined
-  const swCode = `
-    const CACHE_NAME = "stempel-cache-v1";
-    const URLS_TO_CACHE = ["/", "/index.html", "/manifest.json", "/icons/icon-192.png", "/icons/icon-512.png"];
-
-    self.addEventListener("install", event => {
-      event.waitUntil(
-        caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))
-      );
-    });
-
-    self.addEventListener("fetch", event => {
-      event.respondWith(
-        caches.match(event.request).then(response => response || fetch(event.request))
-      );
-    });
-  `;
-
-  // Inline-Service-Worker schreiben (Hack, weil man normal sw.js extra hat)
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl);
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
@@ -1735,6 +1710,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
