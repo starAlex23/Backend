@@ -3,9 +3,8 @@ const CACHE_NAME = "stempel-cache-v1";
 const URLS_TO_CACHE = [
   "/",
   "/index.html",
-  "/manifest.json",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png"
+  "/manifest.json"
+  // Icons entfernt, da nicht mehr vorhanden
 ];
 
 // Installieren & Dateien cachen
@@ -20,11 +19,13 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.map(key => {
-        if (key !== CACHE_NAME) {
-          return caches.delete(key);
-        }
-      }))
+      Promise.all(
+        keys.map(key => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      )
     )
   );
   self.clients.claim();
@@ -33,9 +34,12 @@ self.addEventListener("activate", event => {
 // Netzwerkabfragen abfangen
 self.addEventListener("fetch", event => {
   event.respondWith(
-    caches.match(event.request).then(response =>
-      response || fetch(event.request)
-    )
+    caches.match(event.request).then(response => {
+      return response || fetch(event.request).catch(() => {
+        // Optional: Fallback-Seite anzeigen, falls offline
+        // return caches.match('/offline.html');
+      });
+    })
   );
 });
 
