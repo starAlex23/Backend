@@ -207,13 +207,13 @@ function setAuthCookies(res, token, csrfToken) {
     const cookieOptionsHttpOnly = {
         httpOnly: true, // Cookie ist nicht über Client-seitiges JavaScript zugänglich
         secure: true, // Nur über HTTPS senden
-        sameSite: 'Lax', // Erlaubt Cross-Site-Verwendung
+        sameSite: 'None', // Erlaubt Cross-Site-Verwendung
         maxAge: 24 * 60 * 60 * 1000, // 1 Tag
     };
     const cookieOptionsJsAccessible = {
         httpOnly: false, // Cookie ist über Client-seitiges JavaScript zugänglich (für CSRF-Token)
         secure: true,
-        sameSite: 'Lax',
+        sameSite: 'None',
         maxAge: 24 * 60 * 60 * 1000,
     };
 
@@ -226,12 +226,12 @@ function clearAuthCookies(res) {
     const cookieOptions = {
         httpOnly: true,
         secure: true,
-        sameSite: 'Lax',
+        sameSite: 'None',
     };
     const cookieOptionsJsAccessible = { // Für CSRF, da es auch JS-zugänglich sein muss
         httpOnly: false,
         secure: true,
-        sameSite: 'Lax',
+        sameSite: 'None',
     };
 
     res.clearCookie('token', cookieOptions);
@@ -1023,15 +1023,15 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
     // Cookies setzen
     res.cookie('token', accessToken, {
-      httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 15 * 60 * 1000
+      httpOnly: true, secure: true, sameSite: 'None', maxAge: 15 * 60 * 1000
     });
 
     res.cookie('refreshToken', refreshToken, {
-      httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 * 1000, path: '/api/refresh'
+      httpOnly: true, secure: true, sameSite: 'None', maxAge: 7 * 24 * 60 * 60 * 1000, path: '/api/refresh'
     });
 
     res.cookie('csrfToken', csrfToken, {
-      httpOnly: false, secure: true, sameSite: 'Lax', maxAge: 24 * 60 * 60 * 1000
+      httpOnly: false, secure: true, sameSite: 'None', maxAge: 24 * 60 * 60 * 1000
     });
 
     if (!user.verifiziert) {
@@ -1046,7 +1046,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         { expiresIn: '30d', issuer: process.env.JWT_ISSUER }
       );
       res.cookie('vorarbeiterToken', vToken, {
-        httpOnly: true, secure: true, sameSite: 'Lax', maxAge: 30 * 24 * 60 * 60 * 1000
+        httpOnly: true, secure: true, sameSite: 'None', maxAge: 30 * 24 * 60 * 60 * 1000
       });
       console.log(`✅ Vorarbeiter-Token gesetzt für ${user.email}`);
     }
@@ -1519,7 +1519,7 @@ app.post('/api/refresh', async (req, res) => {
     res.cookie('token', newAccessToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'Lax',
+      sameSite: 'None',
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
@@ -1528,7 +1528,7 @@ app.post('/api/refresh', async (req, res) => {
     res.cookie('csrfToken', newCsrfToken, {
       httpOnly: false,
       secure: true,
-      sameSite: 'Lax',
+      sameSite: 'None',
       path: '/',
       maxAge: 15 * 60 * 1000,
     });
@@ -2007,6 +2007,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
