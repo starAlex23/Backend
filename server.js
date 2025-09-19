@@ -1343,12 +1343,6 @@ res.cookie('csrfToken', csrfToken, {
     }
 });
 
-// Beispiel für geschützte Admin-Route
-app.post('/api/admin/irgendwas', authMiddleware, csrfMiddleware, adminOnlyMiddleware, (req, res) => {
-    res.json({ message: 'Admin-Aktion erfolgreich ausgeführt.' });
-});
-
-
 app.get('/api/status', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query('SELECT ist_eingestempelt FROM users WHERE id = $1', [req.user.id]);
@@ -1696,7 +1690,7 @@ const workPlanSchema = Joi.object({
 // ------------------ ROUTEN ------------------
 
 // Standort anlegen
-app.post('/api/locations', authMiddleware, adminMiddleware, async (req, res) => {
+app.post('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { error, value } = locationSchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
@@ -1716,7 +1710,7 @@ app.post('/api/locations', authMiddleware, adminMiddleware, async (req, res) => 
 });
 
 // Alle Standorte abrufen
-app.get('/api/locations', authMiddleware, adminMiddleware, async (req, res) => {
+app.get('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM locations ORDER BY id DESC`);
     res.json(result.rows);
@@ -1727,7 +1721,7 @@ app.get('/api/locations', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Arbeitsplan anlegen
-app.post('/api/workplans', authMiddleware, adminMiddleware, async (req, res) => {
+app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { error, value } = workPlanSchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
@@ -1761,7 +1755,7 @@ app.post('/api/workplans', authMiddleware, adminMiddleware, async (req, res) => 
 });
 
 // Alle Arbeitspläne abrufen
-app.get('/api/workplans', authMiddleware, adminMiddleware, async (req, res) => {
+app.get('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT wp.*, l.name AS location_name, l.google_maps_link,
@@ -1780,7 +1774,7 @@ app.get('/api/workplans', authMiddleware, adminMiddleware, async (req, res) => {
 });
 
 // Detailansicht eines Arbeitsplans
-app.get('/api/workplans/:id', authMiddleware, adminMiddleware, async (req, res) => {
+app.get('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1810,7 +1804,7 @@ app.get('/api/workplans/:id', authMiddleware, adminMiddleware, async (req, res) 
 });
 
 // Mitarbeiter zuweisen
-app.post('/api/workplans/:id/assign', authMiddleware, adminMiddleware, async (req, res) => {
+app.post('/api/workplans/:id/assign', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { user_id } = req.body;
     const { id } = req.params;
@@ -1829,7 +1823,7 @@ app.post('/api/workplans/:id/assign', authMiddleware, adminMiddleware, async (re
 });
 
 // Status ändern (später Chat-gesteuert)
-app.put('/api/workplans/:id/assign/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+app.put('/api/workplans/:id/assign/:userId', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
     const { id, userId } = req.params;
@@ -1977,5 +1971,6 @@ async function startServer() {
 }
 
 startServer();
+
 
 
