@@ -1741,7 +1741,7 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
     );
     const plan = planResult.rows[0];
 
-    // 2. Mehrere Mitarbeiter sicher zuweisen
+    // 2. Mehrere Mitarbeiter zuweisen
     const params = [];
     const placeholders = mitarbeiter.map((userId, i) => {
       params.push(plan.id, userId);
@@ -1759,12 +1759,12 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
   }
 });
 
-// Arbeitsplan löschen (nur aus Ansicht)
+// Arbeitsplan ausblenden (nicht löschen)
 app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE id = $1`, [id]);
-    res.json({ success: true });
+    res.json({ success: true, message: 'Plan aus Ansicht entfernt' });
   } catch (err) {
     console.error('DELETE /api/workplans/:id', err);
     res.status(500).json({ error: 'Serverfehler' });
@@ -1774,8 +1774,8 @@ app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddle
 // Alle Arbeitspläne abrufen
 app.get('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
-    // Vergangene Pläne automatisch ausblenden
-    await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE datum < CURRENT_DATE`);
+    // Vergangene Pläne automatisch ausblenden (nur sichtbare betreffen)
+    await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE datum < CURRENT_DATE AND sichtbar = TRUE`);
 
     const result = await pool.query(`
       SELECT wp.*, l.name AS location_name, l.google_maps_link,
@@ -1793,7 +1793,7 @@ app.get('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, a
       LEFT JOIN work_plan_assignments a ON wp.id = a.work_plan_id
       LEFT JOIN users u ON a.user_id = u.id
       WHERE wp.sichtbar = TRUE
-      GROUP BY wp.id, l.name, l.google_maps_link
+      GROUP BY wp.id, wp.datum, wp.location_id, wp.beschreibung, wp.sichtbar, l.name, l.google_maps_link
       ORDER BY wp.datum DESC
     `);
 
@@ -1818,7 +1818,12 @@ app.get('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddlewar
     if (planResult.rows.length === 0) return res.status(404).json({ error: 'Nicht gefunden' });
 
     const assignments = await pool.query(`
-      SELECT a.*, u.vorname, u.nachname, u.rolle
+      SELECT a.*, u.vorname, u.nachname, u.rolle,
+             CASE a.status
+               WHEN 'wartend' THEN '⚪'
+               WHEN 'zugesagt' THEN '🟢'
+               WHEN 'abgelehnt' THEN '🔴'
+             END AS status_symbol
       FROM work_plan_assignments a
       LEFT JOIN users u ON a.user_id = u.id
       WHERE a.work_plan_id = $1
@@ -1834,8 +1839,7 @@ app.get('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddlewar
   }
 });
 
-
-// Mitarbeiter zuweisen
+// Einzelnen Mitarbeiter zuweisen (optional)
 app.post('/api/workplans/:id/assign', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { user_id } = req.body;
@@ -2003,6 +2007,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
