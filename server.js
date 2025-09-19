@@ -1695,11 +1695,13 @@ const locationSchema = Joi.object({
   google_maps_link: Joi.string().uri().allow(null, '')
 });
 
+// WorkPlan Schema anpassen
 const workPlanSchema = Joi.object({
   datum: Joi.date().required(),
+  uhrzeit: Joi.string().pattern(/^\d{2}:\d{2}$/).required(), // HH:mm
   location_id: Joi.number().integer().required(),
   beschreibung: Joi.string().max(255).allow(null, ''),
-  mitarbeiter: Joi.array().items(Joi.number().integer()).default([])
+  mitarbeiter: Joi.array().items(Joi.number().integer()).min(1).required()
 });
 
 // ------------------ ROUTEN ------------------
@@ -1736,26 +1738,26 @@ app.get('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, a
 });
 
 // Arbeitsplan erstellen
+// POST /api/workplans
 app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { error, value } = workPlanSchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
-    const { datum, location_id, beschreibung, mitarbeiter } = value;
+    const { datum, uhrzeit, location_id, beschreibung, mitarbeiter } = value;
 
-    if (!mitarbeiter || !Array.isArray(mitarbeiter) || mitarbeiter.length === 0) {
-      return res.status(400).json({ error: 'Mindestens ein Mitarbeiter muss ausgewählt werden' });
-    }
+    // Datum + Uhrzeit kombinieren
+    const datumZeit = new Date(`${datum}T${uhrzeit}`);
 
     // 1. Arbeitsplan speichern
     const planResult = await pool.query(
-      `INSERT INTO work_plans (datum, location_id, beschreibung)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [datum, location_id, beschreibung]
+      `INSERT INTO work_plans (datum, location_id, beschreibung, sichtbar)
+       VALUES ($1, $2, $3, TRUE) RETURNING *`,
+      [datumZeit, location_id, beschreibung]
     );
     const plan = planResult.rows[0];
 
-    // 2. Mehrere Mitarbeiter zuweisen
+    // 2. Mitarbeiter zuweisen
     const params = [];
     const placeholders = mitarbeiter.map((userId, i) => {
       params.push(plan.id, userId);
@@ -2021,6 +2023,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
