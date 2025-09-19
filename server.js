@@ -423,9 +423,10 @@ await pool.query(`
 await pool.query(`
   CREATE TABLE IF NOT EXISTS work_plans (
     id SERIAL PRIMARY KEY,
-    datum DATE NOT NULL,
-    location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
-    beschreibung TEXT
+  datum DATE NOT NULL,
+  location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+  beschreibung TEXT,
+  sichtbar BOOLEAN DEFAULT TRUE
   )
 `);
 
@@ -1754,15 +1755,31 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
   }
 });
 
+// Arbeitsplan löschen
+app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE id = $1`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/workplans/:id', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 // Alle Arbeitspläne abrufen
 app.get('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
+    // Ältere Pläne automatisch ausblenden
+    await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE datum < CURRENT_DATE`);
+
     const result = await pool.query(`
       SELECT wp.*, l.name AS location_name, l.google_maps_link,
              COUNT(a.id) AS mitarbeiter_count
       FROM work_plans wp
       LEFT JOIN locations l ON wp.location_id = l.id
       LEFT JOIN work_plan_assignments a ON wp.id = a.work_plan_id
+      WHERE wp.sichtbar = TRUE
       GROUP BY wp.id, l.name, l.google_maps_link
       ORDER BY wp.datum DESC
     `);
@@ -1971,6 +1988,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
