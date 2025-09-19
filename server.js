@@ -411,6 +411,34 @@ async function initDb() {
       )
     `);
 
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS locations (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    adresse TEXT,
+    google_maps_link TEXT
+  )
+`);
+
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS work_plans (
+    id SERIAL PRIMARY KEY,
+    datum DATE NOT NULL,
+    location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+    beschreibung TEXT
+  )
+`);
+
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS work_plan_assignments (
+    id SERIAL PRIMARY KEY,
+    work_plan_id INTEGER REFERENCES work_plans(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'wartend',
+    UNIQUE(work_plan_id, user_id)
+  )
+`);
+ 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS refresh_tokens (
         id SERIAL PRIMARY KEY,
@@ -1650,6 +1678,179 @@ app.delete('/api/user/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware,
     }
 });
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Arbeitsplanung Anbau
+const locationSchema = Joi.object({
+  name: Joi.string().min(2).max(100).required(),
+  adresse: Joi.string().max(255).allow(null, ''),
+  google_maps_link: Joi.string().uri().allow(null, '')
+});
+
+const workPlanSchema = Joi.object({
+  datum: Joi.date().required(),
+  location_id: Joi.number().integer().required(),
+  beschreibung: Joi.string().max(255).allow(null, ''),
+  mitarbeiter: Joi.array().items(Joi.number().integer()).default([])
+});
+
+// ------------------ ROUTEN ------------------
+
+// Standort anlegen
+app.post('/api/locations', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { error, value } = locationSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { name, adresse, google_maps_link } = value;
+    const result = await pool.query(
+      `INSERT INTO locations (name, adresse, google_maps_link)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [name, adresse, google_maps_link]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('POST /api/locations', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Alle Standorte abrufen
+app.get('/api/locations', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM locations ORDER BY id DESC`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /api/locations', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Arbeitsplan anlegen
+app.post('/api/workplans', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { error, value } = workPlanSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { datum, location_id, beschreibung, mitarbeiter } = value;
+
+    // 1. Arbeitsplan speichern
+    const planResult = await pool.query(
+      `INSERT INTO work_plans (datum, location_id, beschreibung)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [datum, location_id, beschreibung]
+    );
+    const plan = planResult.rows[0];
+
+    // 2. Mitarbeiter zuweisen (falls angegeben)
+    if (mitarbeiter.length > 0) {
+      const values = mitarbeiter.map(userId =>
+        `(${plan.id}, ${userId}, 'wartend')`
+      ).join(',');
+      await pool.query(
+        `INSERT INTO work_plan_assignments (work_plan_id, user_id, status)
+         VALUES ${values}`
+      );
+    }
+
+    res.json(plan);
+  } catch (err) {
+    console.error('POST /api/workplans', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Alle Arbeitspläne abrufen
+app.get('/api/workplans', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT wp.*, l.name AS location_name, l.google_maps_link,
+             COUNT(a.id) AS mitarbeiter_count
+      FROM work_plans wp
+      LEFT JOIN locations l ON wp.location_id = l.id
+      LEFT JOIN work_plan_assignments a ON wp.id = a.work_plan_id
+      GROUP BY wp.id, l.name, l.google_maps_link
+      ORDER BY wp.datum DESC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /api/workplans', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Detailansicht eines Arbeitsplans
+app.get('/api/workplans/:id', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const planResult = await pool.query(`
+      SELECT wp.*, l.name AS location_name, l.google_maps_link
+      FROM work_plans wp
+      LEFT JOIN locations l ON wp.location_id = l.id
+      WHERE wp.id = $1
+    `, [id]);
+    if (planResult.rows.length === 0) return res.status(404).json({ error: 'Nicht gefunden' });
+
+    const assignments = await pool.query(`
+      SELECT a.*, u.vorname, u.nachname
+      FROM work_plan_assignments a
+      LEFT JOIN users u ON a.user_id = u.id
+      WHERE a.work_plan_id = $1
+    `, [id]);
+
+    res.json({
+      ...planResult.rows[0],
+      mitarbeiter: assignments.rows
+    });
+  } catch (err) {
+    console.error('GET /api/workplans/:id', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Mitarbeiter zuweisen
+app.post('/api/workplans/:id/assign', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    const { id } = req.params;
+
+    await pool.query(
+      `INSERT INTO work_plan_assignments (work_plan_id, user_id, status)
+       VALUES ($1, $2, 'wartend') ON CONFLICT DO NOTHING`,
+      [id, user_id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/workplans/:id/assign', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Status ändern (später Chat-gesteuert)
+app.put('/api/workplans/:id/assign/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const { id, userId } = req.params;
+
+    if (!['wartend', 'zugesagt', 'abgelehnt'].includes(status)) {
+      return res.status(400).json({ error: 'Ungültiger Status' });
+    }
+
+    await pool.query(
+      `UPDATE work_plan_assignments SET status = $1
+       WHERE work_plan_id = $2 AND user_id = $3`,
+      [status, id, userId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('PUT /api/workplans/:id/assign/:userId', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // --- WebAuthn Registrierung (Step 1: Challenge erstellen) ---
 const rpName = 'Zeiterfassung';
 const rpID = 'localhost'; // Für die lokale Entwicklung, in Produktion auf die echte Domain ändern (z.B. 'meinedomain.de')
@@ -1776,4 +1977,5 @@ async function startServer() {
 }
 
 startServer();
+
 
