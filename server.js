@@ -423,11 +423,25 @@ await pool.query(`
 await pool.query(`
   CREATE TABLE IF NOT EXISTS work_plans (
     id SERIAL PRIMARY KEY,
-  datum DATE NOT NULL,
-  location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
-  beschreibung TEXT,
-  sichtbar BOOLEAN DEFAULT TRUE
+    datum DATE NOT NULL,
+    location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
+    beschreibung TEXT,
+    sichtbar BOOLEAN DEFAULT TRUE
   )
+`);
+
+await pool.query(`
+  DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'work_plans' AND column_name = 'sichtbar'
+    ) THEN
+      ALTER TABLE work_plans ADD COLUMN sichtbar BOOLEAN DEFAULT TRUE;
+    END IF;
+  END
+  $$;
 `);
 
 await pool.query(`
@@ -2007,6 +2021,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
