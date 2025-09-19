@@ -1721,13 +1721,17 @@ app.get('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, a
   }
 });
 
-// Arbeitsplan anlegen
+// Arbeitsplan erstellen
 app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { error, value } = workPlanSchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
     const { datum, location_id, beschreibung, mitarbeiter } = value;
+
+    if (!mitarbeiter || !Array.isArray(mitarbeiter) || mitarbeiter.length === 0) {
+      return res.status(400).json({ error: 'Mindestens ein Mitarbeiter muss ausgewählt werden' });
+    }
 
     // 1. Arbeitsplan speichern
     const planResult = await pool.query(
@@ -1737,16 +1741,16 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
     );
     const plan = planResult.rows[0];
 
-    // 2. Mitarbeiter zuweisen (falls angegeben)
-    if (mitarbeiter.length > 0) {
-      const values = mitarbeiter.map(userId =>
-        `(${plan.id}, ${userId}, 'wartend')`
-      ).join(',');
-      await pool.query(
-        `INSERT INTO work_plan_assignments (work_plan_id, user_id, status)
-         VALUES ${values}`
-      );
-    }
+    // 2. Mehrere Mitarbeiter sicher zuweisen
+    const params = [];
+    const placeholders = mitarbeiter.map((userId, i) => {
+      params.push(plan.id, userId);
+      return `($${i*2+1}, $${i*2+2}, 'wartend')`;
+    }).join(',');
+    await pool.query(
+      `INSERT INTO work_plan_assignments (work_plan_id, user_id, status) VALUES ${placeholders}`,
+      params
+    );
 
     res.json(plan);
   } catch (err) {
@@ -1755,7 +1759,7 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
   }
 });
 
-// Arbeitsplan löschen
+// Arbeitsplan löschen (nur aus Ansicht)
 app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
@@ -1770,19 +1774,29 @@ app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddle
 // Alle Arbeitspläne abrufen
 app.get('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
-    // Ältere Pläne automatisch ausblenden
+    // Vergangene Pläne automatisch ausblenden
     await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE datum < CURRENT_DATE`);
 
     const result = await pool.query(`
       SELECT wp.*, l.name AS location_name, l.google_maps_link,
-             COUNT(a.id) AS mitarbeiter_count
+             COALESCE(json_agg(
+               json_build_object(
+                 'id', u.id,
+                 'vorname', u.vorname,
+                 'nachname', u.nachname,
+                 'rolle', u.rolle,
+                 'status', a.status
+               )
+             ) FILTER (WHERE u.id IS NOT NULL), '[]') AS mitarbeiter
       FROM work_plans wp
       LEFT JOIN locations l ON wp.location_id = l.id
       LEFT JOIN work_plan_assignments a ON wp.id = a.work_plan_id
+      LEFT JOIN users u ON a.user_id = u.id
       WHERE wp.sichtbar = TRUE
       GROUP BY wp.id, l.name, l.google_maps_link
       ORDER BY wp.datum DESC
     `);
+
     res.json(result.rows);
   } catch (err) {
     console.error('GET /api/workplans', err);
@@ -1804,7 +1818,7 @@ app.get('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddlewar
     if (planResult.rows.length === 0) return res.status(404).json({ error: 'Nicht gefunden' });
 
     const assignments = await pool.query(`
-      SELECT a.*, u.vorname, u.nachname
+      SELECT a.*, u.vorname, u.nachname, u.rolle
       FROM work_plan_assignments a
       LEFT JOIN users u ON a.user_id = u.id
       WHERE a.work_plan_id = $1
@@ -1819,6 +1833,7 @@ app.get('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddlewar
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
+
 
 // Mitarbeiter zuweisen
 app.post('/api/workplans/:id/assign', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
@@ -1988,6 +2003,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
