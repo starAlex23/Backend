@@ -1748,7 +1748,7 @@ app.post('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
 });
 
 // Alle Standorte abrufen
-app.get('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+app.get('/api/locations', authMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM locations ORDER BY id DESC`);
     res.json(result.rows);
@@ -2044,6 +2044,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
