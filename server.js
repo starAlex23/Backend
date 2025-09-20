@@ -1726,38 +1726,6 @@ const workPlanSchema = Joi.object({
 });
 
 // ------------------ ROUTEN ------------------
-
-// Standort anlegen
-app.post('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  try {
-    const { error, value } = locationSchema.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
-
-    const { name, adresse, google_maps_link } = value;
-    const result = await pool.query(
-      `INSERT INTO locations (name, adresse, google_maps_link)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [name, adresse, google_maps_link]
-    );
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('POST /api/locations', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
-// Alle Standorte abrufen
-app.get('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(`SELECT * FROM locations ORDER BY id DESC`);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('GET /api/locations', err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
-});
-
 // Arbeitsplan erstellen
 // POST /api/workplans
 app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
@@ -1917,6 +1885,75 @@ app.put('/api/workplans/:id/assign/:userId', authMiddleware, csrfMiddleware, adm
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//Standort aufbau
+// Standort anlegen
+app.post('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const { error, value } = locationSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { name, adresse, google_maps_link } = value;
+    const result = await pool.query(
+      `INSERT INTO locations (name, adresse, google_maps_link)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [name, adresse, google_maps_link]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('POST /api/locations', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// Alle Standorte abrufen
+app.get('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM locations ORDER BY id DESC`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /api/locations', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.put('/api/locations/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const { error, value } = locationSchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const { name, adresse, google_maps_link } = value;
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `UPDATE locations
+       SET name = $1, adresse = $2, google_maps_link = $3
+       WHERE id = $4
+       RETURNING *`,
+      [name, adresse, google_maps_link, id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: "Standort nicht gefunden" });
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('PUT /api/locations/:id', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+app.delete('/api/locations/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`DELETE FROM locations WHERE id = $1`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/locations/:id', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // --- WebAuthn Registrierung (Step 1: Challenge erstellen) ---
 const rpName = 'Zeiterfassung';
@@ -2044,6 +2081,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
