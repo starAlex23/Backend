@@ -420,16 +420,18 @@ await pool.query(`
   )
 `);
 
+// Tabelle anlegen (falls nicht existiert)
 await pool.query(`
   CREATE TABLE IF NOT EXISTS work_plans (
     id SERIAL PRIMARY KEY,
-    datum DATE NOT NULL,
+    datum TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     location_id INTEGER REFERENCES locations(id) ON DELETE SET NULL,
     beschreibung TEXT,
     sichtbar BOOLEAN DEFAULT TRUE
   )
 `);
 
+// Falls "sichtbar"-Spalte fehlt → nachrüsten
 await pool.query(`
   DO $$
   BEGIN
@@ -439,6 +441,25 @@ await pool.query(`
       WHERE table_name = 'work_plans' AND column_name = 'sichtbar'
     ) THEN
       ALTER TABLE work_plans ADD COLUMN sichtbar BOOLEAN DEFAULT TRUE;
+    END IF;
+  END
+  $$;
+`);
+
+// Falls "datum"-Spalte noch als DATE existiert → nachrüsten auf TIMESTAMP
+await pool.query(`
+  DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'work_plans'
+        AND column_name = 'datum'
+        AND data_type = 'date'
+    ) THEN
+      ALTER TABLE work_plans
+      ALTER COLUMN datum TYPE TIMESTAMP WITHOUT TIME ZONE
+      USING datum::timestamp;
     END IF;
   END
   $$;
@@ -1697,8 +1718,8 @@ const locationSchema = Joi.object({
 
 // WorkPlan Schema anpassen
 const workPlanSchema = Joi.object({
-  datum: Joi.date().required(),
-  uhrzeit: Joi.string().pattern(/^\d{2}:\d{2}$/).required(), // HH:mm
+  datum: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).required(), // 2025-09-20
+  uhrzeit: Joi.string().pattern(/^\d{2}:\d{2}$/).required(),      // 08:30
   location_id: Joi.number().integer().required(),
   beschreibung: Joi.string().max(255).allow(null, ''),
   mitarbeiter: Joi.array().items(Joi.number().integer()).min(1).required()
@@ -1746,14 +1767,14 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
 
     const { datum, uhrzeit, location_id, beschreibung, mitarbeiter } = value;
 
-    // Datum + Uhrzeit kombinieren
-    const datumZeit = new Date(`${datum}T${uhrzeit}`);
+    // Datum + Uhrzeit kombinieren → "2025-09-20 08:30:00"
+    const startZeit = `${datum} ${uhrzeit}:00`;
 
     // 1. Arbeitsplan speichern
     const planResult = await pool.query(
       `INSERT INTO work_plans (datum, location_id, beschreibung, sichtbar)
        VALUES ($1, $2, $3, TRUE) RETURNING *`,
-      [datumZeit, location_id, beschreibung]
+      [startZeit, location_id, beschreibung]
     );
     const plan = planResult.rows[0];
 
@@ -2023,6 +2044,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
