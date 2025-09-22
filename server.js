@@ -1764,6 +1764,32 @@ app.post('/api/workplans', authMiddleware, csrfMiddleware, adminOnlyMiddleware, 
   }
 });
 
+//Arbeitsplan bearbeitung speichern/Daten aktualisieren
+app.put('/api/workplans/:id', authMiddleware, async (req, res) => {
+  const id = parseInt(req.params.id);
+  const { datum, uhrzeit, location_id, beschreibung, mitarbeiter } = req.body;
+
+  try {
+    // Plan in DB aktualisieren
+    await db.query(`
+      UPDATE workplans
+      SET datum=$1, uhrzeit=$2, location_id=$3, beschreibung=$4
+      WHERE id=$5
+    `, [datum, uhrzeit, location_id, beschreibung, id]);
+
+    // Optional: Mitarbeiter-Zuordnungen aktualisieren
+    await db.query(`DELETE FROM workplan_users WHERE workplan_id=$1`, [id]);
+    for (const userId of mitarbeiter) {
+      await db.query(`INSERT INTO workplan_users (workplan_id, user_id) VALUES ($1,$2)`, [id, userId]);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Fehler beim Aktualisieren des Plans' });
+  }
+});
+
 // Arbeitsplan ausblenden (nicht löschen)
 app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
@@ -2081,6 +2107,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
