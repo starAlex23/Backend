@@ -459,6 +459,36 @@ html, body {
   margin-top: 0.3rem;
   font-weight: 600;
 }
+
+/*Arbeitsplanung CSS */
+.plan-card {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin: 10px 0;
+  padding: 10px;
+  background: #f9f9f9;
+}
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+}
+.plan-header span {
+  margin-right: 8px;
+}
+.plan-header .toggle {
+  background: none;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+}
+.plan-details {
+  margin-top: 8px;
+}
+.hidden {
+  display: none;
+}
 </style>
 </head>
 <body data-theme="light">
@@ -558,10 +588,10 @@ html, body {
         <div class="user-info">Angemeldet als: <span id="user-name">...</span></div>
       </section>
 
-      <section id="arbeitsplanung-section" class="card view hidden">
-        <h2>Arbeitsplanung</h2>
-        <p>(Hier kommt später die Einsatzplanung hin)</p>
-      </section>
+     <section id="arbeitsplanung-section" class="card view hidden">
+  <h2>Arbeitsplanung</h2>
+  <div id="arbeitsplanung-list"></div>
+</section>
 
       <section id="zeiterfassung-section" class="card view hidden">
         <h2>Zeiterfassung</h2>
@@ -702,7 +732,104 @@ function hideLoading() {
 }
   
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-  
+// ===================== AUTO REFRESH HANDLING =====================
+const sectionIntervals = new Map();
+
+function enableAutoRefresh(sectionId, callback, intervalMs = 60000) {
+  const section = document.getElementById(sectionId);
+
+  const observer = new MutationObserver(() => {
+    const isVisible = !section.classList.contains("hidden");
+
+    if (isVisible && !sectionIntervals.has(sectionId)) {
+      // Start Auto-Refresh
+      callback(); // sofort laden
+      const intervalId = setInterval(callback, intervalMs);
+      sectionIntervals.set(sectionId, intervalId);
+    } else if (!isVisible && sectionIntervals.has(sectionId)) {
+      // Stop Auto-Refresh
+      clearInterval(sectionIntervals.get(sectionId));
+      sectionIntervals.delete(sectionId);
+    }
+  });
+
+  observer.observe(section, { attributes: true, attributeFilter: ["class"] });
+}
+
+// ===================== ARBEITSPLANUNG =====================
+async function loadArbeitsplanung() {
+  const list = document.getElementById("arbeitsplanung-list");
+  list.innerHTML = "<p>Lade Einsätze...</p>";
+
+  try {
+    const res = await apiFetch("/api/myworkplans", { method: "GET" });
+    if (!res.ok) throw new Error("Fehler beim Laden");
+    const plans = await res.json();
+
+    if (plans.length === 0) {
+      list.innerHTML = "<p>Keine geplanten Einsätze.</p>";
+      return;
+    }
+
+    list.innerHTML = "";
+    plans.forEach(plan => {
+      const card = document.createElement("div");
+      card.className = "plan-card";
+
+      // Header (eingeklappt)
+      const header = document.createElement("div");
+      header.className = "plan-header";
+      header.innerHTML = `
+        <span class="plan-location">${plan.location_name}</span>
+        <span class="plan-date">${plan.datum_only}</span>
+        <span class="plan-time">${plan.uhrzeit}</span>
+        <button class="toggle">▼</button>
+      `;
+
+      // Details (aufgeklappt)
+      const details = document.createElement("div");
+      details.className = "plan-details hidden";
+      details.innerHTML = `
+        <p><b>Vorarbeiter:</b> ${plan.vorarbeiter || "-"}</p>
+        <p><b>Status:</b> ${statusSymbol(plan.status)} ${plan.status}</p>
+        ${plan.beschreibung ? `<p><b>Beschreibung:</b> ${plan.beschreibung}</p>` : ""}
+        ${plan.google_maps_link ? `<a href="${plan.google_maps_link}" target="_blank">📍 Route anzeigen</a>` : ""}
+      `;
+
+      // Toggle
+      header.querySelector(".toggle").addEventListener("click", () => {
+        details.classList.toggle("hidden");
+      });
+
+      card.appendChild(header);
+      card.appendChild(details);
+      list.appendChild(card);
+    });
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = "<p>Fehler beim Laden der Arbeitsplanung.</p>";
+  }
+}
+
+function statusSymbol(status) {
+  switch (status) {
+    case "zugesagt": return "🟢";
+    case "abgelehnt": return "🔴";
+    case "wartend": return "⚪";
+    default: return "⚪";
+  }
+}
+
+// ===================== INIT =====================
+document.addEventListener("DOMContentLoaded", () => {
+  // Arbeitsplanung alle 60 Sekunden aktualisieren
+  enableAutoRefresh("arbeitsplanung-section", loadArbeitsplanung, 60000);
+
+  // Chat (später) könnte so aussehen:
+  // enableAutoRefresh("chat-section", loadChatMessages, 5000);
+});
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 document.addEventListener('DOMContentLoaded', () => {
   const darkmodeSwitch = document.getElementById('darkmode-switch-main');
   if (!darkmodeSwitch) {
@@ -1730,6 +1857,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
