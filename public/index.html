@@ -788,10 +788,12 @@ async function loadArbeitsplanung() {
 
   try {
     const res = await apiFetch("/api/myworkplans", { method: "GET" });
+    console.log("res", res);
     if (!res.ok) throw new Error("Fehler beim Laden");
     const plans = await res.json();
+    console.log("plans", plans);
 
-    if (plans.length === 0) {
+    if (!plans || plans.length === 0) {
       list.innerHTML = "<p>Keine geplanten Einsätze.</p>";
       return;
     }
@@ -801,27 +803,24 @@ async function loadArbeitsplanung() {
       const card = document.createElement("div");
       card.className = "plan-card";
 
-      // Header (eingeklappt)
       const header = document.createElement("div");
       header.className = "plan-header";
       header.innerHTML = `
-        <span class="plan-location">${plan.location_name}</span>
-        <span class="plan-date">${plan.datum_only}</span>
-        <span class="plan-time">${plan.uhrzeit}</span>
+        <span class="plan-location">${plan.location_name || "-"}</span>
+        <span class="plan-date">${plan.datum_only || "-"}</span>
+        <span class="plan-time">${plan.uhrzeit || "-"}</span>
         <button class="toggle">▼</button>
       `;
 
-      // Details (aufgeklappt)
       const details = document.createElement("div");
       details.className = "plan-details hidden";
       details.innerHTML = `
         <p><b>Vorarbeiter:</b> ${plan.vorarbeiter || "-"}</p>
-        <p><b>Status:</b> ${statusSymbol(plan.status)} ${plan.status}</p>
+        <p><b>Status:</b> ${statusSymbol(plan.status)} ${plan.status || "-"}</p>
         ${plan.beschreibung ? `<p><b>Beschreibung:</b> ${plan.beschreibung}</p>` : ""}
         ${plan.google_maps_link ? `<a href="${plan.google_maps_link}" target="_blank">📍 Route anzeigen</a>` : ""}
       `;
 
-      // Toggle
       header.querySelector(".toggle").addEventListener("click", () => {
         details.classList.toggle("hidden");
       });
@@ -831,8 +830,8 @@ async function loadArbeitsplanung() {
       list.appendChild(card);
     });
   } catch (err) {
-    console.error(err);
-    list.innerHTML = "<p>Fehler beim Laden der Arbeitsplanung.</p>";
+    console.error("Fehler in loadArbeitsplanung:", err);
+    if (list) list.innerHTML = "<p>Fehler beim Laden der Arbeitsplanung.</p>";
   }
 }
 
@@ -1882,6 +1881,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
