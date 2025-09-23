@@ -1912,6 +1912,38 @@ app.put('/api/workplans/:id/assign/:userId', authMiddleware, csrfMiddleware, adm
   }
 });
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Eigene Arbeitspläne für eingeloggten Mitarbeiter
+app.get('/api/myworkplans', authMiddleware, csrfMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const result = await pool.query(`
+      SELECT wp.id, wp.datum, wp.beschreibung,
+             l.name AS location_name, l.google_maps_link,
+             wp.datum::date AS datum_only,
+             to_char(wp.datum, 'HH24:MI') AS uhrzeit,
+             -- Vorarbeiter ermitteln: erster mit Rolle 'vorarbeiter'
+             (SELECT u.vorname || ' ' || u.nachname
+                FROM work_plan_assignments a2
+                JOIN users u ON u.id = a2.user_id
+               WHERE a2.work_plan_id = wp.id AND u.rolle = 'vorarbeiter'
+               LIMIT 1) AS vorarbeiter,
+             a.status
+      FROM work_plans wp
+      JOIN work_plan_assignments a ON wp.id = a.work_plan_id
+      LEFT JOIN locations l ON wp.location_id = l.id
+      WHERE a.user_id = $1 AND wp.sichtbar = TRUE
+      ORDER BY wp.datum ASC
+    `, [userId]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error('GET /api/myworkplans', err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Standort aufbau
 // Standort anlegen
 app.post('/api/locations', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
@@ -2107,6 +2139,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
