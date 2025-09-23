@@ -633,10 +633,23 @@ html, body {
 <script src="https://unpkg.com/lucide@latest"></script>
 <script type="module">
 
-  //Service worker
+//Service worker
 // ================== Service Worker Registration mit Auto-Update ==================
 if ('serviceWorker' in navigator) {
+  const enableSW = false; // <-- false = SW deaktiviert (Entwicklung), true = aktiv
+
   window.addEventListener('load', () => {
+    if (!enableSW) {
+      // Alle existierenden Service Worker sofort entfernen
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        for (let reg of regs) {
+          reg.unregister().then(() => console.log("Service Worker deaktiviert:", reg));
+        }
+      });
+      return; // keine Registrierung durchführen
+    }
+
+    // SW nur registrieren, wenn enableSW = true
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         console.log("Service Worker registriert:", reg);
@@ -652,10 +665,8 @@ if ('serviceWorker' in navigator) {
                 if (navigator.serviceWorker.controller) {
                   // Neue Version verfügbar → Seite reload
                   console.log("Neue Version verfügbar – Seite wird neu geladen.");
-                  // Optional: kleine Verzögerung, damit SW vollständig aktiviert wird
                   setTimeout(() => window.location.reload(), 100);
                 } else {
-                  // Erstinstallation
                   console.log("Service Worker installiert und aktiv.");
                 }
                 break;
@@ -1866,6 +1877,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
