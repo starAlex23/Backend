@@ -590,8 +590,11 @@ html, body {
 
      <section id="arbeitsplanung-section" class="card view hidden">
   <h2>Arbeitsplanung</h2>
-  <div id="arbeitsplanung-list"></div>
+  <div id="arbeitsplanung-list">
+    <p>(Hier werden die Einsätze geladen…)</p>
+  </div>
 </section>
+
 
       <section id="zeiterfassung-section" class="card view hidden">
         <h2>Zeiterfassung</h2>
@@ -779,6 +782,8 @@ function enableAutoRefresh(sectionId, callback, intervalMs = 60000) {
 // ===================== ARBEITSPLANUNG =====================
 async function loadArbeitsplanung() {
   const list = document.getElementById("arbeitsplanung-list");
+  if (!list) return console.warn("arbeitsplanung-list nicht gefunden");
+
   list.innerHTML = "<p>Lade Einsätze...</p>";
 
   try {
@@ -1877,6 +1882,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
