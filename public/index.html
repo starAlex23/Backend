@@ -760,12 +760,19 @@ const sectionIntervals = new Map();
 
 function enableAutoRefresh(sectionId, callback, intervalMs = 60000) {
   const section = document.getElementById(sectionId);
+  if (!section) return console.warn(`Section "${sectionId}" nicht gefunden`);
 
   const observer = new MutationObserver(() => {
     const isVisible = !section.classList.contains("hidden");
 
     if (isVisible && !sectionIntervals.has(sectionId)) {
       // Start Auto-Refresh
+      const container = section.querySelector(`#${sectionId}-list`) || section.querySelector("div");
+      if (!container) {
+        console.warn(`Container für Section "${sectionId}" nicht gefunden`);
+        return;
+      }
+
       callback(); // sofort laden
       const intervalId = setInterval(callback, intervalMs);
       sectionIntervals.set(sectionId, intervalId);
@@ -1881,6 +1888,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
