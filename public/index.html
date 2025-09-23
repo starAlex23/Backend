@@ -634,7 +634,7 @@ html, body {
 <script type="module">
 
   //Service worker
-// frontend (z.B. index.js oder main.js)
+// ================== Service Worker Registration mit Auto-Update ==================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
@@ -644,25 +644,34 @@ if ('serviceWorker' in navigator) {
         // Prüfen, ob ein Update verfügbar ist
         reg.onupdatefound = () => {
           const newWorker = reg.installing;
+          console.log("Neuer Service Worker gefunden…");
+
           newWorker.onstatechange = () => {
-            if (newWorker.state === 'installed') {
-              if (navigator.serviceWorker.controller) {
-                // Neue Version verfügbar
-                console.log("Neue Version verfügbar. Seite neu laden, um SW zu aktivieren.");
-                // optional: automatisch reload
-                // window.location.reload();
-              } else {
-                // Erstinstallation
-                console.log("Service Worker installiert und aktiv.");
-              }
+            switch(newWorker.state) {
+              case 'installed':
+                if (navigator.serviceWorker.controller) {
+                  // Neue Version verfügbar → Seite reload
+                  console.log("Neue Version verfügbar – Seite wird neu geladen.");
+                  // Optional: kleine Verzögerung, damit SW vollständig aktiviert wird
+                  setTimeout(() => window.location.reload(), 100);
+                } else {
+                  // Erstinstallation
+                  console.log("Service Worker installiert und aktiv.");
+                }
+                break;
             }
           };
         };
       })
       .catch(err => console.error("SW-Registrierungsfehler:", err));
+
+    // Optional: prüfen, ob SW schon aktiv ist und manuell Update anstoßen
+    navigator.serviceWorker.ready.then(reg => {
+      console.log("Service Worker ready. Prüfe auf Updates…");
+      reg.update();
+    });
   });
 }
-
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
   import QRCode from "https://cdn.jsdelivr.net/npm/qrcode@1.5.3/+esm";
@@ -1857,6 +1866,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
