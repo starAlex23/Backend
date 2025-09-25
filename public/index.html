@@ -824,10 +824,7 @@ async function loadArbeitsplanung() {
   list.innerHTML = "<p>Lade Einsätze...</p>";
 
   try {
-    const res = await apiFetch("/api/myworkplans", { method: "GET" });
-    console.log("res", res);
-    if (!res.ok) throw new Error("Fehler beim Laden");
-    const plans = await res.json();
+    const plans = await apiFetch("/api/myworkplans", { method: "GET" });
     console.log("plans", plans);
 
     if (!plans || plans.length === 0) {
@@ -868,7 +865,9 @@ async function loadArbeitsplanung() {
     });
   } catch (err) {
     console.error("Fehler in loadArbeitsplanung:", err);
-    if (list) list.innerHTML = "<p>Fehler beim Laden der Arbeitsplanung.</p>";
+    if (list) {
+      list.innerHTML = `<p>Fehler beim Laden der Arbeitsplanung: ${err.message || err}</p>`;
+    }
   }
 }
 
@@ -1918,6 +1917,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
