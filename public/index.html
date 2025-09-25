@@ -637,54 +637,79 @@ html, body {
 <script type="module">
 
 //Service worker
-// ================== Service Worker Registration mit Auto-Update ==================
+// ================== Service Worker Registration ==================
 if ('serviceWorker' in navigator) {
-  const enableSW = false; // <-- false = SW deaktiviert (Entwicklung), true = aktiv
+  const enableSW = true; // true = SW aktiv, false = Entwicklung
 
   window.addEventListener('load', () => {
     if (!enableSW) {
-      // Alle existierenden Service Worker sofort entfernen
+      // Alle existierenden Service Worker entfernen
       navigator.serviceWorker.getRegistrations().then(regs => {
         for (let reg of regs) {
           reg.unregister().then(() => console.log("Service Worker deaktiviert:", reg));
         }
       });
-      return; // keine Registrierung durchführen
+      return;
     }
 
-    // SW nur registrieren, wenn enableSW = true
+    // Service Worker registrieren
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         console.log("Service Worker registriert:", reg);
 
-        // Prüfen, ob ein Update verfügbar ist
+        // Prüfen auf neue Versionen
+        if (reg.waiting) {
+          // Update schon installiert, aber noch nicht aktiv → Hinweis
+          notifySWUpdate(reg.waiting);
+        }
+
         reg.onupdatefound = () => {
           const newWorker = reg.installing;
           console.log("Neuer Service Worker gefunden…");
 
           newWorker.onstatechange = () => {
-            switch(newWorker.state) {
-              case 'installed':
-                if (navigator.serviceWorker.controller) {
-                  // Neue Version verfügbar → Seite reload
-                  console.log("Neue Version verfügbar – Seite wird neu geladen.");
-                  setTimeout(() => window.location.reload(), 100);
-                } else {
-                  console.log("Service Worker installiert und aktiv.");
-                }
-                break;
+            if (newWorker.state === 'installed') {
+              if (navigator.serviceWorker.controller) {
+                // Neue Version verfügbar
+                notifySWUpdate(newWorker);
+              } else {
+                console.log("Service Worker initial installiert.");
+              }
             }
           };
         };
       })
       .catch(err => console.error("SW-Registrierungsfehler:", err));
 
-    // Optional: prüfen, ob SW schon aktiv ist und manuell Update anstoßen
+    // Optional: manuell Update prüfen
     navigator.serviceWorker.ready.then(reg => {
-      console.log("Service Worker ready. Prüfe auf Updates…");
+      console.log("Service Worker ready – prüfe auf Updates…");
       reg.update();
     });
   });
+}
+
+// ================== Hilfsfunktion: Update-Hinweis ==================
+function notifySWUpdate(worker) {
+  // Einfacher UI-Hinweis (kann angepasst werden)
+  const updateBanner = document.createElement('div');
+  updateBanner.id = "sw-update-banner";
+  updateBanner.style = `
+    position: fixed;
+    bottom: 10px; left: 50%; transform: translateX(-50%);
+    background: #1976d2; color: white; padding: 1rem 2rem;
+    border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-family: sans-serif; z-index: 9999;
+    cursor: pointer;
+  `;
+  updateBanner.textContent = "Neue Version verfügbar – hier klicken, um zu aktualisieren";
+
+  updateBanner.addEventListener('click', () => {
+    worker.postMessage({ type: 'SKIP_WAITING' });
+    window.location.reload();
+  });
+
+  document.body.appendChild(updateBanner);
 }
   ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
   
@@ -1888,6 +1913,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
