@@ -1,51 +1,87 @@
-// sw.js
-const CACHE_NAME = "stempel-cache-v1";
+const CACHE_NAME = "stempel-cache-v2";
 const URLS_TO_CACHE = [
   "/",
   "/index.html",
-  "/manifest.json"
-  // Icons entfernt, da nicht mehr vorhanden
+  "/manifest.json",
+  "/offline.html"
 ];
 
-// Installieren & Dateien cachen
+// =====================
+// Installieren
+// =====================
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(URLS_TO_CACHE))
   );
-  self.skipWaiting();
+  self.skipWaiting(); // sofort aktivieren
 });
 
-// Alte Caches aufräumen
+// =====================
+// Aktivieren (alte Caches löschen)
+// =====================
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
-        keys.map(key => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
+        keys.map(key => key !== CACHE_NAME && caches.delete(key))
       )
     )
   );
-  self.clients.claim();
+  self.clients.claim(); // sofort für alle Clients übernehmen
 });
 
-// Netzwerkabfragen abfangen – nur für eigene (lokale) Requests
+// =====================
+// Fetch-Handler
+// =====================
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url);
 
-  // nur Requests zum eigenen Server cachen
+  // Nur eigene Requests abfangen
   if (url.origin === location.origin) {
+
+    // HTML-Dokumente → network-first
+    if (event.request.destination === "document") {
+      event.respondWith(
+        fetch(event.request)
+          .then(resp => {
+            const respClone = resp.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
+            return resp;
+          })
+          .catch(() => caches.match(event.request).then(cached => cached || caches.match('/offline.html')))
+      );
+      return;
+    }
+
+    // CSS, JS, Bilder → cache-first
     event.respondWith(
-      caches.match(event.request).then(response => {
-        return response || fetch(event.request).catch(() => {
-          // Optional: Offline-Fallback
-          // return caches.match('/offline.html');
+      caches.match(event.request).then(cached => {
+        return cached || fetch(event.request).then(resp => {
+          const respClone = resp.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
+          return resp;
+        }).catch(() => {
+          // Fallback für Bilder optional
+          if (event.request.destination === "image") {
+            return new Response("", {status: 404});
+          }
         });
       })
     );
+
+  } else {
+    // externe Requests normal laden
+    event.respondWith(fetch(event.request));
   }
-  // externe URLs werden normal geladen und nicht gecacht
 });
+
+// =====================
+// Optional: Message zum SW-Update
+// =====================
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 
