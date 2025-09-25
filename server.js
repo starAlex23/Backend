@@ -1771,16 +1771,16 @@ app.put('/api/workplans/:id', authMiddleware, async (req, res) => {
 
   try {
     // Plan in DB aktualisieren
-    await db.query(`
+    await pool.query(`
       UPDATE workplans
       SET datum=$1, uhrzeit=$2, location_id=$3, beschreibung=$4
       WHERE id=$5
     `, [datum, uhrzeit, location_id, beschreibung, id]);
 
     // Optional: Mitarbeiter-Zuordnungen aktualisieren
-    await db.query(`DELETE FROM workplan_users WHERE workplan_id=$1`, [id]);
+    await pool.query(`DELETE FROM workplan_users WHERE workplan_id=$1`, [id]);
     for (const userId of mitarbeiter) {
-      await db.query(`INSERT INTO workplan_users (workplan_id, user_id) VALUES ($1,$2)`, [id, userId]);
+      await pool.query(`INSERT INTO workplan_users (workplan_id, user_id) VALUES ($1,$2)`, [id, userId]);
     }
 
     res.json({ success: true });
@@ -2139,6 +2139,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
