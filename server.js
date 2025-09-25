@@ -1772,15 +1772,15 @@ app.put('/api/workplans/:id', authMiddleware, async (req, res) => {
   try {
     // Plan in DB aktualisieren
     await pool.query(`
-      UPDATE workplans
+      UPDATE work_plans
       SET datum=$1, uhrzeit=$2, location_id=$3, beschreibung=$4
       WHERE id=$5
     `, [datum, uhrzeit, location_id, beschreibung, id]);
 
     // Optional: Mitarbeiter-Zuordnungen aktualisieren
-    await pool.query(`DELETE FROM workplan_users WHERE workplan_id=$1`, [id]);
+    await pool.query(`DELETE FROM work_plan_users WHERE work_plan_id=$1`, [id]);
     for (const userId of mitarbeiter) {
-      await pool.query(`INSERT INTO workplan_users (workplan_id, user_id) VALUES ($1,$2)`, [id, userId]);
+      await pool.query(`INSERT INTO work_plan_users (work_plan_id, user_id) VALUES ($1,$2)`, [id, userId]);
     }
 
     res.json({ success: true });
@@ -1797,7 +1797,7 @@ app.delete('/api/workplans/:id', authMiddleware, csrfMiddleware, adminOnlyMiddle
     await pool.query(`UPDATE work_plans SET sichtbar = FALSE WHERE id = $1`, [id]);
     res.json({ success: true, message: 'Plan aus Ansicht entfernt' });
   } catch (err) {
-    console.error('DELETE /api/workplans/:id', err);
+    console.error('DELETE /api/work_plans/:id', err);
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
@@ -2139,6 +2139,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
