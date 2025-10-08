@@ -22,42 +22,75 @@
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   
 <style>
-/* Basis */
-body {
-  font-family: 'Inter', sans-serif;
-  margin: 0; padding: 0;
-  background: var(--bg, #fff);
-  color: var(--fg, #000);
-  font-size: 16px;
-  line-height: 1.6;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+/* =======================================
+   🌗 BASIS + THEME
+======================================= */
+:root {
+  --bg: #fff;
+  --fg: #000;
+  --card-bg: #f9f9f9;
+  --accent: #4CAF50;
+  --accent-hover: #43a047;
+  --border: #ccc;
 }
 
-/* Dark Mode */
 [data-theme="dark"] {
   --bg: #121212;
   --fg: #eee;
   --card-bg: #1c1c1c;
+  --border: #444;
 }
 
-/* Header */
+/* =======================================
+   🔤 BASISLAYOUT
+======================================= */
+html, body {
+  margin: 0;
+  padding: 0;
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.hidden { display: none !important; }
+
+/* =======================================
+   📦 MAIN + CONTAINER
+======================================= */
+main, #app-view, #auth-container {
+  flex-grow: 1;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  padding: 1rem;
+  min-height: calc(100vh - 160px);
+}
+
+/* =======================================
+   🧭 HEADER
+======================================= */
 header {
-  background: #4CAF50;
-  color: white;
+  background: var(--accent);
+  color: #fff;
   padding: 0.8rem 1rem;
   display: flex;
   align-items: center;
-  justify-content: start;
   gap: 0.6rem;
   font-size: 1.2rem;
   font-weight: 600;
   position: sticky;
   top: 0;
   z-index: 1100;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  flex-wrap: nowrap;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   overflow-x: auto;
 }
 
@@ -72,22 +105,13 @@ header .app-title {
   overflow: hidden;
   text-overflow: ellipsis;
   flex-grow: 1;
-  letter-spacing: 0.3px;
-  font-size: 1.1rem;
 }
 
-main {
-  flex-grow: 1;
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 1rem;
-  box-sizing: border-box;
-  min-height: calc(100vh - 160px);
-}
-
-/* Karten */
+/* =======================================
+   🪪 CARD STIL
+======================================= */
 .card {
-  background: var(--card-bg, #f9f9f9);
+  background: var(--card-bg);
   padding: 1.5rem 1.8rem;
   margin-bottom: 1.5rem;
   border-radius: 12px;
@@ -96,23 +120,13 @@ main {
 }
 
 .card:hover {
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
   transform: translateY(-2px);
 }
 
-.hidden {
-  display: none !important;
-}
-
-.view,
-section.view {
-  width: 100%;
-  max-width: 480px;
-  box-sizing: border-box;
-  padding: 1rem;
-}
-
-/* Inputs */
+/* =======================================
+   🧾 FORM ELEMENTE
+======================================= */
 label {
   display: block;
   margin-top: 1rem;
@@ -126,20 +140,22 @@ input[type="text"] {
   padding: 0.8rem;
   margin-top: 0.4rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
-  font-size: 1rem;
-  box-sizing: border-box;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
 input:focus {
   outline: none;
-  border-color: #4CAF50;
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(76,175,80,0.2);
 }
 
-/* Buttons */
+/* =======================================
+   🔘 BUTTONS
+======================================= */
 button {
   display: inline-flex;
   justify-content: center;
@@ -148,7 +164,7 @@ button {
   padding: 0.8rem 1.4rem;
   font-size: 1rem;
   border-radius: 10px;
-  background: #4CAF50;
+  background: var(--accent);
   color: white;
   border: none;
   cursor: pointer;
@@ -157,7 +173,7 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: #43a047;
+  background: var(--accent-hover);
   transform: translateY(-2px);
 }
 
@@ -166,58 +182,16 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* Passwort vergessen Link */
-.forgot-password {
-  text-align: center;
-  margin-top: 1rem;
-}
-
-.forgot-password a {
-  color: #4CAF50;
-  text-decoration: none;
-  font-size: 0.95rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: color 0.2s ease;
-}
-
-.forgot-password a:hover {
-  color: #388E3C;
-}
-
-/* Link-Button */
-.link {
-  text-align: center;
-  margin-top: 1rem;
-}
-
-.link button {
-  background: none;
-  border: 1px solid #4CAF50;
-  color: #4CAF50;
-  font-size: 0.95rem;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.link button:hover {
-  background: #4CAF50;
-  color: white;
-}
-
-/* Bottom Navigation */
+/* =======================================
+   📱 BOTTOM NAVIGATION
+======================================= */
 #bottom-nav {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 0; left: 0; right: 0;
   display: flex;
   justify-content: space-around;
-  background: white;
-  border-top: 1px solid #ccc;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
   padding: 0.6rem 0;
   box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.05);
   z-index: 1000;
@@ -236,159 +210,31 @@ button:disabled {
   position: relative;
 }
 
-#bottom-nav button svg {
-  width: 24px;
-  height: 24px;
-  transition: transform 0.2s ease;
-}
-
-#bottom-nav button:hover {
-  color: #4CAF50;
-  transform: translateY(-2px);
-}
-
-#bottom-nav .main-button svg {
-  height: 22px;
-  color: #4CAF50;
-}
-
-#bottom-nav button.active {
-  color: #4CAF50;
-}
+#bottom-nav button:hover { color: var(--accent); transform: translateY(-2px); }
+#bottom-nav button.active { color: var(--accent); }
 
 #bottom-nav button.active::before {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: 36px;
-  height: 36px;
-  background: rgba(76, 175, 80, 0.12);
+  width: 36px; height: 36px;
+  background: rgba(76,175,80,0.12);
   border-radius: 50%;
-  z-index: 0;
 }
 
-@media (max-width: 480px) {
-  #bottom-nav button svg {
-    width: 20px;
-    height: 20px;
-  }
+#bottom-nav .main-button svg { color: var(--accent); height: 22px; }
 
-  #bottom-nav .main-button svg {
-    height: 20px;
-  }
+/* Dark Mode Bottom Nav */
+[data-theme="dark"] #bottom-nav button { color: #aaa; }
 
-  #bottom-nav button.active::before {
-    width: 28px;
-    height: 28px;
-  }
-
-   header {
-    padding: 0.6rem 1rem;
-    font-size: 1.1rem;
-    gap: 0.5rem;
-  }
-  header .logo {
-    height: 28px; /* kleiner, weniger Platz */
-  }
-  header .app-title {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  /* 2. Navbar fixieren */
-nav.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  z-index: 1000;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
-}
-
-/* Gib dem Content genug Platz unten */
-main {
-  padding-bottom: 4.5rem; /* Platz für die Nav-Leiste */
-}
-
-  /* Auth Container etwas weniger padding, damit login kompakter ist */
-  #auth-container {
-    padding: 1.5rem 1rem;
-    min-height: auto; /* damit Header nicht zu groß im Vergleich */
-  }
-
-  #auth-container section.view {
-    padding: 1.8rem 1.2rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    margin-bottom: 2rem;
-  }
-
-  /* Buttons größer und fingerfreundlicher */
-  button {
-    width: 100%;
-    padding: 1rem 0;
-    font-size: 1.1rem;
-    border-radius: 12px;
-  }
-
-  /* Inputs größer und mit mehr Abstand */
-  input[type="email"],
-  input[type="password"],
-  input[type="text"] {
-    font-size: 1.1rem;
-    padding: 1rem;
-    margin-top: 0.8rem;
-  }
-
-  /* Passwort vergessen Link besser platzieren und optisch */
-  .forgot-password {
-    margin-top: 1.5rem;
-  }
-
-  .forgot-password a {
-    font-size: 1rem;
-    font-weight: 600;
-  }
-
-  /* Link Buttons vollbreit, besser für mobile */
-  .link button {
-    width: 100%;
-    padding: 1rem 0;
-    font-size: 1rem;
-  }
-
-  button, input[type="text"], input[type="email"], input[type="password"] {
-    width: 100%;
-    font-size: 1.1rem;
-    padding: 1rem;
-  }
-}
-
-/* Dark Mode für Bottom Nav */
-[data-theme="dark"] #bottom-nav {
-  background: #1e1e1e;
-  border-top: 1px solid #444;
-}
-
-[data-theme="dark"] #bottom-nav button {
-  color: #aaa;
-}
-
-[data-theme="dark"] #bottom-nav button:hover {
-  color: #4CAF50;
-}
-
-[data-theme="dark"] #bottom-nav button.active {
-  color: #4CAF50;
-}
-
-/* Loading */
+/* =======================================
+   🔄 LOADING SPINNER
+======================================= */
 #loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255,255,255,0.8);
   backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
@@ -398,101 +244,87 @@ main {
 }
 
 [data-theme="dark"] #loading-overlay {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0,0,0,0.5);
 }
 
 .spinner {
   width: 48px;
   height: 48px;
   border: 5px solid #ccc;
-  border-top-color: #4CAF50;
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Auth Container */
-#auth-container {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 1rem;
-  min-height: calc(100vh - 160px);
-}
-
-#auth-container section.view {
-  background: var(--card-bg, #f9f9f9);
-  padding: 2.5rem 2rem;
-  border-radius: 12px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-  transition: all 0.3s ease;
-  width: 100%;
-  max-width: 480px;
-}
-
-/* App View Container */
-#app-view {
-  flex-grow: 1;
-  padding: 1rem;
-  min-height: calc(100vh - 160px);
-  overflow-y: auto;
-}
-
-main, #auth-container, #app-view {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-  box-sizing: border-box;
-}
-
-html, body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-/* Passwort-Fehler */
-.password-error {
-  color: #e74c3c;
-  font-size: 0.85rem;
-  margin-top: 0.3rem;
-  font-weight: 600;
-}
-
-/*Arbeitsplanung CSS */
+/* =======================================
+   📋 ARBEITSPLANUNG-KARTEN
+======================================= */
 .plan-card {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  margin: 10px 0;
-  padding: 10px;
-  background: #f9f9f9;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 0.8rem 0;
+  padding: 1rem;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
+
+.plan-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+}
+
 .plan-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
+  font-weight: 500;
 }
-.plan-header span {
-  margin-right: 8px;
-}
+
 .plan-header .toggle {
   background: none;
   border: none;
-  font-size: 16px;
+  font-size: 18px;
   cursor: pointer;
+  color: var(--accent);
 }
+
 .plan-details {
-  margin-top: 8px;
+  margin-top: 0.6rem;
+  font-size: 0.95rem;
+  color: var(--fg);
 }
-.hidden {
-  display: none;
+
+.plan-details a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.plan-details a:hover {
+  text-decoration: underline;
+}
+
+/* =======================================
+   📱 MOBILE
+======================================= */
+@media (max-width: 480px) {
+  header { padding: 0.6rem 1rem; font-size: 1.1rem; }
+  header .logo { height: 28px; }
+
+  main { padding-bottom: 4.5rem; }
+
+  button, input[type="text"], input[type="email"], input[type="password"] {
+    width: 100%; font-size: 1.1rem; padding: 1rem;
+  }
+
+  .link button {
+    width: 100%;
+    padding: 1rem 0;
+    font-size: 1rem;
+  }
 }
 </style>
 </head>
@@ -821,38 +653,38 @@ async function loadArbeitsplanung() {
   const list = document.getElementById("arbeitsplanung-list");
   if (!list) return console.warn("arbeitsplanung-list nicht gefunden");
 
-  list.innerHTML = "<p>Lade Einsätze...</p>";
+  list.innerHTML = `<p class="loading-text">Lade Einsätze...</p>`;
 
   try {
     const plans = await apiFetch("/api/myworkplans", { method: "GET" });
     console.log("plans", plans);
 
     if (!plans || plans.length === 0) {
-      list.innerHTML = "<p>Keine geplanten Einsätze.</p>";
+      list.innerHTML = `<p class="empty-text">Keine geplanten Einsätze.</p>`;
       return;
     }
 
     list.innerHTML = "";
     plans.forEach(plan => {
       const card = document.createElement("div");
-      card.className = "plan-card";
+      card.className = "plan-card theme-card"; // <-- Theme-ready class
 
       const header = document.createElement("div");
-      header.className = "plan-header";
+      header.className = "plan-header theme-header";
       header.innerHTML = `
         <span class="plan-location">${plan.location_name || "-"}</span>
         <span class="plan-date">${plan.datum_only || "-"}</span>
         <span class="plan-time">${plan.uhrzeit || "-"}</span>
-        <button class="toggle">▼</button>
+        <button class="toggle theme-toggle">▼</button>
       `;
 
       const details = document.createElement("div");
-      details.className = "plan-details hidden";
+      details.className = "plan-details hidden theme-details";
       details.innerHTML = `
         <p><b>Vorarbeiter:</b> ${plan.vorarbeiter || "-"}</p>
         <p><b>Status:</b> ${statusSymbol(plan.status)} ${plan.status || "-"}</p>
         ${plan.beschreibung ? `<p><b>Beschreibung:</b> ${plan.beschreibung}</p>` : ""}
-        ${plan.google_maps_link ? `<a href="${plan.google_maps_link}" target="_blank">📍 Route anzeigen</a>` : ""}
+        ${plan.google_maps_link ? `<a class="theme-link" href="${plan.google_maps_link}" target="_blank">📍 Route anzeigen</a>` : ""}
       `;
 
       header.querySelector(".toggle").addEventListener("click", () => {
@@ -865,9 +697,7 @@ async function loadArbeitsplanung() {
     });
   } catch (err) {
     console.error("Fehler in loadArbeitsplanung:", err);
-    if (list) {
-      list.innerHTML = `<p>Fehler beim Laden der Arbeitsplanung: ${err.message || err}</p>`;
-    }
+    list.innerHTML = `<p class="error-text">Fehler beim Laden der Arbeitsplanung: ${err.message || err}</p>`;
   }
 }
 
@@ -1917,6 +1747,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
