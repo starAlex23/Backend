@@ -476,7 +476,7 @@ button:disabled {
 //Service worker
 // ================== Service Worker Registration ==================
 if ('serviceWorker' in navigator) {
-  const enableSW = true; // true = SW aktiv, false = Entwicklung
+  const enableSW = false; // true = SW aktiv, false = Entwicklung
 
   window.addEventListener('load', () => {
     if (!enableSW) {
@@ -1747,6 +1747,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
