@@ -1603,44 +1603,120 @@ app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, asyn
     }
 });
 
-//Eine API-Route, über die Admins offene Anträge sehen:
-app.get('/api/admin/pending-users', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  const result = await pool.query(
-    `SELECT id, vorname, nachname, email, erstellt_am
-     FROM users 
-     WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
-     ORDER BY erstellt_am ASC`
-  );
-  res.json(result.rows);
+// ===============================
+// 🔧 ADMIN – Registrierungsfreigabe + System-Chat
+// ===============================
+
+// 🔹 Systemnachrichten abrufen (für Polling)
+app.get('/api/system-messages', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM system_messages ORDER BY created_at DESC LIMIT 50`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Fehler beim Abrufen der Systemnachrichten:', err);
+    sendError(res, 500, 'Serverfehler beim Abrufen der Systemnachrichten.');
+  }
 });
 
-//Freigabe/Ablehnung:
+// 🔹 Neue Systemnachricht hinzufügen (intern genutzt)
+app.post('/api/system-messages', async (req, res) => {
+  const schema = Joi.object({
+    type: Joi.string().required(),
+    payload: Joi.object().required()
+  });
+
+  const { error, value } = schema.validate(req.body);
+  if (error) return res.status(400).json({ error: error.details[0].message });
+
+  try {
+    const { type, payload } = value;
+    await pool.query(
+      `INSERT INTO system_messages (type, payload)
+       VALUES ($1, $2)`,
+      [type, payload]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Fehler beim Speichern der Systemnachricht:', err);
+    res.status(500).json({ error: 'Serverfehler beim Speichern der Nachricht.' });
+  }
+});
+
+// 🔹 Systemnachricht als gelesen markieren
+app.post('/api/system-messages/:id/read', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    await pool.query('UPDATE system_messages SET read = true WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Fehler beim Markieren als gelesen:', err);
+    sendError(res, 500, 'Fehler beim Markieren als gelesen.');
+  }
+});
+
+// 🔹 Offene Benutzeranträge abrufen
+app.get('/api/admin/pending-users', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, vorname, nachname, email, erstellt_am
+      FROM users
+      WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
+      ORDER BY erstellt_am ASC
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Fehler beim Abrufen der wartenden Benutzer:', err);
+    sendError(res, 500, 'Fehler beim Abrufen der wartenden Benutzer.');
+  }
+});
+
+// 🔹 Benutzerantrag annehmen oder ablehnen
 app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   const { id, action } = req.body; // action = 'genehmigt' | 'abgelehnt'
 
-  if (!['genehmigt', 'abgelehnt'].includes(action)) {
-    return sendError(res, 400, 'Ungültige Aktion.');
+  if (!id || !['genehmigt', 'abgelehnt'].includes(action)) {
+    return sendError(res, 400, 'Ungültige Anfrage.');
   }
 
-  await pool.query(
-    `UPDATE users 
-     SET freigabe_status = $1, freigabe_datum = NOW()
-     WHERE id = $2`,
-    [action, id]
-  );
+  try {
+    const userRes = await pool.query('SELECT email, vorname FROM users WHERE id = $1', [id]);
+    const user = userRes.rows[0];
+    if (!user) return sendError(res, 404, 'Benutzer nicht gefunden.');
 
-  res.json({ success: true, message: `Benutzer wurde ${action}.` });
+    await pool.query(`
+      UPDATE users
+      SET freigabe_status = $1, freigabe_datum = NOW()
+      WHERE id = $2
+    `, [action, id]);
 
-  if (action === 'genehmigt') {
-  await transporter.sendMail({
-    to: user.email,
-    subject: 'Dein Konto wurde freigegeben',
-    html: `<p>Hallo ${user.vorname},</p>
-           <p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
-  });
-}
+    await pool.query('UPDATE system_messages SET read = true WHERE payload->>\'id\' = $1', [id.toString()]);
+
+    // 🔹 Nachricht in System-Chat hinzufügen
+    await pool.query(
+      `INSERT INTO system_messages (type, payload)
+       VALUES ($1, $2)`,
+      ['approval_result', { id, action, email: user.email, vorname: user.vorname }]
+    );
+
+    // 🔹 E-Mail bei Genehmigung
+    if (action === 'genehmigt') {
+      await transporter.sendMail({
+        to: user.email,
+        subject: 'Dein Konto wurde freigegeben',
+        html: `<p>Hallo ${user.vorname},</p>
+               <p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
+      });
+    }
+
+    res.json({ success: true, message: `Benutzer wurde ${action}.` });
+
+  } catch (err) {
+    console.error('Fehler bei der Freigabe/Ablehnung:', err);
+    sendError(res, 500, 'Serverfehler bei der Freigabe/Ablehnung.');
+  }
 });
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
 app.post('/api/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   try {
@@ -2184,6 +2260,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
