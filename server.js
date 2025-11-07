@@ -1587,8 +1587,6 @@ app.post('/api/refresh', async (req, res) => {
   }
 });
 
-
-
 // zeiten abrufen (Admin)
 app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
     try {
@@ -1606,7 +1604,7 @@ app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, asyn
 });
 
 //Eine API-Route, über die Admins offene Anträge sehen:
-app.get('/api/admin/pending-users', authAdminMiddleware, async (req, res) => {
+app.get('/api/admin/pending-users', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   const result = await pool.query(
     `SELECT id, vorname, nachname, email, erstellt_am
      FROM users 
@@ -1617,7 +1615,7 @@ app.get('/api/admin/pending-users', authAdminMiddleware, async (req, res) => {
 });
 
 //Freigabe/Ablehnung:
-app.post('/api/admin/approve-user', authAdminMiddleware, async (req, res) => {
+app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
   const { id, action } = req.body; // action = 'genehmigt' | 'abgelehnt'
 
   if (!['genehmigt', 'abgelehnt'].includes(action)) {
@@ -2186,6 +2184,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
