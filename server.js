@@ -897,11 +897,16 @@ app.get('/api/verify', async (req, res) => {
         }
 
         await pool.query(
-            `UPDATE users SET verifiziert = TRUE, verifizierung_token = NULL, verifizierung_token_expires = NULL WHERE id = $1`,
-            [id]
-        );
+  `UPDATE users 
+   SET verifiziert = TRUE, 
+       verifizierung_token = NULL, 
+       verifizierung_token_expires = NULL,
+       freigabe_status = 'wartend'
+   WHERE id = $1`,
+  [id]
+);
 
-        res.send("✅ Dein Account wurde erfolgreich bestätigt.");
+res.send("✅ E-Mail bestätigt. Deine Registrierung wartet auf Freigabe durch die Verwaltung.");
 
     } catch (err) {
         console.error('Fehler bei der Verifizierung:', err);
@@ -1071,6 +1076,10 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
     if (!user.verifiziert) {
         return sendError(res, 403, 'Bitte bestätige zuerst deine E-Mail-Adresse.');
+    }
+
+    if (user.freigabe_status !== 'genehmigt') {
+        return sendError(res, 403, 'Dein Konto wurde noch nicht freigegeben.');
     }
 
     // Vorarbeiter-Login
@@ -1594,6 +1603,44 @@ app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, asyn
         console.error('Fehler beim Abrufen der Zeiten:', err);
         sendError(res, 500, 'Serverfehler beim Abrufen der Zeiten.');
     }
+});
+
+//Eine API-Route, über die Admins offene Anträge sehen:
+app.get('/api/admin/pending-users', authAdminMiddleware, async (req, res) => {
+  const result = await pool.query(
+    `SELECT id, vorname, nachname, email, erstellt_am
+     FROM users 
+     WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
+     ORDER BY erstellt_am ASC`
+  );
+  res.json(result.rows);
+});
+
+//Freigabe/Ablehnung:
+app.post('/api/admin/approve-user', authAdminMiddleware, async (req, res) => {
+  const { id, action } = req.body; // action = 'genehmigt' | 'abgelehnt'
+
+  if (!['genehmigt', 'abgelehnt'].includes(action)) {
+    return sendError(res, 400, 'Ungültige Aktion.');
+  }
+
+  await pool.query(
+    `UPDATE users 
+     SET freigabe_status = $1, freigabe_datum = NOW()
+     WHERE id = $2`,
+    [action, id]
+  );
+
+  res.json({ success: true, message: `Benutzer wurde ${action}.` });
+
+  if (action === 'genehmigt') {
+  await transporter.sendMail({
+    to: user.email,
+    subject: 'Dein Konto wurde freigegeben',
+    html: `<p>Hallo ${user.vorname},</p>
+           <p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
+  });
+}
 });
 
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
@@ -2139,6 +2186,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
