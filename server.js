@@ -115,8 +115,9 @@ function validateEnv() {
     'REFRESH_SECRET',
     'JWT_ISSUER',
     'CORS_ORIGIN',
-    'EMAIL_USER',
-    'EMAIL_PASS',
+    'MAILJET_API_KEY',
+    'MAILJET_API_SECRET',
+    'MAILJET_FROM',
   ];
 
   // Prüfen ob Variablen fehlen
@@ -674,23 +675,38 @@ app.get('/api/qr/verify/:code', async (req, res) => {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Email-Funktion
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+// Mailjet ersetzen Nodemailer
+import Mailjet from 'node-mailjet';
 
-async function sendEmail({ to, subject, text }) {
-  await transporter.sendMail({
-    from: `"Zeiterfassungssystem" <${process.env.EMAIL_USER}>`,
-    to,
-    subject,
-    text
-  });
+const mailjet = Mailjet.apiConnect(
+  process.env.MAILJET_API_KEY,
+  process.env.MAILJET_API_SECRET
+);
+
+async function sendEmail({ to, subject, text, html }) {
+  try {
+    await mailjet
+      .post("send", { version: "v3.1" })
+      .request({
+        Messages: [
+          {
+            From: {
+              Email: process.env.MAILJET_FROM,
+              Name: "Zeiterfassungssystem"
+            },
+            To: [{ Email: to }],
+            Subject: subject,
+            TextPart: text,
+            HTMLPart: html || text
+          }
+        ]
+      });
+
+    return true;
+  } catch (err) {
+    console.error("Mailjet-Fehler:", err.response?.data || err);
+    throw new Error("Email konnte nicht gesendet werden.");
+  }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Hilfsfunktionen zum Passwort-Reset
@@ -851,17 +867,16 @@ app.post('/api/register', async (req, res) => {
             [vorname, nachname, email, hashedPassword, token, expires]
         );
 
-        await transporter.sendMail({
-            from: `"Dein Tool" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: "Bitte bestätige deine Registrierung",
-            html: `
-                <p>Hallo ${vorname},</p>
-                <p>Bitte bestätige deine Registrierung durch Klick auf folgenden Link:</p>
-                <p><a href="https://backend-869x.onrender.com/api/verify?id=${result.rows[0].id}&token=${token}">Jetzt bestätigen</a></p>
-                <p>Der Link ist 24 Stunden gültig.</p>
-            `
-        });
+        await sendEmail({
+  to: email,
+  subject: "Bitte bestätige deine Registrierung",
+  html: `
+    <p>Hallo ${vorname},</p>
+    <p>Bitte bestätige deine Registrierung durch Klick auf folgenden Link:</p>
+    <p><a href="https://backend-869x.onrender.com/api/verify?id=${result.rows[0].id}&token=${token}">Jetzt bestätigen</a></p>
+    <p>Der Link ist 24 Stunden gültig.</p>
+  `
+});
 
         res.json({ success: true, message: 'Registrierung erfolgreich! Bitte E-Mail bestätigen.' });
 
@@ -973,17 +988,16 @@ app.post('/api/resend-verification', async (req, res) => {
             [token, expires, now, isSameDay, user.id]
         );
 
-        await transporter.sendMail({
-            from: `"Dein Tool" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: "Neuer Verifizierungslink",
-            html: `
-                <p>Hallo ${user.vorname},</p>
-                <p>Hier ist dein neuer Verifizierungslink:</p>
-                <p><a href="https://backend-869x.onrender.com/api/verify?id=${user.id}&token=${token}">Jetzt bestätigen</a></p>
-                <p>Der Link ist 24 Stunden gültig.</p>
-            `
-        });
+        await sendEmail({
+  to: email,
+  subject: "Neuer Verifizierungslink",
+  html: `
+    <p>Hallo ${user.vorname},</p>
+    <p>Hier ist dein neuer Verifizierungslink:</p>
+    <p><a href="https://backend-869x.onrender.com/api/verify?id=${user.id}&token=${token}">Jetzt bestätigen</a></p>
+    <p>Der Link ist 24 Stunden gültig.</p>
+  `
+});
 
         res.json({ success: true, message: 'Neuer Verifizierungslink wurde gesendet.' });
 
@@ -2260,6 +2274,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
