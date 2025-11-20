@@ -2251,45 +2251,6 @@ app.post('/api/webauthn/register-response', async (req, res) => {
     }
 });
 
-
-
-app.post('/api/admin/rebuild-system-messages', authMiddleware, adminOnlyMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, vorname, nachname, email 
-      FROM users 
-      WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
-    `);
-
-    let count = 0;
-    for (const u of result.rows) {
-      // Prüfen, ob Nachricht schon existiert
-      const exists = await pool.query(
-        `SELECT 1 FROM system_messages WHERE type = 'registration_request' AND payload->>'id' = $1`,
-        [u.id.toString()]
-      );
-      if (exists.rows.length === 0) {
-        await pool.query(
-          `INSERT INTO system_messages (type, payload)
-           VALUES ($1, $2)`,
-          [
-            'registration_request',
-            { id: u.id, email: u.email, vorname: u.vorname, nachname: u.nachname }
-          ]
-        );
-        count++;
-      }
-    }
-
-    res.json({ success: true, inserted: count });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Fehler beim Wiederherstellen der Systemnachrichten.' });
-  }
-});
-
-
-
 // --- Server starten ---
 async function startServer() {
   try {
@@ -2330,6 +2291,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
