@@ -898,7 +898,8 @@ app.get('/api/verify', async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT verifizierung_token, verifizierung_token_expires FROM users WHERE id = $1`,
+            `SELECT vorname, nachname, email, verifizierung_token, verifizierung_token_expires 
+             FROM users WHERE id = $1`,
             [id]
         );
 
@@ -911,17 +912,33 @@ app.get('/api/verify', async (req, res) => {
             return sendError(res, 400, 'Token ist abgelaufen.');
         }
 
+        // E-Mail bestätigen & Freigabestatus setzen
         await pool.query(
-  `UPDATE users 
-   SET verifiziert = TRUE, 
-       verifizierung_token = NULL, 
-       verifizierung_token_expires = NULL,
-       freigabe_status = 'wartend'
-   WHERE id = $1`,
-  [id]
-);
+            `UPDATE users 
+             SET verifiziert = TRUE, 
+                 verifizierung_token = NULL, 
+                 verifizierung_token_expires = NULL,
+                 freigabe_status = 'wartend'
+             WHERE id = $1`,
+            [id]
+        );
 
-res.send("✅ E-Mail bestätigt. Deine Registrierung wartet auf Freigabe durch die Verwaltung.");
+        // ⬅️ WICHTIG: Nachricht in den Systemchat einfügen!
+        await pool.query(
+            `INSERT INTO system_messages (type, payload)
+             VALUES ($1, $2)`,
+            [
+                'registration_request',
+                {
+                    id,
+                    email: user.email,
+                    vorname: user.vorname,
+                    nachname: user.nachname
+                }
+            ]
+        );
+
+        res.send("✅ E-Mail bestätigt. Deine Registrierung wartet auf Freigabe durch die Verwaltung.");
 
     } catch (err) {
         console.error('Fehler bei der Verifizierung:', err);
@@ -2234,6 +2251,45 @@ app.post('/api/webauthn/register-response', async (req, res) => {
     }
 });
 
+
+
+app.post('/api/admin/rebuild-system-messages', authMiddleware, adminOnlyMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, vorname, nachname, email 
+      FROM users 
+      WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
+    `);
+
+    let count = 0;
+    for (const u of result.rows) {
+      // Prüfen, ob Nachricht schon existiert
+      const exists = await pool.query(
+        `SELECT 1 FROM system_messages WHERE type = 'registration_request' AND payload->>'id' = $1`,
+        [u.id.toString()]
+      );
+      if (exists.rows.length === 0) {
+        await pool.query(
+          `INSERT INTO system_messages (type, payload)
+           VALUES ($1, $2)`,
+          [
+            'registration_request',
+            { id: u.id, email: u.email, vorname: u.vorname, nachname: u.nachname }
+          ]
+        );
+        count++;
+      }
+    }
+
+    res.json({ success: true, inserted: count });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Fehler beim Wiederherstellen der Systemnachrichten.' });
+  }
+});
+
+
+
 // --- Server starten ---
 async function startServer() {
   try {
@@ -2274,6 +2330,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
