@@ -1747,6 +1747,57 @@ app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMid
     sendError(res, 500, 'Serverfehler bei der Freigabe/Ablehnung.');
   }
 });
+
+// 🔹 Nutzer suchen
+app.get('/api/users/search', authMiddleware, async (req, res) => {
+  const term = req.query.term?.toLowerCase();
+  if (!term) return res.json([]);
+
+  try {
+    const result = await pool.query(`
+      SELECT id, vorname, nachname, email
+      FROM users
+      WHERE verifiziert = TRUE AND 
+            (LOWER(vorname) LIKE $1 OR LOWER(nachname) LIKE $1 OR LOWER(email) LIKE $1)
+      LIMIT 20
+    `, [`%${term}%`]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
+
+// 🔹 Chat mit Nutzer starten/abrufen
+app.post('/api/chat/init/:userId', authMiddleware, async (req, res) => {
+  const userId = req.params.userId;
+  const adminId = req.user.id; // dein Admin-User
+
+  try {
+    // Prüfen, ob Chat existiert
+    let chatRes = await pool.query(`
+      SELECT id FROM chats
+      WHERE (user1_id=$1 AND user2_id=$2) OR (user1_id=$2 AND user2_id=$1)
+    `, [adminId, userId]);
+
+    let chatId;
+    if (chatRes.rows.length > 0) {
+      chatId = chatRes.rows[0].id;
+    } else {
+      // neuen Chat erstellen
+      chatRes = await pool.query(`
+        INSERT INTO chats (user1_id, user2_id, name) VALUES ($1, $2, $3) RETURNING id
+      `, [adminId, userId, 'Chat']);
+      chatId = chatRes.rows[0].id;
+    }
+
+    res.json({ chatId });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Serverfehler' });
+  }
+});
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
 app.post('/api/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
@@ -2291,6 +2342,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
