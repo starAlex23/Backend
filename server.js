@@ -1708,48 +1708,51 @@ app.get('/api/admin/pending-users', authMiddleware, csrfMiddleware, adminOnlyMid
 
 // 🔹 Benutzerantrag annehmen oder ablehnen
 app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  const { id, action } = req.body; // action = 'genehmigt' | 'abgelehnt'
+    const { id, action } = req.body; // action = 'genehmigt' | 'abgelehnt'
 
-  if (!id || !['genehmigt', 'abgelehnt'].includes(action)) {
-    return sendError(res, 400, 'Ungültige Anfrage.');
-  }
-
-  try {
-    const userRes = await pool.query('SELECT email, vorname FROM users WHERE id = $1', [id]);
-    const user = userRes.rows[0];
-    if (!user) return sendError(res, 404, 'Benutzer nicht gefunden.');
-
-    await pool.query(`
-      UPDATE users
-      SET freigabe_status = $1, freigabe_datum = NOW()
-      WHERE id = $2
-    `, [action, id]);
-
-    await pool.query('UPDATE system_messages SET read = true WHERE payload->>\'id\' = $1', [id.toString()]);
-
-    // 🔹 Nachricht in System-Chat hinzufügen
-    await pool.query(
-      `INSERT INTO system_messages (type, payload)
-       VALUES ($1, $2)`,
-      ['approval_result', { id, action, email: user.email, vorname: user.vorname }]
-    );
-
-    // 🔹 E-Mail bei Genehmigung
-    if (action === 'genehmigt') {
-      await transporter.sendMail({
-        to: user.email,
-        subject: 'Dein Konto wurde freigegeben',
-        html: `<p>Hallo ${user.vorname},</p>
-               <p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
-      });
+    if (!id || !['genehmigt', 'abgelehnt'].includes(action)) {
+        return sendError(res, 400, 'Ungültige Anfrage.');
     }
 
-    res.json({ success: true, message: `Benutzer wurde ${action}.` });
+    try {
+        const userRes = await pool.query('SELECT email, vorname FROM users WHERE id = $1', [id]);
+        const user = userRes.rows[0];
+        if (!user) return sendError(res, 404, 'Benutzer nicht gefunden.');
 
-  } catch (err) {
-    console.error('Fehler bei der Freigabe/Ablehnung:', err);
-    sendError(res, 500, 'Serverfehler bei der Freigabe/Ablehnung.');
-  }
+        // ... DB Updates ...
+        await pool.query(`
+            UPDATE users
+            SET freigabe_status = $1, freigabe_datum = NOW()
+            WHERE id = $2
+        `, [action, id]);
+
+        await pool.query('UPDATE system_messages SET read = true WHERE payload->>\'id\' = $1', [id.toString()]);
+
+        // 🔹 Nachricht in System-Chat hinzufügen
+        await pool.query(
+            `INSERT INTO system_messages (type, payload)
+            VALUES ($1, $2)`,
+            ['approval_result', { id, action, email: user.email, vorname: user.vorname }]
+        );
+
+        // 🔹 E-Mail bei Genehmigung - KORRIGIERT FÜR MAILJET
+        if (action === 'genehmigt') {
+            await sendEmail({ // <-- KORRIGIERT: Aufruf der definierten Funktion
+                to: user.email,
+                subject: 'Dein Konto wurde freigegeben',
+                html: `<p>Hallo ${user.vorname},</p>
+                       <p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
+            });
+        }
+
+        res.json({ success: true, message: `Benutzer wurde ${action}.` });
+
+    } catch (err) {
+        // Da die Fehlerbehandlung nun auch Mailjet-Fehler abfangen muss:
+        // Wir fangen spezifische Fehler ab, die gesendet werden können.
+        console.error('Fehler bei der Freigabe/Ablehnung:', err);
+        sendError(res, 500, 'Serverfehler bei der Freigabe/Ablehnung.');
+    }
 });
 
 // 🔹 Nutzer suchen
@@ -2346,6 +2349,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
