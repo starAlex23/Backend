@@ -1584,13 +1584,13 @@ app.post('/api/refresh', async (req, res) => {
     await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
     await pool.query(
       `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at)
-       VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
+        VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
       [newAccessToken, user.id, jti, issuedAt, expiresAt]
     );
 
     const newCsrfToken = crypto.randomBytes(32).toString('hex');
 
-    // ⛓ Access-Token als Cookie (gleich wie in /login)
+    // ⛓ Access-Token als Cookie
     res.cookie('token', newAccessToken, {
       httpOnly: true,
       secure: true,
@@ -1599,18 +1599,22 @@ app.post('/api/refresh', async (req, res) => {
       maxAge: 15 * 60 * 1000,
     });
 
-    // 🔓 CSRF-Token für JS lesbar
+    // 🔓 CSRF-Token als Cookie (Backup für Same-Origin)
     res.cookie('csrfToken', newCsrfToken, {
       httpOnly: false,
       secure: true,
       sameSite: 'None',
       path: '/',
-      maxAge: 15 * 60 * 1000,
+      maxAge: 15 * 60 * 1000, // Sollte idealerweise länger leben als AccessToken, aber ok
     });
 
+    // ✅ WICHTIGSTE ÄNDERUNG HIER:
+    // Wir senden den Token im JSON zurück, damit das Frontend ihn speichern kann!
     res.json({
-      success: true
+      success: true,
+      csrfToken: newCsrfToken  // <--- DAS HAT GEFEHLT
     });
+
   } catch (err) {
     console.error('Fehler beim Token-Refresh:', err);
     clearAuthCookies(res);
@@ -2342,6 +2346,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
