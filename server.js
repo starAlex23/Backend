@@ -1612,7 +1612,8 @@ app.post('/api/refresh', async (req, res) => {
     // Wir senden den Token im JSON zurück, damit das Frontend ihn speichern kann!
     res.json({
       success: true,
-      csrfToken: newCsrfToken  // <--- DAS HAT GEFEHLT
+      csrfToken: newCsrfToken,// <--- DAS HAT GEFEHLT
+      accessToken: newAccessToken
     });
 
   } catch (err) {
@@ -2349,6 +2350,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
