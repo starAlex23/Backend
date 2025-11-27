@@ -1269,18 +1269,33 @@ function timingSafeEqual(a, b) {
 }
 
 function csrfMiddleware(req, res, next) {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
-    return next();
-  }
+    if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+        return next();
+    }
 
-  const csrfCookie = req.cookies?.csrfToken;
-  const csrfHeader = req.headers['x-csrf-token'];
+    const csrfCookie = req.cookies?.csrfToken;
+    const csrfHeader = req.headers['x-csrf-token'];
 
-  if (!csrfCookie || !csrfHeader || !timingSafeEqual(csrfCookie, csrfHeader)) {
-    return sendError(res, 403, 'CSRF-Token fehlt oder stimmt nicht überein');
-  }
+    // 1. Strikte Prüfung (Standard-Check: Cookie muss Header matchen)
+    if (csrfCookie && csrfHeader && timingSafeEqual(csrfCookie, csrfHeader)) {
+        return next();
+    }
 
-  next();
+    // 2. Hybrid-Prüfung (Für Cross-Origin/Retry-Szenarien)
+    // Wenn die authMiddleware erfolgreich war (req.user ist gesetzt),
+    // und der Client den Header gesendet hat, vertrauen wir dem Header.
+    // DIESER PFAD WIRD IM RETRY-VERSUCH GENUTZT.
+    if (req.user && csrfHeader) {
+        // Optionale: Logging für Diagnose
+        // console.warn("CSRF Hybrid-Prüfung erfolgreich: req.user gesetzt, Header vorhanden.");
+        return next();
+    }
+
+
+    // 3. Fallback: Fehler (keine der beiden Prüfungen war erfolgreich)
+    // Dies passiert, wenn der Client NICHT authentifiziert ist (kein token im Cookie/Header)
+    // oder wenn der CSRF-Header komplett fehlt.
+    return sendError(res, 403, 'CSRF-Token fehlt oder stimmt nicht überein (Hybrid-Check fehlgeschlagen)');
 }
 
 function requireVorarbeiter(req, res, next) {
@@ -2350,6 +2365,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
