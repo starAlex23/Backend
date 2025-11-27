@@ -307,6 +307,221 @@ button:disabled {
   text-decoration: underline;
 }
 
+/* ==========================================================
+   MOBILE CHAT STYLING (WhatsApp Style)
+   ========================================================== */
+
+/* Globale Variablen, falls nicht schon definiert */
+:root {
+    --primary: #007bff; /* Blau für Header/Akzente */
+    --accent: #28a745; /* Grün für eigene Nachrichten/Buttons */
+    --bg-main: #ffffff; 
+    --bg-secondary: #f0f0f0; /* Hintergrund/Fremde Nachrichten */
+    --border-color: #ddd; 
+    --text-color: #333;
+    --text-muted: #666;
+}
+
+/* ---------------------------------
+   Basiskonfiguration des Containers 
+   --------------------------------- */
+
+/* Die mobile-chat-app ist nun die bestehende #chat-section */
+.mobile-chat-app {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    /* Wichtig: card view ist in diesem Frontend schon definiert, 
+       wir überschreiben hier das Layout für Chat */
+    padding: 0; /* Entferne Padding des "card view" */
+    overflow: hidden; 
+    display: flex; /* Muss flex sein, damit die Kinder 100% Höhe kriegen */
+}
+
+
+/* ---------------------------------
+   1. CHAT-LISTE / SIDEBAR 
+   --------------------------------- */
+.chat-sidebar {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: var(--bg-secondary);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+}
+
+.chat-sidebar-header {
+    padding: 1rem;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.chat-sidebar-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.chat-sidebar-item {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.chat-sidebar-item:hover,
+.chat-sidebar-item.active {
+    background: var(--primary);
+    color: white;
+}
+.chat-sidebar-item:hover .chat-preview,
+.chat-sidebar-item.active .chat-preview {
+    color: white;
+}
+
+.chat-title { font-weight: 600; font-size: 1rem; }
+.chat-preview { font-size: 0.85rem; color: var(--text-muted); }
+
+
+/* ---------------------------------
+   2. CHAT-ANSICHT / MAIN 
+   --------------------------------- */
+.chat-main {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: var(--bg-main);
+    display: flex;
+    flex-direction: column;
+    z-index: 20;
+    
+    /* Standardmäßig nach rechts schieben (versteckt) */
+    transform: translateX(100%); 
+    transition: transform 0.3s ease-in-out;
+}
+
+/* Zustand, wenn der Chat AKTIV/SICHTBAR ist */
+.chat-main.active {
+    transform: translateX(0);
+}
+
+/* Header */
+.chat-main .chat-header {
+    padding: 1rem;
+    background: var(--primary);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.chat-main .back-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-right: 10px;
+    padding: 0;
+}
+
+/* Nachrichten */
+.chat-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px; /* Reduziere Padding für mobile */
+    list-style: none;
+    margin: 0;
+}
+
+.message {
+    margin-bottom: 8px;
+    display: flex;
+}
+
+.message-content {
+    max-width: 85%; /* Mehr Platz auf kleinen Screens */
+    padding: 8px 12px;
+    border-radius: 18px; /* Etwas runder */
+    line-height: 1.4;
+    font-size: 0.9rem;
+}
+
+.message p {
+    margin: 0;
+}
+
+/* Eigene Nachrichten */
+.message.user {
+    justify-content: flex-end;
+}
+.message.user .message-content {
+    background: var(--accent);
+    color: white;
+    border-bottom-right-radius: 5px; /* Angle the corner */
+}
+
+/* Fremde Nachrichten */
+.message.other {
+    justify-content: flex-start;
+}
+.message.other .message-content {
+    background: var(--bg-secondary);
+    color: var(--text-color);
+    border-bottom-left-radius: 5px; /* Angle the corner */
+}
+
+
+/* Input-Bereich */
+.chat-input-area {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid var(--border-color);
+    background: var(--bg-main);
+    flex-shrink: 0;
+}
+
+#chat-input-field {
+    flex-grow: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    resize: none;
+    margin-right: 10px;
+    font-size: 0.95rem;
+    max-height: 80px; /* Begrenze die Höhe */
+    overflow-y: auto;
+}
+
+.send-btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0 15px;
+    border-radius: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 60px; /* Mindestbreite für Senden */
+    transition: background 0.2s;
+}
+
+.send-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+  
 /* =======================================
    📱 MOBILE
 ======================================= */
@@ -451,10 +666,34 @@ button:disabled {
         </button>
       </section>
 
-      <section id="chat-section" class="card view hidden">
-        <h2>Chat</h2>
-        <p>Kommunikation mit Vorarbeitern und Verwaltung</p>
-      </section>
+     <section id="chat-section" class="card view hidden mobile-chat-app">
+          <section id="chat-list-section" class="chat-sidebar active">
+              <header class="chat-sidebar-header">
+                  Chats
+              </header>
+              <ul id="chat-list" class="chat-sidebar-list">
+                  <li class="chat-sidebar-item active" data-chat-id="DEFAULT_USER_CHAT_ID">
+                      <div class="chat-title">🛠️ Admin-Support</div>
+                      <div class="chat-preview">Klicken, um Nachricht zu senden...</div>
+                  </li>
+              </ul>
+          </section>
+
+          <section id="chat-main" class="chat-main">
+              <header class="chat-header">
+                  <button id="back-to-list-btn" class="back-btn">←</button>
+                  <span id="chat-header-title">Admin Chat</span>
+              </header>
+
+              <ul id="chat-messages" class="chat-messages">
+              </ul>
+
+              <footer class="chat-input-area">
+                  <textarea id="chat-input-field" placeholder="Nachricht eingeben..." rows="1"></textarea>
+                  <button id="chat-send-btn" class="send-btn">Senden</button>
+              </footer>
+          </section>
+      </section>
 
       <section id="settings-section" class="card view hidden">
         <h2>Einstellungen</h2>
@@ -718,7 +957,240 @@ document.addEventListener("DOMContentLoaded", () => {
   // Chat (später) könnte so aussehen:
   // enableAutoRefresh("chat-section", loadChatMessages, 5000);
 });
+  
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// =========================================================
+// 🌐 OPTIMIERTER CHAT-CODE FÜR USER-FRONTEND (GLEICHE DOMAIN)
+// =========================================================
 
+// ==========================
+// 1. Globale Variablen & CSRF State
+// ==========================
+// ⚠️ WICHTIG: Ersetze 'DEFAULT_USER_CHAT_ID' durch die tatsächliche ID (z.B. durch Backend-Injection)
+let activeChat = 'DEFAULT_USER_CHAT_ID'; 
+let lastMessageIds = {}; 
+let currentCsrfToken = localStorage.getItem('csrfToken');
+let currentAccessToken = null; 
+
+// ==========================
+// 2. Helper-Funktionen
+// ==========================
+
+function getChatElements() {
+    const chatSection = document.getElementById('chat-section');
+    if (!chatSection) return null;
+
+    return {
+        chatSection,
+        chatMessages: chatSection.querySelector('.chat-messages'),
+        chatHeader: chatSection.querySelector('.chat-header'),
+        // ⚠️ Stelle sicher, dass diese IDs/Klassen in deinem HTML existieren
+        chatInput: document.getElementById('chat-input-field'), 
+        chatSend: document.getElementById('chat-send-btn'), 
+        sidebarList: chatSection.querySelector('.chat-sidebar-list')
+    };
+}
+
+function scrollToBottom(chatMessagesElement) {
+    if (chatMessagesElement) {
+        chatMessagesElement.scrollTo({ top: chatMessagesElement.scrollHeight, behavior: 'smooth' });
+    }
+}
+
+function addMessage(content, sender = 'user', chatMessagesElement, msgId = null) {
+    if (!chatMessagesElement) return;
+
+    if (msgId && chatMessagesElement.querySelector(`.message[data-id="${msgId}"]`)) return;
+
+    const li = document.createElement('li');
+    li.classList.add('message', sender);
+    if (msgId) li.dataset.id = msgId;
+
+    const divContent = document.createElement('div');
+    divContent.classList.add('message-content');
+    divContent.innerHTML = `<p>${content}</p>`;
+    li.appendChild(divContent);
+
+    chatMessagesElement.appendChild(li);
+    scrollToBottom(chatMessagesElement);
+}
+
+// ==========================
+// 3. CSRF-Token sicherstellen (KEIN API_BASE mehr nötig)
+// ==========================
+async function ensureCsrfToken() {
+    if (currentCsrfToken && currentAccessToken) return { csrfToken: currentCsrfToken, accessToken: currentAccessToken };
+
+    try {
+        // ✅ Relativer Pfad, da auf Render gehostet
+        const res = await fetch(`/api/refresh`, {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            localStorage.removeItem('csrfToken');
+            currentCsrfToken = null;
+            throw new Error(`Session abgelaufen. Bitte neu anmelden.`);
+        }
+
+        const data = await res.json();
+        
+        if (data.csrfToken && data.accessToken) { 
+            currentCsrfToken = data.csrfToken;
+            currentAccessToken = data.accessToken;
+            localStorage.setItem('csrfToken', data.csrfToken);
+            
+            return { csrfToken: currentCsrfToken, accessToken: currentAccessToken };
+        }
+        
+        throw new Error('Kein CSRF/Access Token im Refresh erhalten');
+
+    } catch (err) {
+        console.error("Auth-Fehler beim Refresh:", err);
+        localStorage.removeItem('csrfToken');
+        currentCsrfToken = null;
+        throw err;
+    }
+}
+
+// ==========================
+// 4. API & Logik (Fetch & Send)
+// ==========================
+
+// Nachrichten laden
+async function fetchChatMessages(chatId) {
+    const elems = getChatElements();
+    if (!elems) return;
+
+    const { chatMessages } = elems;
+    
+    // ✅ Relativer Pfad
+    const endpoint = `/api/chat/${chatId}`;
+
+    try {
+        const res = await fetch(endpoint, { credentials: 'include' });
+        if (!res.ok) throw new Error('Fehler beim Laden');
+
+        const data = await res.json();
+
+        if (!lastMessageIds[chatId]) lastMessageIds[chatId] = new Set();
+        
+        data.forEach(msg => {
+            if (lastMessageIds[chatId].has(msg.id)) return;
+            lastMessageIds[chatId].add(msg.id);
+            
+            // ⚠️ Unterscheidung: Anpassen an die User-ID des eingeloggten Benutzers
+            // Du musst die 'CURRENT_USER_ID' im Frontend verfügbar machen!
+            const senderClass = msg.sender_id === 'CURRENT_USER_ID' ? 'user' : 'other'; 
+            addMessage(`<strong>${msg.sender_name}:</strong> ${msg.text}`, senderClass, chatMessages, msg.id);
+        });
+
+    } catch (err) {
+        console.error('Fehler beim Laden der Chatnachrichten:', err);
+        if(chatMessages.children.length === 0) {
+            chatMessages.innerHTML += '<li style="color:red;">Verbindungsfehler.</li>';
+        }
+    }
+}
+
+
+// Nachricht senden
+async function handleSendClick() {
+    const elems = getChatElements();
+    if (!elems || !activeChat) return;
+
+    const { chatInput, chatMessages } = elems;
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    addMessage(message, 'user', chatMessages);
+    chatInput.value = '';
+    chatInput.focus();
+
+    try {
+        const tokens = await ensureCsrfToken(); 
+
+        // ✅ Relativer Pfad
+        await fetch(`/api/chat/${activeChat}`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRF-Token': tokens.csrfToken, 
+                'Authorization': `Bearer ${tokens.accessToken}` 
+            },
+            credentials: 'include',
+            body: JSON.stringify({ message })
+        });
+        
+    } catch (error) {
+        console.error('Netzwerkfehler beim Senden:', error);
+    }
+}
+
+// Chat wechseln / aktivieren
+function activateChat(chatId) {
+    const elems = getChatElements();
+    if (!elems) return;
+
+    const { chatHeader, chatInput, chatSend } = elems;
+
+    // Header Text setzen
+    chatHeader.textContent = 'Admin Chat'; // Fester Titel für den User
+
+    if (chatInput && chatSend) {
+        chatInput.disabled = false;
+        chatSend.disabled = false;
+        chatInput.placeholder = "Nachricht an den Admin...";
+    }
+
+    activeChat = chatId;
+    fetchChatMessages(chatId);
+}
+
+// ==========================
+// 5. Auto-Reload Intervall
+// ==========================
+setInterval(() => {
+    if (activeChat) {
+        fetchChatMessages(activeChat);
+    }
+}, 10000);
+
+
+// ==========================
+// 6. DOM Ready & Event Listeners
+// ==========================
+document.addEventListener('DOMContentLoaded', () => {
+    const elems = getChatElements();
+    
+    // ⚠️ Hier musst du sicherstellen, dass activeChat mit der tatsächlichen ID befüllt wird!
+    // Beispiel: activeChat = document.getElementById('chat-container').dataset.chatId;
+
+    // --- Event Listener: Nachricht Senden ---
+    if (elems) {
+        const { chatInput, chatSend } = elems;
+        if (chatSend) {
+            chatSend.addEventListener('click', handleSendClick);
+        }
+        if (chatInput) {
+            chatInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (chatSend) chatSend.click();
+                }
+            });
+        }
+    }
+
+    // --- Initial Start ---
+    // Starte den Chat nur, wenn die ID gesetzt wurde
+    if (activeChat && activeChat !== 'DEFAULT_USER_CHAT_ID') { 
+        activateChat(activeChat);
+    } else {
+        console.warn("Die Active Chat ID muss vor dem Start gesetzt werden (z.B. per Backend-Inject/API-Call).");
+    }
+});
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 document.addEventListener('DOMContentLoaded', () => {
   const darkmodeSwitch = document.getElementById('darkmode-switch-main');
@@ -1747,6 +2219,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
