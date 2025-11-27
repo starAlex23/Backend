@@ -1735,25 +1735,31 @@ app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMid
         const user = userRes.rows[0];
         if (!user) return sendError(res, 404, 'Benutzer nicht gefunden.');
 
-        // ... DB Updates ...
+        // 1. Benutzerstatus aktualisieren
         await pool.query(`
             UPDATE users
             SET freigabe_status = $1, freigabe_datum = NOW()
             WHERE id = $2
         `, [action, id]);
 
-        await pool.query('UPDATE system_messages SET read = true WHERE payload->>\'id\' = $1', [id.toString()]);
+        // 2. ⚠️ KORREKTUR: Ursprüngliche ANFRAGE-Nachricht als gelesen/erledigt markieren
+        await pool.query(
+            `UPDATE system_messages 
+             SET read = true 
+             WHERE type = 'registration_request' AND payload->>'id' = $1`, 
+            [id.toString()]
+        );
 
-        // 🔹 Nachricht in System-Chat hinzufügen
+        // 3. Neue Nachricht über das ERGEBNIS in System-Chat hinzufügen
         await pool.query(
             `INSERT INTO system_messages (type, payload)
-            VALUES ($1, $2)`,
+             VALUES ($1, $2)`,
             ['approval_result', { id, action, email: user.email, vorname: user.vorname }]
         );
 
-        // 🔹 E-Mail bei Genehmigung - KORRIGIERT FÜR MAILJET
+        // 4. E-Mail senden (falls genehmigt)
         if (action === 'genehmigt') {
-            await sendEmail({ // <-- KORRIGIERT: Aufruf der definierten Funktion
+            await sendEmail({
                 to: user.email,
                 subject: 'Dein Konto wurde freigegeben',
                 html: `<p>Hallo ${user.vorname},</p>
@@ -1764,8 +1770,6 @@ app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMid
         res.json({ success: true, message: `Benutzer wurde ${action}.` });
 
     } catch (err) {
-        // Da die Fehlerbehandlung nun auch Mailjet-Fehler abfangen muss:
-        // Wir fangen spezifische Fehler ab, die gesendet werden können.
         console.error('Fehler bei der Freigabe/Ablehnung:', err);
         sendError(res, 500, 'Serverfehler bei der Freigabe/Ablehnung.');
     }
@@ -2365,6 +2369,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
