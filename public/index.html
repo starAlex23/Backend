@@ -887,527 +887,348 @@ document.addEventListener("DOMContentLoaded", () => {
   // Chat (später) könnte so aussehen:
   // enableAutoRefresh("chat-section", loadChatMessages, 5000);
 });
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+//chat
+///////////////////////////////////////////////////////////////////////////////////////////////////////
   
-// =========================================================
+// ===================================
+// 1. Globale Zustandsvariablen
+// ===================================
+let activeChat = 'DEFAULT_USER_CHAT_ID'; // ⚠️ MUSS durch die tatsächliche Chat-ID ersetzt werden
+let currentUserId = null;           // ID des aktuell eingeloggten Benutzers (für "user" vs "other")
+let lastMessageIds = {};            // Speichert die IDs der bereits geladenen Nachrichten pro Chat
+let currentCsrfToken = localStorage.getItem('csrfToken'); // CSRF Token aus LocalStorage laden
+let currentAccessToken = null;      // JWT Access Token (vom Refresh/Login)
+let reloadIntervalId = null;        // ID des Auto-Reload-Intervalls
 
-// 🌐 OPTIMIERTER CHAT-CODE FÜR USER-FRONTEND (GLEICHE DOMAIN)
-
-// =========================================================
-
-
-
-// ==========================
-
-// 1. Globale Variablen & CSRF State
-
-// ==========================
-
-// ⚠️ WICHTIG: Ersetze 'DEFAULT_USER_CHAT_ID' durch die tatsächliche ID (z.B. durch Backend-Injection)
-
-let activeChat = 'DEFAULT_USER_CHAT_ID'; // Die ID des aktuellen Chat-Partners (z.B. Admin)
-
-let currentUserId = null; // MUSS nach erfolgreichem Login/Refresh gesetzt werden!
-
-let lastMessageIds = {}; // Speichert geladene IDs pro Chat
-
-let currentCsrfToken = localStorage.getItem('csrfToken');
-
-let currentAccessToken = null;
-
-let reloadIntervalId = null; // Zum Steuern des Auto-Reloads
-
-
-
-// ==========================
-
-// 2. Helper-Funktionen
-
-// ==========================
-
-
-
-function getChatElements() {
-
-    const chatSection = document.getElementById('chat-section');
-
-    if (!chatSection) return null;
-
-
-
-    return {
-
-        chatSection,
-
-        chatMessages: chatSection.querySelector('.chat-messages'),
-
-        chatHeaderTitle: document.getElementById('chat-header-title'), // Korrigiert: Span-Element für den Titel
-
-        chatInput: document.getElementById('chat-input-field'),
-
-        chatSend: document.getElementById('chat-send-btn'),
-
-        sidebarList: chatSection.querySelector('.chat-sidebar-list')
-
-    };
-
-}
-
-
-
-function scrollToBottom(chatMessagesElement) {
-
-    if (chatMessagesElement) {
-
-        // Verzögertes Scrollen für bessere Darstellung, falls Bilder/Inhalte nachgeladen werden
-
-        setTimeout(() => {
-
-            chatMessagesElement.scrollTo({ top: chatMessagesElement.scrollHeight, behavior: 'smooth' });
-
-        }, 50); 
-
-    }
-
-}
-
-
+// ===================================
+// 2. Hilfsfunktionen
+// ===================================
 
 /**
-
- * Fügt eine Nachricht hinzu. Wenn msgId null ist, wird sie als temporär markiert.
-
- * @param {string} content - Nachrichtentext
-
- * @param {'user'|'other'} sender - Absender
-
- * @param {HTMLElement} chatMessagesElement - Das UL-Element
-
- * @param {string | null} msgId - Echte Server-ID
-
- * @param {string | null} tempId - Temporäre Client-ID für optimistic updates
-
+ * Ruft die primären Chat-DOM-Elemente ab.
+ * @returns {Object|null} Ein Objekt mit den Elementen oder null, wenn die Sektion fehlt.
  */
+function getChatElements() {
+    const chatSection = document.getElementById('chat-section');
+    if (!chatSection) return null;
 
+    return {
+        chatSection,
+        chatMessages: chatSection.querySelector('.chat-messages'),
+        chatHeaderTitle: document.getElementById('chat-header-title'),
+        chatInput: document.getElementById('chat-input-field'),
+        chatSend: document.getElementById('chat-send-btn'),
+        sidebarList: chatSection.querySelector('.chat-sidebar-list')
+    };
+}
+
+/**
+ * Scrollt den Nachrichtencontainer sanft nach unten.
+ * @param {HTMLElement} chatMessagesElement - Der Container der Nachrichten.
+ */
+function scrollToBottom(chatMessagesElement) {
+    if (chatMessagesElement) {
+        // Leichte Verzögerung für das Rendern neuer Elemente
+        setTimeout(() => {
+            chatMessagesElement.scrollTo({ top: chatMessagesElement.scrollHeight, behavior: 'smooth' });
+        }, 50); 
+    }
+}
+
+/**
+ * Erstellt und fügt eine Nachricht in den Chat ein (mit Duplikat- und Optimistic-Update-Logik).
+ * @param {string} content - Nachrichtentext (kann HTML enthalten).
+ * @param {'user'|'other'} sender - Absender-Typ.
+ * @param {HTMLElement} chatMessagesElement - Das UL-Element der Nachrichten.
+ * @param {string | null} msgId - Echte Server-ID (wenn geladen).
+ * @param {string | null} tempId - Temporäre Client-ID (für gesendete, aber unbestätigte Nachrichten).
+ */
 function addMessage(content, sender = 'user', chatMessagesElement, msgId = null, tempId = null) {
-
     if (!chatMessagesElement) return;
 
-
-
-    // Duplikat-Check für bereits geladene Server-Nachrichten
-
+    // Duplikat-Check für Server-Nachrichten
     if (msgId && chatMessagesElement.querySelector(`.message[data-id="${msgId}"]`)) return;
 
-    
-
-    // Alte temporäre Nachricht durch die echte Nachricht ersetzen (falls Temp-ID übergeben wurde)
-
+    // Ersetze alte temporäre Nachricht, falls Server-ID und Temp-ID übereinstimmen
     if(msgId && tempId) {
-
         const tempMsg = chatMessagesElement.querySelector(`.message[data-temp-id="${tempId}"]`);
-
         if(tempMsg) chatMessagesElement.removeChild(tempMsg);
-
     }
 
-
-
     const li = document.createElement('li');
-
     li.classList.add('message', sender);
-
     if (msgId) li.dataset.id = msgId;
-
     if (tempId) li.dataset.tempId = tempId;
 
-
-
     const divContent = document.createElement('div');
-
     divContent.classList.add('message-content');
-
-    divContent.innerHTML = `<p>${content}</p>`; // Nutzen Sie den HTML-Inhalt
-
-
+    divContent.innerHTML = `<p>${content}</p>`;
 
     li.appendChild(divContent);
 
-
-
-    // Temporäre Nachrichten als "Senden" kennzeichnen (visuell optional)
-
+    // Optisches Feedback für gesendete, aber noch nicht bestätigte Nachrichten
     if (!msgId) {
-
         li.dataset.status = 'sending';
-
         li.style.opacity = '0.6';
-
     }
-
-
 
     chatMessagesElement.appendChild(li);
-
     scrollToBottom(chatMessagesElement);
-
 }
 
-
-
-// ==========================
-
+// ===================================
 // 3. CSRF-Token & User-ID sicherstellen
+// ===================================
 
-// ==========================
-
+/**
+ * Prüft vorhandene Tokens oder führt einen Refresh-Call durch, um neue zu erhalten.
+ * Wenn der Refresh fehlschlägt, wird ein Fehler geworfen (führt zur Abmeldung).
+ * @returns {Promise<{csrfToken: string, accessToken: string, userId: string}>} Die aktuellen Tokens und User ID.
+ */
 async function ensureCsrfToken() {
-
+    // 1. Sofortige Rückgabe, wenn Tokens und User ID bereits im State sind
     if (currentCsrfToken && currentAccessToken && currentUserId) 
-
         return { csrfToken: currentCsrfToken, accessToken: currentAccessToken, userId: currentUserId };
 
-
-
     try {
-
+        // 2. Refresh über API (nutzt Refresh-Cookie)
         const res = await fetch(`/api/refresh`, {
-
             method: 'POST',
-
-            credentials: 'include'
-
+            credentials: 'include' // WICHTIG: Sendet den Refresh-Cookie mit
         });
-
-
 
         if (!res.ok) {
-
             localStorage.removeItem('csrfToken');
-
             currentCsrfToken = null;
-
             throw new Error(`Session abgelaufen (${res.status}). Bitte neu anmelden.`);
-
         }
-
-
 
         const data = await res.json();
-
         
-
-        // 🚨 Anpassung: Die API MUSS nun die userId zurückgeben!
-
+        // 3. Speichern und Zurückgeben der neuen Tokens/Daten
+        // 🚨 WICHTIG: Das Backend MUSS csrfToken, accessToken und userId im JSON-Body zurückgeben!
         if (data.csrfToken && data.accessToken && data.userId) { 
-
             currentCsrfToken = data.csrfToken;
-
             currentAccessToken = data.accessToken;
-
-            currentUserId = data.userId; // Speichere die User ID!
-
+            currentUserId = data.userId;
             localStorage.setItem('csrfToken', data.csrfToken);
-
             
-
             return { csrfToken: currentCsrfToken, accessToken: currentAccessToken, userId: currentUserId };
-
         }
-
         
-
         throw new Error('Kein CSRF/Access Token oder User ID im Refresh erhalten');
 
-
-
     } catch (err) {
-
         console.error("Auth-Fehler beim Refresh:", err);
-
         localStorage.removeItem('csrfToken');
-
         currentCsrfToken = null;
-
         throw err;
-
     }
-
 }
 
-
-
-// ==========================
-
-// 4. API & Logik (Fetch & Send)
-
-// ==========================
-
-
-
-// Nachrichten laden (inklusive neuer ID-Überprüfung)
+// ===================================
+// 4.1 Nachrichten laden (mit ID-Prüfung)
+// ===================================
 
 async function fetchChatMessages(chatId) {
-
     const elems = getChatElements();
-
     if (!elems) return;
 
-
-
     const { chatMessages } = elems;
-
     const endpoint = `/api/chat/${chatId}`;
 
-
-
     try {
-
-        const tokens = await ensureCsrfToken(); // Token vor dem Fetchen aktualisieren
-
+        const tokens = await ensureCsrfToken(); // Tokens sicherstellen
         
-
         const res = await fetch(endpoint, {
-
             headers: { 'Authorization': `Bearer ${tokens.accessToken}` },
-
             credentials: 'include'
-
         });
-
         
-
         if (!res.ok) throw new Error(`Fehler beim Laden (${res.status})`);
 
-
-
         const data = await res.json();
-
-        const userId = tokens.userId; // Aktuell eingeloggte User ID
-
-
-
-        if (!lastMessageIds[chatId]) lastMessageIds[chatId] = new Set();
-
-        
-
+        const userId = tokens.userId;
         let newMessagesAdded = false;
 
-
-
-        data.forEach(msg => {
-
-            if (lastMessageIds[chatId].has(msg.id)) return;
-
-            lastMessageIds[chatId].add(msg.id);
-
-            
-
-            // ✅ Korrigierte Unterscheidung: Benutzt die geladene userId
-
-            const senderClass = msg.sender_id === userId ? 'user' : 'other'; 
-
-            
-
-            // Anpassung: Zeige nur den Text, wenn der Absender Admin ist.
-
-            // Bei User-Nachrichten wird der Name weggelassen, da es klar ist.
-
-            const content = msg.sender_id !== userId ? `<strong>${msg.sender_name}:</strong> ${msg.text}` : msg.text;
-
-            
-
-            addMessage(content, senderClass, chatMessages, msg.id);
-
-            newMessagesAdded = true;
-
-        });
-
+        if (!lastMessageIds[chatId]) lastMessageIds[chatId] = new Set();
         
-
+        data.forEach(msg => {
+            // Duplikat überspringen
+            if (lastMessageIds[chatId].has(msg.id)) return;
+            lastMessageIds[chatId].add(msg.id);
+            
+            // Absender-Klasse bestimmen
+            const senderClass = msg.sender_id === userId ? 'user' : 'other';
+            
+            // Nachrichteninhalt (Admin-Nachrichten zeigen den Namen)
+            const content = msg.sender_id !== userId 
+                ? `<strong>${msg.sender_name || 'Admin'}:</strong> ${msg.text}` 
+                : msg.text;
+            
+            addMessage(content, senderClass, chatMessages, msg.id);
+            newMessagesAdded = true;
+        });
+        
         if(newMessagesAdded) {
-
-            // Nach dem Laden neuer Nachrichten wird sicherheitshalber nach unten gescrollt
-
             scrollToBottom(chatMessages);
-
         }
-
-
 
     } catch (err) {
-
         console.error('Fehler beim Laden der Chatnachrichten:', err);
-
         if(chatMessages && chatMessages.children.length === 0) {
-
             chatMessages.innerHTML = '<li style="color:red; list-style:none;">Verbindungsfehler oder keine Nachrichten.</li>';
-
         }
-
     }
-
 }
 
-
-
-
-
-// Nachricht senden (mit optimistic update)
+// ===================================
+// 4.2 Nachricht senden (mit Optimistic Update)
+// ===================================
 
 async function handleSendClick() {
-
     const elems = getChatElements();
-
     if (!elems || !activeChat) return;
 
-
-
     const { chatInput, chatMessages, chatSend } = elems;
-
     const message = chatInput.value.trim();
-
     if (!message) return;
 
-
-
     chatSend.disabled = true;
-
     
-
-    // Temporäre ID für optimistic update
-
+    // Temporäre ID für das Optimistic Update
     const tempId = Date.now().toString(); 
-
     
-
     // 1. Optimistic Update: Nachricht sofort anzeigen
-
     addMessage(message, 'user', chatMessages, null, tempId); 
-
     chatInput.value = '';
-
     chatInput.focus();
-
     
-
     try {
-
         const tokens = await ensureCsrfToken(); 
-
         
-
         const res = await fetch(`/api/chat/${activeChat}`, {
-
             method: 'POST',
-
             headers: { 
-
                 'Content-Type': 'application/json', 
-
                 'X-CSRF-Token': tokens.csrfToken, 
-
                 'Authorization': `Bearer ${tokens.accessToken}` 
-
             },
-
             credentials: 'include',
-
             body: JSON.stringify({ message })
-
         });
-
         
-
         if (!res.ok) throw new Error(`Sende-Fehler (${res.status})`);
-        // 2. Erfolg: Echte Nachricht laden und temporäre Nachricht ersetzen (durch fetchChatMessages)
+
+        // 2. Erfolg: Lade die neueste Nachricht vom Server (bestätigt die gesendete Nachricht)
         await fetchChatMessages(activeChat); 
 
-        // 3. Temporäre Nachricht entfernen, falls sie nicht durch den Fetch ersetzt wurde 
-       const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
+        // 3. Sicherheits-Cleanup: Falls das Duplikat nicht durch fetchChatMessages entfernt wurde
+        const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
         if(tempMsg) chatMessages.removeChild(tempMsg);
 
     } catch (error) {
         console.error('Netzwerkfehler beim Senden:', error);
-      
+        
         // 4. Fehler: Temporäre Nachricht als Fehler markieren
         const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
         if(tempMsg) {
             tempMsg.dataset.status = 'failed';
             tempMsg.style.backgroundColor = '#fdd'; 
-           tempMsg.querySelector('.message-content').innerHTML += '<span style="color:red; display:block; font-size: 0.75rem;"> [FEHLER] </span>';
+            tempMsg.querySelector('.message-content').innerHTML += '<span style="color:red; display:block; font-size: 0.75rem;"> [FEHLER] </span>';
         }
     } finally {
         chatSend.disabled = false;
-        // Textarea Höhe zurücksetzen (falls automatisch angepasst)
         chatInput.style.height = 'auto'; 
     }
 }
 
-// Chat wechseln / aktivieren
+// ===================================
+// 5. Chat wechseln / aktivieren
+// ===================================
+
+/**
+ * Setzt den aktuellen Chat, leert die UI und startet den Auto-Reload.
+ * @param {string} chatId - Die ID des zu aktivierenden Chats.
+ */
 function activateChat(chatId) {
     const elems = getChatElements();
     if (!elems) return;
     const { chatHeaderTitle, chatInput, chatSend, chatMessages } = elems;
 
-    // Header Text setzen (Korrigiert auf das korrekte Element)
+    // UI-Vorbereitung
     if(chatHeaderTitle) chatHeaderTitle.textContent = 'Admin Chat'; 
-    if(chatMessages) chatMessages.innerHTML = ''; // Nachrichten-Historie leeren
+    if(chatMessages) chatMessages.innerHTML = ''; 
     if (chatInput && chatSend) {
         chatInput.disabled = false;
         chatSend.disabled = false;
         chatInput.placeholder = "Nachricht an den Admin...";
     }
 
-    // Vorheriges Intervall stoppen
+    // Altes Intervall stoppen, um Duplikate zu verhindern
     if (reloadIntervalId) {
         clearInterval(reloadIntervalId);
     }
-  
+    
     activeChat = chatId;
+    
     // Initiales Laden
     fetchChatMessages(chatId);
-
+    
     // Neues Auto-Reload Intervall starten
     reloadIntervalId = setInterval(() => {
         fetchChatMessages(activeChat);
     }, 10000); // Alle 10 Sekunden
 }
 
-// ==========================
+// ===================================
 // 6. DOM Ready & Event Listeners
-// ==========================
+// ===================================
+
 document.addEventListener('DOMContentLoaded', async () => {
     const elems = getChatElements();
     if (!elems) return;
     const { chatInput, chatSend } = elems;
+    
+    // Die initialChatId sollte aus einem Data-Attribut im HTML kommen,
+    // oder die Standard-ID verwenden, falls keine Sidebar vorhanden ist.
+    const initialChatId = document.querySelector('.chat-sidebar-item[data-chat-id]')?.dataset.chatId || activeChat;
 
-    // --- Versuche, User ID zu laden und Chat zu initialisieren ---
-    try {
-        const tokens = await ensureCsrfToken();
-        // Hier sollte die Logik Ihre activeChat Variable befüllen
-        // Da die ID fest ist, lassen wir sie bei 'DEFAULT_USER_CHAT_ID'
-        // In der Praxis MÜSSTE hier die ID dynamisch vom Backend kommen.
-
-        if (activeChat && activeChat !== 'DEFAULT_USER_CHAT_ID') {
-            activateChat(activeChat);
-        } else if (activeChat === 'DEFAULT_USER_CHAT_ID') {
-             // Wenn die ID nicht gesetzt ist, aber der Chat Button gedrückt wird, 
-             // sollte activateChat aufgerufen werden (muss im App View Wechsel passieren).
-             // Wir loggen nur einen Hinweis.
-             console.warn("Nutze die Standard-ID, aber aktiviere den Chat erst beim Klicken des Navigations-Buttons.");
+    // --- A. Sitzung Wiederherstellen ---
+    // Versuche, Tokens zu aktualisieren, falls der Benutzer eingeloggt war (LocalStorage vorhanden).
+    if (localStorage.getItem('csrfToken')) {
+        try {
+            // Ruft ensureCsrfToken auf, um die Session zu validieren
+            const tokens = await ensureCsrfToken(); 
+            
+            // Wenn der Token-Check erfolgreich ist: 
+            // Hier müssten Sie das App-UI anzeigen (z.B. document.getElementById('app-view').classList.remove('hidden');)
+            
+            // Automatische Aktivierung des Chats, wenn eine gültige ID vorliegt (optional)
+            if (initialChatId && initialChatId !== activeChat) {
+                 // activateChat(initialChatId); 
+                 // WICHTIG: Die activateChat Logik sollte hier wahrscheinlich nicht automatisch laufen,
+                 // sondern nur, wenn der Benutzer auf das Chat-Element klickt.
+            }
+            
+        } catch (error) {
+            console.error("Session abgelaufen. Bitte neu anmelden.", error);
+            // Weiterleitung zur Login-Seite oder Anzeige des Login-Containers
         }
-
-    } catch (error) {
-        console.error("Initialisierung fehlgeschlagen. Benutzer ist nicht eingeloggt oder Token ungültig.", error);
-        // Hier sollte eine Weiterleitung zur Login-Seite erfolgen.
     }
 
-    // --- Event Listener: Nachricht Senden ---
-    if (chatSend) {
-        chatSend.addEventListener('click', handleSendClick);
+
+    // --- B. Event Listener binden ---
+
+    // 1. Senden-Button
+    if (chatSend) { 
+        chatSend.addEventListener('click', handleSendClick); 
     }
+    
+    // 2. Chat-Input: Enter & Auto-Resize
     if (chatInput) {
-        // Enter zum Senden, Shift+Enter für Zeilenumbruch
         chatInput.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -1415,26 +1236,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Auto-Resize der Textarea
         chatInput.addEventListener('input', () => {
-             chatInput.style.height = 'auto'; // Reset
-             chatInput.style.height = chatInput.scrollHeight + 'px';
+            chatInput.style.height = 'auto'; 
+            chatInput.style.height = chatInput.scrollHeight + 'px';
         });
     }
 
-    // --- Logik für Chat Sidebar Item Klick (Beispiel) ---
+    // 3. Sidebar Klick (Beispiel)
     const chatSidebarItem = document.querySelector('.chat-sidebar-item[data-chat-id]');
     if(chatSidebarItem) {
-        activeChat = chatSidebarItem.dataset.chatId; // Setze die Chat ID aus dem HTML
         chatSidebarItem.addEventListener('click', () => {
-             // Zeige Chat Main an (dies muss über die Logik für den Navigations-Button passieren)
+             const targetChatId = chatSidebarItem.dataset.chatId;
+             // UI-Wechsel (Muss zu Ihrer Haupt-App-Logik passen)
              document.getElementById('chat-list-section').classList.remove('active');
              document.getElementById('chat-main').classList.add('active');
-             activateChat(activeChat);
-       });
+             activateChat(targetChatId); 
+        });
     }
 
-    // --- Logik für Zurück-Button ---
+    // 4. Zurück-Button
     const backBtn = document.getElementById('back-to-list-btn');
     if(backBtn) {
         backBtn.addEventListener('click', () => {
@@ -1443,6 +1263,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 });
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 document.addEventListener('DOMContentLoaded', () => {
   const darkmodeSwitch = document.getElementById('darkmode-switch-main');
@@ -2471,6 +2292,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
