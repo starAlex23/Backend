@@ -1549,22 +1549,8 @@ app.post('/api/sichere-aktion', authMiddleware, csrfMiddleware, async (req, res)
 
 // Refresh Token Endpoint
 app.post('/api/refresh', async (req, res) => {
-    const allowedOrigin = process.env.CORS_ORIGIN; // Z.B.: https://meine-cross-origin-domain.com
-    const origin = req.get('Origin'); // Der Origin, den der Browser sendet
-
-    // 1. Definiere die zulässigen Bedingungen
-    const isOriginValid = (
-        !origin || // Bedingung 1: Origin fehlt (kann bei Same-Site vorkommen)
-        origin === allowedOrigin // Bedingung 2: Origin stimmt mit dem erlaubten Cross-Origin überein
-    );
-
-    if (!isOriginValid) {
-        // Der Request wurde von einem Origin gesendet, der weder erlaubt ist noch die Same-Site-Regel erfüllt.
-        return sendError(res, 403, 'Ungültiger Origin.');
-    }
-
   const refreshToken = req.cookies.refreshToken;
-  if (!refreshToken) return sendError(res, 401, 'Kein Refresh-Token gefunden.');
+  if (!refreshToken) return sendError(res, 401, 'Kein Refresh-Token.');
 
   try {
     const result = await pool.query(
@@ -1575,74 +1561,57 @@ app.post('/api/refresh', async (req, res) => {
     const entry = result.rows[0];
     if (!entry) {
       clearAuthCookies(res);
-      return sendError(res, 403, 'Ungültiger oder abgelaufener Refresh-Token.');
+      return sendError(res, 403, 'Refresh ungültig.');
     }
 
     const userResult = await pool.query(
-      `SELECT * FROM users WHERE id = $1`,
+      `SELECT id, rolle FROM users WHERE id = $1`,
       [entry.user_id]
     );
+
     const user = userResult.rows[0];
     if (!user) {
       clearAuthCookies(res);
       return sendError(res, 403, 'Benutzer nicht gefunden.');
     }
 
-    const issuedAt = Math.floor(Date.now() / 1000);
-    const expiresAt = issuedAt + 15 * 60;
+    const issuedAt = Math.floor(Date.now()/1000);
+    const expiresAt = issuedAt + 15*60;
     const jti = uuidv4();
 
-    const newAccessToken = jwt.sign(
-      {
-        id: user.id,
-        rolle: user.rolle,
-        jti,
-        iat: issuedAt,
-        nbf: issuedAt
-      },
+    const accessToken = jwt.sign(
+      { id: user.id, rolle: user.rolle, jti, iat: issuedAt, nbf: issuedAt },
       JWT_SECRET,
       { expiresIn: '15m', issuer: process.env.JWT_ISSUER }
     );
 
-    await pool.query(`DELETE FROM active_tokens WHERE expires_at < NOW()`);
-    await pool.query(
-      `INSERT INTO active_tokens(token, user_id, jti, issued_at, expires_at)
-        VALUES ($1, $2, $3, to_timestamp($4), to_timestamp($5))`,
-      [newAccessToken, user.id, jti, issuedAt, expiresAt]
-    );
+    const csrfToken = crypto.randomBytes(32).toString('hex');
 
-    const newCsrfToken = crypto.randomBytes(32).toString('hex');
-
-    // ⛓ Access-Token als Cookie
-    res.cookie('token', newAccessToken, {
+    res.cookie('token', accessToken, {
       httpOnly: true,
-      secure: true,
       sameSite: 'None',
-      path: '/',
-      maxAge: 15 * 60 * 1000,
+      secure: true,
+      path: '/'
     });
 
-    // 🔓 CSRF-Token als Cookie (Backup für Same-Origin)
-    res.cookie('csrfToken', newCsrfToken, {
+    res.cookie('csrfToken', csrfToken, {
       httpOnly: false,
-      secure: true,
       sameSite: 'None',
-      path: '/',
-      maxAge: 15 * 60 * 1000, // Sollte idealerweise länger leben als AccessToken, aber ok
+      secure: true,
+      path: '/'
     });
 
-    // ✅ WICHTIGSTE ÄNDERUNG HIER:
-    // Wir senden den Token im JSON zurück, damit das Frontend ihn speichern kann!
     res.json({
       success: true,
-      csrfToken: newCsrfToken,// <--- DAS HAT GEFEHLT
-      accessToken: newAccessToken
+      userId: user.id,
+      accessToken,
+      csrfToken
     });
 
-  } catch (err) {
-    console.error('Fehler beim Token-Refresh:', err);
+  } catch (e) {
+    console.error(e);
     clearAuthCookies(res);
-    sendError(res, 500, 'Fehler beim Token-Refresh.');
+    return sendError(res, 500, 'Refresh-Fehler.');
   }
 });
 
@@ -2377,6 +2346,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
