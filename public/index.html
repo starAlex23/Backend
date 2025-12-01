@@ -897,10 +897,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // 1. Globale Variablen & CSRF State
 // ==========================
 // ⚠️ WICHTIG: Ersetze 'DEFAULT_USER_CHAT_ID' durch die tatsächliche ID (z.B. durch Backend-Injection)
-let activeChat = 'DEFAULT_USER_CHAT_ID'; 
-let lastMessageIds = {}; 
+let activeChat = 'DEFAULT_USER_CHAT_ID'; // Die ID des aktuellen Chat-Partners (z.B. Admin)
+let currentUserId = null; // MUSS nach erfolgreichem Login/Refresh gesetzt werden!
+let lastMessageIds = {}; // Speichert geladene IDs pro Chat
 let currentCsrfToken = localStorage.getItem('csrfToken');
-let currentAccessToken = null; 
+let currentAccessToken = null;
+let reloadIntervalId = null; // Zum Steuern des Auto-Reloads
 
 // ==========================
 // 2. Helper-Funktionen
@@ -913,46 +915,71 @@ function getChatElements() {
     return {
         chatSection,
         chatMessages: chatSection.querySelector('.chat-messages'),
-        chatHeader: chatSection.querySelector('.chat-header'),
-        // ⚠️ Stelle sicher, dass diese IDs/Klassen in deinem HTML existieren
-        chatInput: document.getElementById('chat-input-field'), 
-        chatSend: document.getElementById('chat-send-btn'), 
+        chatHeaderTitle: document.getElementById('chat-header-title'), // Korrigiert: Span-Element für den Titel
+        chatInput: document.getElementById('chat-input-field'),
+        chatSend: document.getElementById('chat-send-btn'),
         sidebarList: chatSection.querySelector('.chat-sidebar-list')
     };
 }
 
 function scrollToBottom(chatMessagesElement) {
     if (chatMessagesElement) {
-        chatMessagesElement.scrollTo({ top: chatMessagesElement.scrollHeight, behavior: 'smooth' });
+        // Verzögertes Scrollen für bessere Darstellung, falls Bilder/Inhalte nachgeladen werden
+        setTimeout(() => {
+            chatMessagesElement.scrollTo({ top: chatMessagesElement.scrollHeight, behavior: 'smooth' });
+        }, 50); 
     }
 }
 
-function addMessage(content, sender = 'user', chatMessagesElement, msgId = null) {
+/**
+ * Fügt eine Nachricht hinzu. Wenn msgId null ist, wird sie als temporär markiert.
+ * @param {string} content - Nachrichtentext
+ * @param {'user'|'other'} sender - Absender
+ * @param {HTMLElement} chatMessagesElement - Das UL-Element
+ * @param {string | null} msgId - Echte Server-ID
+ * @param {string | null} tempId - Temporäre Client-ID für optimistic updates
+ */
+function addMessage(content, sender = 'user', chatMessagesElement, msgId = null, tempId = null) {
     if (!chatMessagesElement) return;
 
+    // Duplikat-Check für bereits geladene Server-Nachrichten
     if (msgId && chatMessagesElement.querySelector(`.message[data-id="${msgId}"]`)) return;
+    
+    // Alte temporäre Nachricht durch die echte Nachricht ersetzen (falls Temp-ID übergeben wurde)
+    if(msgId && tempId) {
+        const tempMsg = chatMessagesElement.querySelector(`.message[data-temp-id="${tempId}"]`);
+        if(tempMsg) chatMessagesElement.removeChild(tempMsg);
+    }
 
     const li = document.createElement('li');
     li.classList.add('message', sender);
     if (msgId) li.dataset.id = msgId;
+    if (tempId) li.dataset.tempId = tempId;
 
     const divContent = document.createElement('div');
     divContent.classList.add('message-content');
-    divContent.innerHTML = `<p>${content}</p>`;
+    divContent.innerHTML = `<p>${content}</p>`; // Nutzen Sie den HTML-Inhalt
+
     li.appendChild(divContent);
+
+    // Temporäre Nachrichten als "Senden" kennzeichnen (visuell optional)
+    if (!msgId) {
+        li.dataset.status = 'sending';
+        li.style.opacity = '0.6';
+    }
 
     chatMessagesElement.appendChild(li);
     scrollToBottom(chatMessagesElement);
 }
 
 // ==========================
-// 3. CSRF-Token sicherstellen (KEIN API_BASE mehr nötig)
+// 3. CSRF-Token & User-ID sicherstellen
 // ==========================
 async function ensureCsrfToken() {
-    if (currentCsrfToken && currentAccessToken) return { csrfToken: currentCsrfToken, accessToken: currentAccessToken };
+    if (currentCsrfToken && currentAccessToken && currentUserId) 
+        return { csrfToken: currentCsrfToken, accessToken: currentAccessToken, userId: currentUserId };
 
     try {
-        // ✅ Relativer Pfad, da auf Render gehostet
         const res = await fetch(`/api/refresh`, {
             method: 'POST',
             credentials: 'include'
@@ -961,20 +988,22 @@ async function ensureCsrfToken() {
         if (!res.ok) {
             localStorage.removeItem('csrfToken');
             currentCsrfToken = null;
-            throw new Error(`Session abgelaufen. Bitte neu anmelden.`);
+            throw new Error(`Session abgelaufen (${res.status}). Bitte neu anmelden.`);
         }
 
         const data = await res.json();
         
-        if (data.csrfToken && data.accessToken) { 
+        // 🚨 Anpassung: Die API MUSS nun die userId zurückgeben!
+        if (data.csrfToken && data.accessToken && data.userId) { 
             currentCsrfToken = data.csrfToken;
             currentAccessToken = data.accessToken;
+            currentUserId = data.userId; // Speichere die User ID!
             localStorage.setItem('csrfToken', data.csrfToken);
             
-            return { csrfToken: currentCsrfToken, accessToken: currentAccessToken };
+            return { csrfToken: currentCsrfToken, accessToken: currentAccessToken, userId: currentUserId };
         }
         
-        throw new Error('Kein CSRF/Access Token im Refresh erhalten');
+        throw new Error('Kein CSRF/Access Token oder User ID im Refresh erhalten');
 
     } catch (err) {
         console.error("Auth-Fehler beim Refresh:", err);
@@ -988,61 +1017,83 @@ async function ensureCsrfToken() {
 // 4. API & Logik (Fetch & Send)
 // ==========================
 
-// Nachrichten laden
+// Nachrichten laden (inklusive neuer ID-Überprüfung)
 async function fetchChatMessages(chatId) {
     const elems = getChatElements();
     if (!elems) return;
 
     const { chatMessages } = elems;
-    
-    // ✅ Relativer Pfad
     const endpoint = `/api/chat/${chatId}`;
 
     try {
-        const res = await fetch(endpoint, { credentials: 'include' });
-        if (!res.ok) throw new Error('Fehler beim Laden');
+        const tokens = await ensureCsrfToken(); // Token vor dem Fetchen aktualisieren
+        
+        const res = await fetch(endpoint, {
+            headers: { 'Authorization': `Bearer ${tokens.accessToken}` },
+            credentials: 'include'
+        });
+        
+        if (!res.ok) throw new Error(`Fehler beim Laden (${res.status})`);
 
         const data = await res.json();
+        const userId = tokens.userId; // Aktuell eingeloggte User ID
 
         if (!lastMessageIds[chatId]) lastMessageIds[chatId] = new Set();
         
+        let newMessagesAdded = false;
+
         data.forEach(msg => {
             if (lastMessageIds[chatId].has(msg.id)) return;
             lastMessageIds[chatId].add(msg.id);
             
-            // ⚠️ Unterscheidung: Anpassen an die User-ID des eingeloggten Benutzers
-            // Du musst die 'CURRENT_USER_ID' im Frontend verfügbar machen!
-            const senderClass = msg.sender_id === 'CURRENT_USER_ID' ? 'user' : 'other'; 
-            addMessage(`<strong>${msg.sender_name}:</strong> ${msg.text}`, senderClass, chatMessages, msg.id);
+            // ✅ Korrigierte Unterscheidung: Benutzt die geladene userId
+            const senderClass = msg.sender_id === userId ? 'user' : 'other'; 
+            
+            // Anpassung: Zeige nur den Text, wenn der Absender Admin ist.
+            // Bei User-Nachrichten wird der Name weggelassen, da es klar ist.
+            const content = msg.sender_id !== userId ? `<strong>${msg.sender_name}:</strong> ${msg.text}` : msg.text;
+            
+            addMessage(content, senderClass, chatMessages, msg.id);
+            newMessagesAdded = true;
         });
+        
+        if(newMessagesAdded) {
+            // Nach dem Laden neuer Nachrichten wird sicherheitshalber nach unten gescrollt
+            scrollToBottom(chatMessages);
+        }
 
     } catch (err) {
         console.error('Fehler beim Laden der Chatnachrichten:', err);
-        if(chatMessages.children.length === 0) {
-            chatMessages.innerHTML += '<li style="color:red;">Verbindungsfehler.</li>';
+        if(chatMessages && chatMessages.children.length === 0) {
+            chatMessages.innerHTML = '<li style="color:red; list-style:none;">Verbindungsfehler oder keine Nachrichten.</li>';
         }
     }
 }
 
 
-// Nachricht senden
+// Nachricht senden (mit optimistic update)
 async function handleSendClick() {
     const elems = getChatElements();
     if (!elems || !activeChat) return;
 
-    const { chatInput, chatMessages } = elems;
+    const { chatInput, chatMessages, chatSend } = elems;
     const message = chatInput.value.trim();
     if (!message) return;
 
-    addMessage(message, 'user', chatMessages);
+    chatSend.disabled = true;
+    
+    // Temporäre ID für optimistic update
+    const tempId = Date.now().toString(); 
+    
+    // 1. Optimistic Update: Nachricht sofort anzeigen
+    addMessage(message, 'user', chatMessages, null, tempId); 
     chatInput.value = '';
     chatInput.focus();
-
+    
     try {
         const tokens = await ensureCsrfToken(); 
-
-        // ✅ Relativer Pfad
-        await fetch(`/api/chat/${activeChat}`, {
+        
+        const res = await fetch(`/api/chat/${activeChat}`, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json', 
@@ -1053,8 +1104,29 @@ async function handleSendClick() {
             body: JSON.stringify({ message })
         });
         
+        if (!res.ok) throw new Error(`Sende-Fehler (${res.status})`);
+
+        // 2. Erfolg: Echte Nachricht laden und temporäre Nachricht ersetzen (durch fetchChatMessages)
+        await fetchChatMessages(activeChat); 
+
+        // 3. Temporäre Nachricht entfernen, falls sie nicht durch den Fetch ersetzt wurde 
+        const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
+        if(tempMsg) chatMessages.removeChild(tempMsg);
+
     } catch (error) {
         console.error('Netzwerkfehler beim Senden:', error);
+        
+        // 4. Fehler: Temporäre Nachricht als Fehler markieren
+        const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
+        if(tempMsg) {
+            tempMsg.dataset.status = 'failed';
+            tempMsg.style.backgroundColor = '#fdd'; 
+            tempMsg.querySelector('.message-content').innerHTML += '<span style="color:red; display:block; font-size: 0.75rem;"> [FEHLER] </span>';
+        }
+    } finally {
+        chatSend.disabled = false;
+        // Textarea Höhe zurücksetzen (falls automatisch angepasst)
+        chatInput.style.height = 'auto'; 
     }
 }
 
@@ -1063,63 +1135,107 @@ function activateChat(chatId) {
     const elems = getChatElements();
     if (!elems) return;
 
-    const { chatHeader, chatInput, chatSend } = elems;
+    const { chatHeaderTitle, chatInput, chatSend, chatMessages } = elems;
 
-    // Header Text setzen
-    chatHeader.textContent = 'Admin Chat'; // Fester Titel für den User
+    // Header Text setzen (Korrigiert auf das korrekte Element)
+    if(chatHeaderTitle) chatHeaderTitle.textContent = 'Admin Chat'; 
+    if(chatMessages) chatMessages.innerHTML = ''; // Nachrichten-Historie leeren
 
     if (chatInput && chatSend) {
         chatInput.disabled = false;
         chatSend.disabled = false;
         chatInput.placeholder = "Nachricht an den Admin...";
     }
+    
+    // Vorheriges Intervall stoppen
+    if (reloadIntervalId) {
+        clearInterval(reloadIntervalId);
+    }
 
     activeChat = chatId;
+    
+    // Initiales Laden
     fetchChatMessages(chatId);
-}
-
-// ==========================
-// 5. Auto-Reload Intervall
-// ==========================
-setInterval(() => {
-    if (activeChat) {
+    
+    // Neues Auto-Reload Intervall starten
+    reloadIntervalId = setInterval(() => {
         fetchChatMessages(activeChat);
-    }
-}, 10000);
+    }, 10000); // Alle 10 Sekunden
 
+}
 
 // ==========================
 // 6. DOM Ready & Event Listeners
 // ==========================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const elems = getChatElements();
-    
-    // ⚠️ Hier musst du sicherstellen, dass activeChat mit der tatsächlichen ID befüllt wird!
-    // Beispiel: activeChat = document.getElementById('chat-container').dataset.chatId;
+    if (!elems) return;
+
+    const { chatInput, chatSend } = elems;
+
+    // --- Versuche, User ID zu laden und Chat zu initialisieren ---
+    try {
+        const tokens = await ensureCsrfToken();
+        // Hier sollte die Logik Ihre activeChat Variable befüllen
+        // Da die ID fest ist, lassen wir sie bei 'DEFAULT_USER_CHAT_ID'
+        // In der Praxis MÜSSTE hier die ID dynamisch vom Backend kommen.
+
+        if (activeChat && activeChat !== 'DEFAULT_USER_CHAT_ID') {
+            activateChat(activeChat);
+        } else if (activeChat === 'DEFAULT_USER_CHAT_ID') {
+             // Wenn die ID nicht gesetzt ist, aber der Chat Button gedrückt wird, 
+             // sollte activateChat aufgerufen werden (muss im App View Wechsel passieren).
+             // Wir loggen nur einen Hinweis.
+             console.warn("Nutze die Standard-ID, aber aktiviere den Chat erst beim Klicken des Navigations-Buttons.");
+        }
+
+    } catch (error) {
+        console.error("Initialisierung fehlgeschlagen. Benutzer ist nicht eingeloggt oder Token ungültig.", error);
+        // Hier sollte eine Weiterleitung zur Login-Seite erfolgen.
+    }
+
 
     // --- Event Listener: Nachricht Senden ---
-    if (elems) {
-        const { chatInput, chatSend } = elems;
-        if (chatSend) {
-            chatSend.addEventListener('click', handleSendClick);
-        }
-        if (chatInput) {
-            chatInput.addEventListener('keydown', e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (chatSend) chatSend.click();
-                }
-            });
-        }
+    if (chatSend) {
+        chatSend.addEventListener('click', handleSendClick);
+    }
+    if (chatInput) {
+        // Enter zum Senden, Shift+Enter für Zeilenumbruch
+        chatInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (chatSend && !chatSend.disabled) handleSendClick();
+            }
+        });
+        
+        // Auto-Resize der Textarea
+        chatInput.addEventListener('input', () => {
+             chatInput.style.height = 'auto'; // Reset
+             chatInput.style.height = chatInput.scrollHeight + 'px';
+        });
     }
 
-    // --- Initial Start ---
-    // Starte den Chat nur, wenn die ID gesetzt wurde
-    if (activeChat && activeChat !== 'DEFAULT_USER_CHAT_ID') { 
-        activateChat(activeChat);
-    } else {
-        console.warn("Die Active Chat ID muss vor dem Start gesetzt werden (z.B. per Backend-Inject/API-Call).");
+    // --- Logik für Chat Sidebar Item Klick (Beispiel) ---
+    const chatSidebarItem = document.querySelector('.chat-sidebar-item[data-chat-id]');
+    if(chatSidebarItem) {
+        activeChat = chatSidebarItem.dataset.chatId; // Setze die Chat ID aus dem HTML
+        chatSidebarItem.addEventListener('click', () => {
+             // Zeige Chat Main an (dies muss über die Logik für den Navigations-Button passieren)
+             document.getElementById('chat-list-section').classList.remove('active');
+             document.getElementById('chat-main').classList.add('active');
+             activateChat(activeChat);
+        });
     }
+
+    // --- Logik für Zurück-Button ---
+    const backBtn = document.getElementById('back-to-list-btn');
+    if(backBtn) {
+        backBtn.addEventListener('click', () => {
+             document.getElementById('chat-main').classList.remove('active');
+             document.getElementById('chat-list-section').classList.add('active');
+        });
+    }
+
 });
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 document.addEventListener('DOMContentLoaded', () => {
@@ -2149,6 +2265,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
