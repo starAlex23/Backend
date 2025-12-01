@@ -26,12 +26,22 @@
    🌗 BASIS + THEME
 ======================================= */
 :root {
+  /* Globale Farben */
   --bg: #fff;
   --fg: #000;
   --card-bg: #f9f9f9;
-  --accent: #4CAF50;
-  --accent-hover: #43a047;
   --border: #ccc;
+  
+  /* App Akzente */
+  --accent: #4CAF50;       /* Haupt-Grün */
+  --accent-hover: #43a047;
+  
+  /* Chat Spezifisch */
+  --chat-primary: #4CAF50; /* Chat Header */
+  --chat-bg-main: #e5ddd5; /* WhatsApp-artiger Hintergrund */
+  --chat-bg-msg-in: #ffffff;
+  --chat-bg-msg-out: #dcf8c6; /* Helles Grün für eigene */
+  --chat-border: #ddd;
 }
 
 [data-theme="dark"] {
@@ -39,6 +49,13 @@
   --fg: #eee;
   --card-bg: #1c1c1c;
   --border: #444;
+
+  /* Dark Mode Chat */
+  --chat-primary: #1f2c34;
+  --chat-bg-main: #0b141a;
+  --chat-bg-msg-in: #1f2c34;
+  --chat-bg-msg-out: #005c4b;
+  --chat-border: #2a3942;
 }
 
 /* =======================================
@@ -48,13 +65,13 @@ html, body {
   margin: 0;
   padding: 0;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow: hidden; /* Wichtig für App-Feeling */
   font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 1.6;
   background: var(--bg);
   color: var(--fg);
-  min-height: 100vh;
+  height: 100vh; /* Fixierte Höhe */
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -68,11 +85,11 @@ html, body {
 main, #app-view, #auth-container {
   flex-grow: 1;
   width: 100%;
-  max-width: 100%;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-y: auto; /* Inhalt scrollt hier */
   padding: 1rem;
-  min-height: calc(100vh - 160px);
+  padding-bottom: 80px; /* Platz für Bottom Nav */
+  position: relative;
 }
 
 /* =======================================
@@ -90,13 +107,7 @@ header {
   position: sticky;
   top: 0;
   z-index: 1100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-  overflow-x: auto;
-}
-
-header .logo {
-  height: 32px;
-  max-width: 40px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
   flex-shrink: 0;
 }
 
@@ -119,23 +130,12 @@ header .app-title {
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.card:hover {
-  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
-}
-
 /* =======================================
    🧾 FORM ELEMENTE
 ======================================= */
-label {
-  display: block;
-  margin-top: 1rem;
-  font-weight: 500;
-}
+label { display: block; margin-top: 1rem; font-weight: 500; }
 
-input[type="email"],
-input[type="password"],
-input[type="text"] {
+input[type="email"], input[type="password"], input[type="text"] {
   width: 100%;
   padding: 0.8rem;
   margin-top: 0.4rem;
@@ -143,14 +143,13 @@ input[type="text"] {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--fg);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  box-sizing: border-box;
 }
 
 input:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(76,175,80,0.2);
+  box-shadow: 0 0 0 2px rgba(76,175,80,0.2);
 }
 
 /* =======================================
@@ -168,19 +167,16 @@ button {
   color: white;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   transition: all 0.2s ease;
 }
 
 button:hover:not(:disabled) {
   background: var(--accent-hover);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-button:disabled {
-  background: #999;
-  cursor: not-allowed;
-}
+button:disabled { background: #999; cursor: not-allowed; }
 
 /* =======================================
    📱 BOTTOM NAVIGATION
@@ -188,156 +184,75 @@ button:disabled {
 #bottom-nav {
   position: fixed;
   bottom: 0; left: 0; right: 0;
+  height: 60px;
   display: flex;
   justify-content: space-around;
   background: var(--bg);
   border-top: 1px solid var(--border);
-  padding: 0.6rem 0;
   box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.05);
   z-index: 1000;
+  padding-bottom: env(safe-area-inset-bottom); /* Für iPhone X+ */
 }
 
 #bottom-nav button {
   background: none;
   border: none;
   color: #888;
-  padding: 0.5rem;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
   cursor: pointer;
-  transition: color 0.2s ease, transform 0.2s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   position: relative;
+  width: 100%;
 }
 
-#bottom-nav button:hover { color: var(--accent); transform: translateY(-2px); }
+#bottom-nav button:hover { transform: none; color: var(--accent); }
 #bottom-nav button.active { color: var(--accent); }
-
-#bottom-nav button.active::before {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 36px; height: 36px;
-  background: rgba(76,175,80,0.12);
-  border-radius: 50%;
-}
-
-#bottom-nav .main-button svg { color: var(--accent); height: 22px; }
-
-/* Dark Mode Bottom Nav */
-[data-theme="dark"] #bottom-nav button { color: #aaa; }
 
 /* =======================================
    🔄 LOADING SPINNER
 ======================================= */
 #loading-overlay {
-  position: fixed;
-  inset: 0;
+  position: fixed; inset: 0;
   background: rgba(255,255,255,0.8);
   backdrop-filter: blur(2px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   z-index: 9999;
-  transition: opacity 0.3s ease;
 }
-
-[data-theme="dark"] #loading-overlay {
-  background: rgba(0,0,0,0.5);
-}
-
 .spinner {
-  width: 48px;
-  height: 48px;
+  width: 48px; height: 48px;
   border: 5px solid #ccc;
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* =======================================
-   📋 ARBEITSPLANUNG-KARTEN
-======================================= */
-.plan-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  margin: 0.8rem 0;
-  padding: 1rem;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
-  transition: background 0.3s ease, border-color 0.3s ease;
-}
-
-.plan-card:hover {
-  border-color: var(--accent);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-}
-
-.plan-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.plan-header .toggle {
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: var(--accent);
-}
-
-.plan-details {
-  margin-top: 0.6rem;
-  font-size: 0.95rem;
-  color: var(--fg);
-}
-
-.plan-details a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.plan-details a:hover {
-  text-decoration: underline;
-}
-
 /* ==========================================================
-   MOBILE CHAT STYLING (WhatsApp Style)
+   💬 MOBILE CHAT STYLING (FIXED)
    ========================================================== */
 
-/* Globale Variablen, falls nicht schon definiert */
-:root {
-    --primary: #007bff; /* Blau für Header/Akzente */
-    --accent: #28a745; /* Grün für eigene Nachrichten/Buttons */
-    --bg-main: #ffffff; 
-    --bg-secondary: #f0f0f0; /* Hintergrund/Fremde Nachrichten */
-    --border-color: #ddd; 
-    --text-color: #333;
-    --text-muted: #666;
-}
-
-/* ---------------------------------
-   Basiskonfiguration des Containers 
-   --------------------------------- */
-
-/* Die mobile-chat-app ist nun die bestehende #chat-section */
+/* Container Reset: Überschreibt .card Styles für Fullscreen-Look */
 .mobile-chat-app {
+    /* Layout Reset um das Padding von <main> zu kontern */
+    margin: -1rem !important; 
+    width: calc(100% + 2rem) !important;
+    height: calc(100vh - 55px - 60px) !important; /* Viewport - Header - BottomNav */
+    
+    /* Reset Card Styles */
+    background: var(--bg) !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    
     position: relative;
-    width: 100%;
-    height: 100%;
-    /* Wichtig: card view ist in diesem Frontend schon definiert, 
-       wir überschreiben hier das Layout für Chat */
-    padding: 0; /* Entferne Padding des "card view" */
-    overflow: hidden; 
-    display: flex; /* Muss flex sein, damit die Kinder 100% Höhe kriegen */
+    overflow: hidden;
+    display: flex;
 }
-
 
 /* ---------------------------------
    1. CHAT-LISTE / SIDEBAR 
@@ -346,9 +261,8 @@ button:disabled {
     width: 100%;
     height: 100%;
     position: absolute;
-    top: 0;
-    left: 0;
-    background: var(--bg-secondary);
+    top: 0; left: 0;
+    background: var(--bg);
     display: flex;
     flex-direction: column;
     z-index: 10;
@@ -356,9 +270,10 @@ button:disabled {
 
 .chat-sidebar-header {
     padding: 1rem;
-    font-size: 1.2rem;
+    background: var(--bg);
+    font-size: 1.1rem;
     font-weight: bold;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
 }
 
@@ -371,24 +286,22 @@ button:disabled {
 }
 
 .chat-sidebar-item {
-    padding: 0.9rem 1rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
     cursor: pointer;
-    transition: background 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .chat-sidebar-item:hover,
 .chat-sidebar-item.active {
-    background: var(--primary);
-    color: white;
+    background: rgba(0,0,0,0.05); /* Dezenter Hover */
 }
-.chat-sidebar-item:hover .chat-preview,
-.chat-sidebar-item.active .chat-preview {
-    color: white;
-}
+[data-theme="dark"] .chat-sidebar-item:hover { background: rgba(255,255,255,0.05); }
 
 .chat-title { font-weight: 600; font-size: 1rem; }
-.chat-preview { font-size: 0.85rem; color: var(--text-muted); }
+.chat-preview { font-size: 0.85rem; color: #888; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 
 /* ---------------------------------
@@ -398,147 +311,164 @@ button:disabled {
     width: 100%;
     height: 100%;
     position: absolute;
-    top: 0;
-    left: 0;
-    background: var(--bg-main);
+    top: 0; left: 0;
+    background-color: var(--chat-bg-main);
+    /* Optional: Hintergrundbild Muster wie bei WhatsApp */
+    background-image: linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)); 
     display: flex;
     flex-direction: column;
     z-index: 20;
     
-    /* Standardmäßig nach rechts schieben (versteckt) */
+    /* Animation Slide-In */
     transform: translateX(100%); 
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-/* Zustand, wenn der Chat AKTIV/SICHTBAR ist */
+[data-theme="dark"] .chat-main {
+    background-image: none; 
+}
+
+/* Aktiv-Zustand */
 .chat-main.active {
     transform: translateX(0);
 }
 
-/* Header */
+/* Chat Header */
 .chat-main .chat-header {
-    padding: 1rem;
-    background: var(--primary);
+    padding: 0.8rem 1rem;
+    background: var(--chat-primary);
     color: white;
     font-size: 1.1rem;
     font-weight: 600;
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .chat-main .back-btn {
     background: transparent;
     border: none;
     color: white;
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     cursor: pointer;
-    margin-right: 10px;
+    margin: 0 10px 0 0;
     padding: 0;
+    width: auto;
+    box-shadow: none;
 }
 
-/* Nachrichten */
+/* Nachrichten Bereich */
 .chat-messages {
     flex-grow: 1;
     overflow-y: auto;
-    padding: 10px; /* Reduziere Padding für mobile */
+    padding: 1rem;
     list-style: none;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-behavior: smooth;
 }
 
 .message {
-    margin-bottom: 8px;
     display: flex;
+    width: 100%;
 }
 
 .message-content {
-    max-width: 85%; /* Mehr Platz auf kleinen Screens */
+    max-width: 80%;
     padding: 8px 12px;
-    border-radius: 18px; /* Etwas runder */
     line-height: 1.4;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    position: relative;
+    box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+    word-wrap: break-word;
 }
 
-.message p {
-    margin: 0;
-}
+.message p { margin: 0; }
 
-/* Eigene Nachrichten */
-.message.user {
-    justify-content: flex-end;
-}
+/* Eigene Nachrichten (Rechts) */
+.message.user { justify-content: flex-end; }
+
 .message.user .message-content {
-    background: var(--accent);
-    color: white;
-    border-bottom-right-radius: 5px; /* Angle the corner */
+    background: var(--chat-bg-msg-out);
+    color: #000; /* WhatsApp Text ist dunkel, auch bei grünem Hintergrund */
+    border-radius: 7.5px 7.5px 0 7.5px; /* Ecke unten rechts eckig */
 }
+[data-theme="dark"] .message.user .message-content { color: #fff; }
 
-/* Fremde Nachrichten */
-.message.other {
-    justify-content: flex-start;
-}
+/* Fremde Nachrichten (Links) */
+.message.other { justify-content: flex-start; }
+
 .message.other .message-content {
-    background: var(--bg-secondary);
-    color: var(--text-color);
-    border-bottom-left-radius: 5px; /* Angle the corner */
+    background: var(--chat-bg-msg-in);
+    color: var(--fg);
+    border-radius: 0 7.5px 7.5px 7.5px; /* Ecke oben links eckig */
 }
-
 
 /* Input-Bereich */
 .chat-input-area {
     display: flex;
-    padding: 10px;
-    border-top: 1px solid var(--border-color);
-    background: var(--bg-main);
+    align-items: flex-end;
+    padding: 8px 10px;
+    background: var(--bg);
+    border-top: 1px solid var(--chat-border);
     flex-shrink: 0;
+    gap: 8px;
 }
 
 #chat-input-field {
     flex-grow: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
+    padding: 10px 14px;
     border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
     resize: none;
-    margin-right: 10px;
-    font-size: 0.95rem;
-    max-height: 80px; /* Begrenze die Höhe */
-    overflow-y: auto;
+    font-family: inherit;
+    font-size: 1rem;
+    max-height: 100px;
+    min-height: 42px;
+    line-height: 1.3;
+}
+
+#chat-input-field:focus {
+    border-color: var(--accent);
+    outline: none;
 }
 
 .send-btn {
     background: var(--accent);
     color: white;
     border: none;
-    padding: 0 15px;
-    border-radius: 20px;
-    font-weight: 600;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     cursor: pointer;
-    min-width: 60px; /* Mindestbreite für Senden */
-    transition: background 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 0;
+    margin: 0;
+    flex-shrink: 0;
 }
 
 .send-btn:disabled {
     background: #ccc;
-    cursor: not-allowed;
+    box-shadow: none;
 }
-  
+
 /* =======================================
-   📱 MOBILE
+   📱 MOBILE & RESPONSIVE TWEAKS
 ======================================= */
 @media (max-width: 480px) {
   header { padding: 0.6rem 1rem; font-size: 1.1rem; }
-  header .logo { height: 28px; }
-
-  main { padding-bottom: 4.5rem; }
-
-  button, input[type="text"], input[type="email"], input[type="password"] {
-    width: 100%; font-size: 1.1rem; padding: 1rem;
-  }
-
-  .link button {
-    width: 100%;
-    padding: 1rem 0;
-    font-size: 1rem;
+  main { padding-bottom: 70px; }
+  
+  /* Chat nochmals zwingen Fullscreen zu sein falls kleine Screens zicken */
+  .mobile-chat-app {
+      height: calc(100vh - 50px - 60px) !important; 
   }
 }
 </style>
@@ -2219,6 +2149,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
