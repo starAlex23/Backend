@@ -1549,11 +1549,19 @@ app.post('/api/sichere-aktion', authMiddleware, csrfMiddleware, async (req, res)
 
 // Refresh Token Endpoint
 app.post('/api/refresh', async (req, res) => {
-  const allowedOrigin = process.env.CORS_ORIGIN;
-  const origin = req.get('Origin');
-  if (!origin || origin !== allowedOrigin) {
-    return sendError(res, 403, 'Ungültiger Origin');
-  }
+    const allowedOrigin = process.env.CORS_ORIGIN; // Z.B.: https://meine-cross-origin-domain.com
+    const origin = req.get('Origin'); // Der Origin, den der Browser sendet
+
+    // 1. Definiere die zulässigen Bedingungen
+    const isOriginValid = (
+        !origin || // Bedingung 1: Origin fehlt (kann bei Same-Site vorkommen)
+        origin === allowedOrigin // Bedingung 2: Origin stimmt mit dem erlaubten Cross-Origin überein
+    );
+
+    if (!isOriginValid) {
+        // Der Request wurde von einem Origin gesendet, der weder erlaubt ist noch die Same-Site-Regel erfüllt.
+        return sendError(res, 403, 'Ungültiger Origin.');
+    }
 
   const refreshToken = req.cookies.refreshToken;
   if (!refreshToken) return sendError(res, 401, 'Kein Refresh-Token gefunden.');
@@ -2369,6 +2377,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
