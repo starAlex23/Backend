@@ -1802,6 +1802,49 @@ app.post('/api/chat/init/:userId', authMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Serverfehler' });
   }
 });
+
+app.get('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) => {
+  const { chatId } = req.params;
+
+  try {
+    const result = await pool.query(`
+      SELECT m.id, m.chat_id, m.sender_id, u.vorname AS sender_name, m.message AS text, m.created_at
+      FROM chat_messages m
+      LEFT JOIN users u ON m.sender_id = u.id
+      WHERE m.chat_id = $1
+      ORDER BY m.created_at ASC
+    `, [chatId]);
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error("Fehler beim Laden der Chatnachrichten:", err);
+    sendError(res, 500, "Fehler beim Laden der Chatnachrichten.");
+  }
+});
+
+app.post('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) => {
+  const { chatId } = req.params;
+  const { message } = req.body;
+  const senderId = req.user.id;
+
+  if (!message) return sendError(res, 400, "Nachricht darf nicht leer sein.");
+
+  try {
+    const result = await pool.query(`
+      INSERT INTO chat_messages (chat_id, sender_id, message)
+      VALUES ($1, $2, $3)
+      RETURNING id, chat_id, sender_id, message AS text, created_at
+    `, [chatId, senderId, message]);
+
+    res.json(result.rows[0]);
+
+  } catch (err) {
+    console.error("Fehler beim Senden der Nachricht:", err);
+    sendError(res, 500, "Fehler beim Senden der Nachricht.");
+  }
+});
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
 app.post('/api/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
@@ -2346,6 +2389,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
