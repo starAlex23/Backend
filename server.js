@@ -1772,55 +1772,66 @@ app.get('/api/users/search', authMiddleware, async (req, res) => {
   }
 });
 
-// 🔹 Chat mit Nutzer starten/abrufen
+// 🔹 Chat mit spezifischem Nutzer starten/abrufen (Peer-to-Peer)
 app.post('/api/chat/init/:userId', authMiddleware, async (req, res) => {
-  const userId = req.params.userId;
-  const adminId = req.user.id; // dein Admin-User
+    const targetUserId = req.params.userId;
+    const currentUserId = req.user.id; // Dein eingeloggter User
 
-  try {
-    // Prüfen, ob Chat existiert
-    let chatRes = await pool.query(`
-      SELECT id FROM chats
-      WHERE (user1_id=$1 AND user2_id=$2) OR (user1_id=$2 AND user2_id=$1)
-    `, [adminId, userId]);
-
-    let chatId;
-    if (chatRes.rows.length > 0) {
-      chatId = chatRes.rows[0].id;
-    } else {
-      // neuen Chat erstellen
-      chatRes = await pool.query(`
-        INSERT INTO chats (user1_id, user2_id, name) VALUES ($1, $2, $3) RETURNING id
-      `, [adminId, userId, 'Chat']);
-      chatId = chatRes.rows[0].id;
+    if (currentUserId.toString() === targetUserId) {
+        return sendError(res, 400, 'Du kannst keinen Chat mit dir selbst starten.');
     }
 
-    res.json({ chatId });
+    try {
+        // Prüfen, ob Chat existiert (unabhängig von user1/user2 Reihenfolge)
+        let chatRes = await pool.query(`
+            SELECT id FROM chats
+            WHERE (user1_id=$1 AND user2_id=$2) OR (user1_id=$2 AND user2_id=$1)
+        `, [currentUserId, targetUserId]);
 
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+        let chatId;
+        if (chatRes.rows.length > 0) {
+            chatId = chatRes.rows[0].id;
+        } else {
+            // Neuen Chat erstellen
+            chatRes = await pool.query(`
+                INSERT INTO chats (user1_id, user2_id, name) VALUES ($1, $2, $3) RETURNING id
+            `, [currentUserId, targetUserId, '1:1 Chat']);
+            chatId = chatRes.rows[0].id;
+        }
+
+        res.json({ chatId });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Serverfehler beim Initialisieren des Chats.' });
+    }
 });
 
+// 🔹 Chat-Nachrichten abrufen (Rolle des Senders inklusive)
 app.get('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) => {
-  const { chatId } = req.params;
+    const { chatId } = req.params;
 
-  try {
-    const result = await pool.query(`
-      SELECT m.id, m.chat_id, m.sender_id, u.vorname AS sender_name, m.message AS text, m.created_at
-      FROM chat_messages m
-      LEFT JOIN users u ON m.sender_id = u.id
-      WHERE m.chat_id = $1
-      ORDER BY m.created_at ASC
-    `, [chatId]);
+    try {
+        const result = await pool.query(`
+            SELECT 
+                m.id, 
+                m.chat_id, 
+                m.sender_id, 
+                u.vorname AS sender_name, 
+                u.rolle AS sender_rolle, 
+                m.message AS text, 
+                m.created_at
+            FROM chat_messages m
+            LEFT JOIN users u ON m.sender_id = u.id
+            WHERE m.chat_id = $1
+            ORDER BY m.created_at ASC
+        `, [chatId]);
 
-    res.json(result.rows);
-
-  } catch (err) {
-    console.error("Fehler beim Laden der Chatnachrichten:", err);
-    sendError(res, 500, "Fehler beim Laden der Chatnachrichten.");
-  }
+        res.json(result.rows);
+    } catch (err) {
+        console.error("Fehler beim Laden der Chatnachrichten:", err);
+        sendError(res, 500, "Fehler beim Laden der Chatnachrichten.");
+    }
 });
 
 app.post('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) => {
@@ -1845,6 +1856,29 @@ app.post('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) =
   }
 });
 
+// 🔹 Alle Admin- und Vorarbeiter-Kontakte abrufen
+app.get('/api/chat/contacts', authMiddleware, async (req, res) => {
+    // Schließe den eingeloggten Benutzer selbst aus
+    const userId = req.user.id; 
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                id, 
+                vorname, 
+                nachname, 
+                rolle
+            FROM users
+            WHERE rolle IN ('admin', 'vorarbeiter') AND id != $1
+            ORDER BY rolle DESC, nachname ASC
+        `, [userId]);
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Fehler beim Abrufen der Chat-Kontakte:', err);
+        sendError(res, 500, 'Serverfehler beim Laden der Kontakte.');
+    }
+});
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Admin-Funktion: Benutzerrolle ändern (AdminOnly)
 app.post('/api/set-role', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
@@ -2389,6 +2423,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
