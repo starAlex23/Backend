@@ -901,7 +901,8 @@ let lastMessageIds = {};            // Speichert die IDs der bereits geladenen N
 let currentCsrfToken = localStorage.getItem('csrfToken'); // CSRF Token aus LocalStorage laden
 let currentAccessToken = null;      // JWT Access Token (vom Refresh/Login)
 let reloadIntervalId = null;        // ID des Auto-Reload-Intervalls
-
+let lastMessageIds = {};
+  
 // ===================================
 // 2. Hilfsfunktionen
 // ===================================
@@ -1039,6 +1040,12 @@ async function fetchChatMessages(chatId) {
     const { chatMessages } = elems;
     const endpoint = `/api/chat/${chatId}`;
 
+    // WICHTIG: Prüfen, ob dieser Chat noch aktiv ist, bevor wir rendern
+    if (chatId !== activeChat) {
+        console.warn('Chat-Nachrichten ignoriert, da nicht mehr aktiv.');
+        return;
+    }
+
     try {
         const tokens = await ensureCsrfToken(); // Tokens sicherstellen
         
@@ -1061,15 +1068,15 @@ async function fetchChatMessages(chatId) {
             lastMessageIds[chatId].add(msg.id);
             
             // Absender-Klasse bestimmen
-    const senderClass = msg.sender_id === userId ? 'user' : 'other';
-    
-    // ⚠️ Angepasster Nachrichteninhalt: Name und Rolle anzeigen
-    const content = msg.sender_id !== userId
-        ? `<strong>${msg.sender_name || 'System'}</strong> (${msg.sender_rolle || 'Arbeiter'}): ${msg.text}`
-        : msg.text;
-    
-    addMessage(content, senderClass, chatMessages, msg.id);
-    newMessagesAdded = true;
+        const senderClass = msg.sender_id === userId ? 'user' : 'other';
+        
+        // ⚠️ Angepasster Nachrichteninhalt: Name und Rolle anzeigen
+        const content = msg.sender_id !== userId
+            ? `<strong>${msg.sender_name || 'System'}</strong> (${msg.sender_rolle || 'Arbeiter'}): ${msg.text}`
+            : msg.text;
+        
+        addMessage(content, senderClass, chatMessages, msg.id);
+        newMessagesAdded = true;
 });
         
         if(newMessagesAdded) {
@@ -1142,6 +1149,9 @@ async function loadChatSidebar() {
 async function initiateChat(targetUserId, chatName) {
     showLoading(); // Ladeanzeige starten
 
+    // Den Zustand des aktuell aktiven Chats zurücksetzen, falls einer offen war
+    deactivateChat(); 
+
     try {
         const tokens = await ensureCsrfToken();
         
@@ -1193,22 +1203,22 @@ async function handleSendClick() {
     chatSend.disabled = true;
     
     // Temporäre ID für das Optimistic Update
-    const tempId = Date.now().toString(); 
+    const tempId = Date.now().toString();  
     
     // 1. Optimistic Update: Nachricht sofort anzeigen
-    addMessage(message, 'user', chatMessages, null, tempId); 
+    addMessage(message, 'user', chatMessages, null, tempId);  
     chatInput.value = '';
     chatInput.focus();
     
     try {
-        const tokens = await ensureCsrfToken(); 
+        const tokens = await ensureCsrfToken();  
         
         const res = await fetch(`/api/chat/${activeChat}`, {
             method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'X-CSRF-Token': tokens.csrfToken, 
-                'Authorization': `Bearer ${tokens.accessToken}` 
+            headers: {  
+                'Content-Type': 'application/json',  
+                'X-CSRF-Token': tokens.csrfToken,  
+                'Authorization': `Bearer ${tokens.accessToken}`  
             },
             credentials: 'include',
             body: JSON.stringify({ message })
@@ -1217,7 +1227,7 @@ async function handleSendClick() {
         if (!res.ok) throw new Error(`Sende-Fehler (${res.status})`);
 
         // 2. Erfolg: Lade die neueste Nachricht vom Server (bestätigt die gesendete Nachricht)
-        await fetchChatMessages(activeChat); 
+        await fetchChatMessages(activeChat);  
 
         // 3. Sicherheits-Cleanup: Falls das Duplikat nicht durch fetchChatMessages entfernt wurde
         const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
@@ -1230,12 +1240,12 @@ async function handleSendClick() {
         const tempMsg = chatMessages.querySelector(`.message[data-temp-id="${tempId}"]`);
         if(tempMsg) {
             tempMsg.dataset.status = 'failed';
-            tempMsg.style.backgroundColor = '#fdd'; 
+            tempMsg.style.backgroundColor = '#fdd';  
             tempMsg.querySelector('.message-content').innerHTML += '<span style="color:red; display:block; font-size: 0.75rem;"> [FEHLER] </span>';
         }
     } finally {
         chatSend.disabled = false;
-        chatInput.style.height = 'auto'; 
+        chatInput.style.height = 'auto';  
     }
 }
 
@@ -1247,21 +1257,21 @@ async function handleSendClick() {
  * Setzt den aktuellen Chat, leert die UI und startet den Auto-Reload.
  * @param {string} chatId - Die ID des zu aktivierenden Chats.
  */
-function activateChat(chatId) {
+function activateChat(chatId, chatName) {
     const elems = getChatElements();
     if (!elems) return;
     const { chatHeaderTitle, chatInput, chatSend, chatMessages } = elems;
 
     // UI-Vorbereitung
-    if(chatHeaderTitle) chatHeaderTitle.textContent = 'Admin Chat'; 
-    if(chatMessages) chatMessages.innerHTML = ''; 
+    if(chatHeaderTitle) chatHeaderTitle.textContent = chatName || 'Admin Chat'; // Verwende den übergebenen Namen
+    if(chatMessages) chatMessages.innerHTML = '';  // WICHTIG: UI leeren, um alten Inhalt zu entfernen
     if (chatInput && chatSend) {
         chatInput.disabled = false;
         chatSend.disabled = false;
-        chatInput.placeholder = "Nachricht an den Admin...";
+        chatInput.placeholder = `Nachricht an ${chatName}...`;
     }
 
-    // Altes Intervall stoppen, um Duplikate zu verhindern
+    // Altes Intervall stoppen, um Duplikate zu verhindern (sollte durch deactivateChat bereits geschehen sein, aber zur Sicherheit)
     if (reloadIntervalId) {
         clearInterval(reloadIntervalId);
     }
@@ -1278,7 +1288,33 @@ function activateChat(chatId) {
 }
 
 // ===================================
-// 6. DOM Ready & Event Listeners
+// 6. Chat deaktivieren / Zustand zurücksetzen
+// ===================================
+
+/**
+ * Setzt den Chat-Zustand zurück (Intervall stoppen, IDs löschen).
+ */
+function deactivateChat() {
+    if (reloadIntervalId) {
+        clearInterval(reloadIntervalId);
+        reloadIntervalId = null;
+    }
+    
+    // WICHTIG: Den Cache für den aktiven Chat leeren, damit beim erneuten Öffnen alles neu geladen wird.
+    if (activeChat && lastMessageIds[activeChat]) {
+        delete lastMessageIds[activeChat];
+    }
+
+    activeChat = null;
+    const elems = getChatElements();
+    if (elems && elems.chatMessages) {
+        elems.chatMessages.innerHTML = '';
+    }
+}
+
+
+// ===================================
+// 7. DOM Ready & Event Listeners
 // ===================================
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -1295,16 +1331,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (localStorage.getItem('csrfToken')) {
         try {
             // Ruft ensureCsrfToken auf, um die Session zu validieren
-            const tokens = await ensureCsrfToken(); 
+            const tokens = await ensureCsrfToken();  
             
             // Wenn der Token-Check erfolgreich ist: 
             // Hier müssten Sie das App-UI anzeigen (z.B. document.getElementById('app-view').classList.remove('hidden');)
             
             // Automatische Aktivierung des Chats, wenn eine gültige ID vorliegt (optional)
             if (initialChatId && initialChatId !== activeChat) {
-                 // activateChat(initialChatId); 
-                 // WICHTIG: Die activateChat Logik sollte hier wahrscheinlich nicht automatisch laufen,
-                 // sondern nur, wenn der Benutzer auf das Chat-Element klickt.
+                    // activateChat(initialChatId);  
+                    // WICHTIG: Die activateChat Logik sollte hier wahrscheinlich nicht automatisch laufen,
+                    // sondern nur, wenn der Benutzer auf das Chat-Element klickt.
             }
             
         } catch (error) {
@@ -1317,8 +1353,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- B. Event Listener binden ---
 
     // 1. Senden-Button
-    if (chatSend) { 
-        chatSend.addEventListener('click', handleSendClick); 
+    if (chatSend) {  
+        chatSend.addEventListener('click', handleSendClick);  
     }
     
     // 2. Chat-Input: Enter & Auto-Resize
@@ -1331,7 +1367,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         chatInput.addEventListener('input', () => {
-            chatInput.style.height = 'auto'; 
+            chatInput.style.height = 'auto';  
             chatInput.style.height = chatInput.scrollHeight + 'px';
         });
     }
@@ -1340,20 +1376,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const chatSidebarItem = document.querySelector('.chat-sidebar-item[data-chat-id]');
     if(chatSidebarItem) {
         chatSidebarItem.addEventListener('click', () => {
-             const targetChatId = chatSidebarItem.dataset.chatId;
-             // UI-Wechsel (Muss zu Ihrer Haupt-App-Logik passen)
-             document.getElementById('chat-list-section').classList.remove('active');
-             document.getElementById('chat-main').classList.add('active');
-             activateChat(targetChatId); 
+              const targetChatId = chatSidebarItem.dataset.chatId;
+              // UI-Wechsel (Muss zu Ihrer Haupt-App-Logik passen)
+              document.getElementById('chat-list-section').classList.remove('active');
+              document.getElementById('chat-main').classList.add('active');
+              activateChat(targetChatId);  
         });
     }
 
-    // 4. Zurück-Button
+    // 4. Zurück-Button (FIX: Fügt deactivateChat hinzu)
     const backBtn = document.getElementById('back-to-list-btn');
     if(backBtn) {
         backBtn.addEventListener('click', () => {
-             document.getElementById('chat-main').classList.remove('active');
-             document.getElementById('chat-list-section').classList.add('active');
+              // 🚨 WICHTIG: Zustand zurücksetzen, um Neuladen zu erzwingen
+              deactivateChat(); 
+              document.getElementById('chat-main').classList.remove('active');
+              document.getElementById('chat-list-section').classList.add('active');
         });
     }
 });
@@ -2394,6 +2432,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
