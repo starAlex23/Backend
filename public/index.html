@@ -1761,121 +1761,122 @@ async function hideQrGate() {
   
 // Haupt-Fetch mit automatischem Token-Refresh, CSRF-Token und Auth-Header
 async function apiFetch(path, options = {}) {
-  const method = (options.method || 'GET').toUpperCase();
-  const writeMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
+    const method = (options.method || 'GET').toUpperCase();
+    const writeMethods = ['POST', 'PUT', 'DELETE', 'PATCH'];
 
-  options = { ...options };
-  options.headers = options.headers || {};
-  options.credentials = 'include'; // wichtig für Cookies
+    options = { ...options };
+    options.headers = options.headers || {};
+    options.credentials = 'include'; // wichtig für Cookies
 
-  // CSRF-Header bei schreibenden Requests
-  if (writeMethods.includes(method)) {
-    if (!options.headers['Content-Type']) {
-      options.headers['Content-Type'] = 'application/json';
+    // CSRF-Header bei schreibenden Requests
+    if (writeMethods.includes(method)) {
+        if (!options.headers['Content-Type']) {
+            options.headers['Content-Type'] = 'application/json';
+        }
+
+        if (csrfToken) {
+            options.headers['X-CSRF-Token'] = csrfToken;
+        } else {
+            console.warn('⚠️ Kein CSRF-Token vorhanden.');
+        }
     }
 
-    if (csrfToken) {
-      options.headers['X-CSRF-Token'] = csrfToken;
-    } else {
-      console.warn('⚠️ Kein CSRF-Token vorhanden.');
-    }
-  }
+    const url = path.startsWith('http') ? path : (API_BASE_URL + path);
 
-  const url = path.startsWith('http') ? path : (API_BASE_URL + path);
+    const fetchWithCookies = () => fetch(url, options);
 
-  const fetchWithCookies = () => fetch(url, options);
+    let response = await fetchWithCookies();
 
-  let response = await fetchWithCookies();
-
-  // Falls AccessToken abgelaufen → versuche Refresh
-  if (response.status === 401) {
-    const refreshRes = await fetch(`${API_BASE_URL}/api/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-
-    if (!refreshRes.ok) {
-      throw new Error('Login abgelaufen. Bitte neu einloggen.');
-    }
-
-    // Neuen CSRF-Token übernehmen (optional)
-    const data = await refreshRes.json().catch(() => null);
-    if (data?.csrfToken) {
-      csrfToken = data.csrfToken;
-      localStorage.setItem('csrfToken', csrfToken);
-    }
-
-    // Wiederhole ursprünglichen Request
-    response = await fetchWithCookies();
-
+    // Falls AccessToken abgelaufen → versuche Refresh
     if (response.status === 401) {
-      throw new Error('Token-Refresh gescheitert. Bitte neu einloggen.');
+        const refreshRes = await fetch(`${API_BASE_URL}/api/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+        });
+
+        if (!refreshRes.ok) {
+            throw new Error('Login abgelaufen. Bitte neu einloggen.');
+        }
+
+        // Neuen CSRF-Token übernehmen (optional)
+        const data = await refreshRes.json().catch(() => null);
+        if (data?.csrfToken) {
+            csrfToken = data.csrfToken;
+            localStorage.setItem('csrfToken', csrfToken);
+        }
+
+        // Wiederhole ursprünglichen Request
+        response = await fetchWithCookies();
+
+        if (response.status === 401) {
+            throw new Error('Token-Refresh gescheitert. Bitte neu einloggen.');
+        }
     }
-  }
 
-  if (!response.ok) {
-  let code = 'HTTP_ERROR';
-  let message = `Fehler: HTTP ${response.status}`;
-  try {
-    const err = await response.json();
-    code = err?.code || code;
-    message = err?.error || err?.message || message;
-  } catch {}
+    if (!response.ok) {
+        let code = 'HTTP_ERROR';
+        let message = `Fehler: HTTP ${response.status}`;
+        try {
+            const err = await response.json();
+            code = err?.code || code;
+            message = err?.error || err?.message || message;
+        } catch {}
 
-  throw { code, message };
-}
+        throw { code, message };
+    }
 
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
+    try {
+        return await response.json();
+    } catch {
+        return {};
+    }
 }
   
 // Login-Funktion: speichert Access- und CSRF-Token
 async function login(email, passwort) {
-  if (!email || !passwort) {
-    throw { code: 'MISSING_FIELDS', message: 'Bitte Email und Passwort ausfüllen!' };
-  }
-
-  try {
-    const res = await apiFetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, passwort }),
-    });
-
-    if (!res.user) {
-      throw { code: 'NO_USER', message: 'Login erfolgreich, aber kein Benutzerobjekt erhalten.' };
+    if (!email || !passwort) {
+        throw { code: 'MISSING_FIELDS', message: 'Bitte Email und Passwort ausfüllen!' };
     }
 
-    console.log('✅ Eingeloggt:', res.user);
+    try {
+        const res = await apiFetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, passwort }),
+        });
 
-    if (res.csrfToken) {
-      localStorage.setItem('csrfToken', res.csrfToken);
-      csrfToken = res.csrfToken;
-    }
+        if (!res.user) {
+            throw { code: 'NO_USER', message: 'Login erfolgreich, aber kein Benutzerobjekt erhalten.' };
+        }
 
-    loggedInUser = res.user;
+        console.log('✅ Eingeloggt:', res.user);
 
-    isVorarbeiterGlobal = res.user.rolle === 'vorarbeiter';
-    if (isVorarbeiterGlobal) {
-      console.log('Vorarbeiter eingeloggt → QR-Skip aktiv');
-    }
+        if (res.csrfToken) {
+            localStorage.setItem('csrfToken', res.csrfToken);
+            csrfToken = res.csrfToken;
+        }
 
-   await updateUIAfterLogin(res.user);
+        loggedInUser = res.user;
+
+        // 💡 KORREKTUR: ADMIN hat dieselben Rechte wie Vorarbeiter
+        isVorarbeiterGlobal = res.user.rolle === 'vorarbeiter' || res.user.rolle === 'admin';
+        if (isVorarbeiterGlobal) {
+            console.log('Vorarbeiter/Admin eingeloggt → QR-Skip/Admin-Funktionen aktiv');
+        }
+
+        await updateUIAfterLogin(res.user);
         
         // 🆕 NEU: Chat-Sidebar nach erfolgreichem Login laden
         await loadChatSidebar(currentUserId);
 
-  } catch (err) {
-    if (err?.code === 'EMAIL_NOT_VERIFIED') {
-      throw err; // gezielt weiterreichen
-    }
+    } catch (err) {
+        if (err?.code === 'EMAIL_NOT_VERIFIED') {
+            throw err; // gezielt weiterreichen
+        }
 
-    const message = err?.message || 'Unbekannter Fehler beim Login.';
-    throw { code: 'LOGIN_FAILED', message };
-  }
+        const message = err?.message || 'Unbekannter Fehler beim Login.';
+        throw { code: 'LOGIN_FAILED', message };
+    }
 }
   
 loginForm.addEventListener('submit', async (event) => {
@@ -1942,58 +1943,58 @@ resendBtn.addEventListener('click', async () => {
 });
   
 async function updateProfile() {
-  try {
-    const user = await apiFetch('/api/me', {}, true);  // optional: mit Authorization
-    loggedInUser = user;
-   
-    updateUIAfterLogin(user); // ⬅️ hier Übergabe fixen!
-  } catch (err) {
-    console.error('Profil konnte nicht geladen werden:', err);
-    handleLogoutCleanup();
-  }
+    try {
+        const user = await apiFetch('/api/me', {}, true); // optional: mit Authorization
+        loggedInUser = user;
+        
+        updateUIAfterLogin(user); // ⬅️ hier Übergabe fixen!
+    } catch (err) {
+        console.error('Profil konnte nicht geladen werden:', err);
+        handleLogoutCleanup();
+    }
 }
   
 // === Sections anzeigen ===
 function showSection(section) {
-  if (!section) {
-    console.error("❌ showSection: Übergabe-Section ist null oder undefiniert!");
-    return;
-  }
-
-  // Falls String übergeben wurde → DOM-Element holen
-  if (typeof section === 'string') {
-    const el = document.getElementById(section);
-    if (!el) {
-      console.error("❌ showSection: Kein Element gefunden mit ID:", section);
-      return;
+    if (!section) {
+        console.error("❌ showSection: Übergabe-Section ist null oder undefiniert!");
+        return;
     }
-    section = el;
-  }
 
-  // Alle ".view"-Sektionen im #app-view ausblenden
-  const appView = document.getElementById('app-view');
-  if (appView) {
-    appView.querySelectorAll('.view').forEach(sec => {
-      sec.classList.add('hidden');
-      sec.setAttribute('aria-hidden', 'true');
-    });
-  }
+    // Falls String übergeben wurde → DOM-Element holen
+    if (typeof section === 'string') {
+        const el = document.getElementById(section);
+        if (!el) {
+            console.error("❌ showSection: Kein Element gefunden mit ID:", section);
+            return;
+        }
+        section = el;
+    }
 
-  // Gewünschte Section anzeigen
-  section.classList.remove('hidden');
-  section.setAttribute('aria-hidden', 'false');
+    // Alle ".view"-Sektionen im #app-view ausblenden
+    const appView = document.getElementById('app-view');
+    if (appView) {
+        appView.querySelectorAll('.view').forEach(sec => {
+            sec.classList.add('hidden');
+            sec.setAttribute('aria-hidden', 'true');
+        });
+    }
+
+    // Gewünschte Section anzeigen
+    section.classList.remove('hidden');
+    section.setAttribute('aria-hidden', 'false');
 }
 
- function showPopupMessage(msg, duration = 3000) {
-  const popup = document.getElementById('popup-message');
-  popup.textContent = msg;
-  popup.classList.remove('hidden');
+function showPopupMessage(msg, duration = 3000) {
+    const popup = document.getElementById('popup-message');
+    popup.textContent = msg;
+    popup.classList.remove('hidden');
 
-  setTimeout(() => {
-    popup.classList.add('hidden');
-  }, duration);
+    setTimeout(() => {
+        popup.classList.add('hidden');
+    }, duration);
 }
-
+  
 // === Helper Funktionen zur Base64-URL-Konvertierung (für WebAuthn) ===
 function base64urlToUint8Array(base64urlString) {
   const padding = '='.repeat((4 - (base64urlString.length % 4)) % 4);
@@ -2017,99 +2018,103 @@ function toBase64Url(buffer) {
 
 // === UI Aktualisierung nach Login ===
 async function updateUIAfterLogin(user) {
-  console.log("🔐 updateUIAfterLogin aufgerufen:", user);
+    console.log("🔐 updateUIAfterLogin aufgerufen:", user);
 
-  if (!user) {
-    console.warn('⚠️ Kein Benutzerobjekt übergeben an updateUIAfterLogin');
-    return;
-  }
-
-  loggedInUser = user;
-  isVorarbeiterGlobal = user.rolle === 'vorarbeiter';
-  qrScanErfolgt = isVorarbeiterGlobal; // Vorarbeiter brauchen kein QR-Gate
-
-  // Benutzername anzeigen
-  const nameEl = document.getElementById('user-name');
-  if (nameEl) {
-    nameEl.textContent = user.name || user.email || 'Benutzer';
-  }
-
-  // Auth-Container ausblenden
-  const authContainer = document.getElementById('auth-container');
-  if (authContainer) {
-    authContainer.classList.add('hidden');
-    authContainer.setAttribute('aria-hidden', 'true');
-  }
-
-  // App-Ansicht anzeigen
-  const appView = document.getElementById('app-view');
-  if (appView) {
-    appView.classList.remove('hidden');
-    appView.setAttribute('aria-hidden', 'false');
-  }
-
-  // QR-Generator (nur für Vorarbeiter)
-  const qrGen = document.getElementById('qr-generator-container');
-  if (qrGen) {
-    qrGen.classList.toggle('hidden', !isVorarbeiterGlobal);
-    qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
-  }
-
-  // QR-Reader (nur für normale Nutzer)
-  const qrReader = document.getElementById('qr-reader');
-  if (qrReader) {
-    qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
-    qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
-  }
-
-  // QR-Section ggf. entfernen (für Vorarbeiter)
-  const qrSection = document.getElementById('qr-section');
-  if (isVorarbeiterGlobal && qrSection) {
-    qrSection.remove();
-  }
-
-  // Navigation & Logout anzeigen
-  if (logoutBtn) logoutBtn.classList.remove('hidden');
-  const bottomNav = document.getElementById('bottom-nav');
-  if (bottomNav) bottomNav.classList.remove('hidden');
-
-  // === QR-Logik & Sichtbare Section ===
-  if (isVorarbeiterGlobal || qrScanErfolgt) {
-    await hideQrGate();
-    showSection('zeiterfassung-section');
-  } else {
-    await showQrGate();
-    showSection('qr-section');
-  }
-
-  // === Aktuellen Zeitstatus vom Server holen ===
-  try {
-    const status = await apiFetch('/api/zeit/letzter-status');
-    const eingestempelt = status.eingestempelt;
-    const letzteAktion = status.letzteAktion; // z.B. 'start', 'stop', 'pause'
-
-    const timeMessage = document.getElementById('time-message');
-
-    if (eingestempelt) {
-      console.log("✅ Bereits eingestempelt (letzte Aktion):", letzteAktion);
-      if (clockInBtn) clockInBtn.disabled = true;
-      if (clockOutBtn) clockOutBtn.disabled = false;
-      if (timeMessage) {
-        timeMessage.textContent = `Du bist aktuell eingestempelt (letzte Aktion: ${letzteAktion}).`;
-      }
-    } else {
-      console.log("🕒 Noch nicht eingestempelt.");
-      if (clockInBtn) clockInBtn.disabled = false;
-      if (clockOutBtn) clockOutBtn.disabled = true;
-      if (timeMessage) {
-        timeMessage.textContent = "Noch nicht eingestempelt.";
-      }
+    if (!user) {
+        console.warn('⚠️ Kein Benutzerobjekt übergeben an updateUIAfterLogin');
+        return;
     }
-  } catch (err) {
-    console.error("❌ Fehler beim Laden des Zeitstatus:", err);
-    const timeMessage = document.getElementById('time-message');
-    if (timeMessage) timeMessage.textContent = "Fehler beim Laden des Zeitstatus.";
-  }
+
+    loggedInUser = user;
+    // 💡 KORREKTUR: ADMIN hat dieselben Rechte wie Vorarbeiter
+    isVorarbeiterGlobal = user.rolle === 'vorarbeiter' || user.rolle === 'admin';
+    qrScanErfolgt = isVorarbeiterGlobal; // Vorarbeiter/Admin brauchen kein QR-Gate
+
+    // Benutzername anzeigen
+    const nameEl = document.getElementById('user-name');
+    if (nameEl) {
+        nameEl.textContent = user.name || user.email || 'Benutzer';
+    }
+
+    // Auth-Container ausblenden
+    const authContainer = document.getElementById('auth-container');
+    if (authContainer) {
+        authContainer.classList.add('hidden');
+        authContainer.setAttribute('aria-hidden', 'true');
+    }
+
+    // App-Ansicht anzeigen
+    const appView = document.getElementById('app-view');
+    if (appView) {
+        appView.classList.remove('hidden');
+        appView.setAttribute('aria-hidden', 'false');
+    }
+
+    // QR-Generator (nur für Vorarbeiter/Admin)
+    const qrGen = document.getElementById('qr-generator-container');
+    if (qrGen) {
+        qrGen.classList.toggle('hidden', !isVorarbeiterGlobal);
+        qrGen.setAttribute('aria-hidden', String(!isVorarbeiterGlobal));
+    }
+
+    // QR-Reader (nur für normale Nutzer)
+    const qrReader = document.getElementById('qr-reader');
+    if (qrReader) {
+        qrReader.classList.toggle('hidden', isVorarbeiterGlobal);
+        qrReader.setAttribute('aria-hidden', String(isVorarbeiterGlobal));
+    }
+
+    // QR-Section ggf. entfernen (für Vorarbeiter/Admin)
+    const qrSection = document.getElementById('qr-section');
+    if (isVorarbeiterGlobal && qrSection) {
+        // Beim ersten Mal entfernen, danach ist es weg.
+        if (qrSection.parentNode) {
+             qrSection.remove();
+        }
+    }
+
+    // Navigation & Logout anzeigen
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+    const bottomNav = document.getElementById('bottom-nav');
+    if (bottomNav) bottomNav.classList.remove('hidden');
+
+    // === QR-Logik & Sichtbare Section ===
+    if (isVorarbeiterGlobal || qrScanErfolgt) {
+        await hideQrGate();
+        showSection('zeiterfassung-section');
+    } else {
+        await showQrGate();
+        showSection('qr-section');
+    }
+
+    // === Aktuellen Zeitstatus vom Server holen ===
+    try {
+        const status = await apiFetch('/api/zeit/letzter-status');
+        const eingestempelt = status.eingestempelt;
+        const letzteAktion = status.letzteAktion; // z.B. 'start', 'stop', 'pause'
+
+        const timeMessage = document.getElementById('time-message');
+
+        if (eingestempelt) {
+            console.log("✅ Bereits eingestempelt (letzte Aktion):", letzteAktion);
+            if (clockInBtn) clockInBtn.disabled = true;
+            if (clockOutBtn) clockOutBtn.disabled = false;
+            if (timeMessage) {
+                timeMessage.textContent = `Du bist aktuell eingestempelt (letzte Aktion: ${letzteAktion}).`;
+            }
+        } else {
+            console.log("🕒 Noch nicht eingestempelt.");
+            if (clockInBtn) clockInBtn.disabled = false;
+            if (clockOutBtn) clockOutBtn.disabled = true;
+            if (timeMessage) {
+                timeMessage.textContent = "Noch nicht eingestempelt.";
+            }
+        }
+    } catch (err) {
+        console.error("❌ Fehler beim Laden des Zeitstatus:", err);
+        const timeMessage = document.getElementById('time-message');
+        if (timeMessage) timeMessage.textContent = "Fehler beim Laden des Zeitstatus.";
+    }
 }
 
 // === Logout Cleanup ===
@@ -2389,6 +2394,7 @@ function setActiveNavButton(activeBtn) {
 
 </body>
 </html>
+
 
 
 
