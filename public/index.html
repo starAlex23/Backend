@@ -895,7 +895,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ===================================
 // 1. Globale Zustandsvariablen
 // ===================================
-let activeChat = 'DEFAULT_USER_CHAT_ID'; // ⚠️ MUSS durch die tatsächliche Chat-ID ersetzt werden
+let activeChat = null; // ⚠️ MUSS durch die tatsächliche Chat-ID ersetzt werden
 let currentUserId = null;           // ID des aktuell eingeloggten Benutzers (für "user" vs "other")
 let lastMessageIds = {};            // Speichert die IDs der bereits geladenen Nachrichten pro Chat
 let currentCsrfToken = localStorage.getItem('csrfToken'); // CSRF Token aus LocalStorage laden
@@ -1061,16 +1061,16 @@ async function fetchChatMessages(chatId) {
             lastMessageIds[chatId].add(msg.id);
             
             // Absender-Klasse bestimmen
-            const senderClass = msg.sender_id === userId ? 'user' : 'other';
-            
-            // Nachrichteninhalt (Admin-Nachrichten zeigen den Namen)
-            const content = msg.sender_id !== userId 
-                ? `<strong>${msg.sender_name || 'Admin'}:</strong> ${msg.text}` 
-                : msg.text;
-            
-            addMessage(content, senderClass, chatMessages, msg.id);
-            newMessagesAdded = true;
-        });
+    const senderClass = msg.sender_id === userId ? 'user' : 'other';
+    
+    // ⚠️ Angepasster Nachrichteninhalt: Name und Rolle anzeigen
+    const content = msg.sender_id !== userId
+        ? `<strong>${msg.sender_name || 'System'}</strong> (${msg.sender_rolle || 'Arbeiter'}): ${msg.text}`
+        : msg.text;
+    
+    addMessage(content, senderClass, chatMessages, msg.id);
+    newMessagesAdded = true;
+});
         
         if(newMessagesAdded) {
             scrollToBottom(chatMessages);
@@ -1084,6 +1084,100 @@ async function fetchChatMessages(chatId) {
     }
 }
 
+//Lädt Admin-Kontakte und injiziert sie in die Sidebar.
+async function loadChatSidebar() {
+    const elems = getChatElements();
+    if (!elems || !elems.sidebarList) return;
+    
+    elems.sidebarList.innerHTML = '<li class="loading-item">Lade Kontakte...</li>';
+
+    try {
+        const tokens = await ensureCsrfToken();
+        
+        // 1. Kontakte vom Backend laden
+        const res = await fetch(`/api/chat/contacts`, {
+            headers: { 'Authorization': `Bearer ${tokens.accessToken}` },
+            credentials: 'include'
+        });
+        
+        if (!res.ok) throw new Error('Fehler beim Laden der Kontakte');
+
+        const contacts = await res.json();
+        elems.sidebarList.innerHTML = '';
+        
+        if (contacts.length === 0) {
+            elems.sidebarList.innerHTML = '<li class="info-item">Keine Admin-Kontakte gefunden.</li>';
+            return;
+        }
+
+        // 2. Kontakte in die Sidebar rendern
+        contacts.forEach(user => {
+            const li = document.createElement('li');
+            li.classList.add('chat-sidebar-item');
+            li.dataset.userId = user.id;
+            li.innerHTML = `
+                <div class="contact-name">${user.vorname} ${user.nachname}</div>
+                <div class="contact-role">(${user.rolle})</div>
+            `;
+            
+            // 3. Event Listener für Chat-Initialisierung hinzufügen
+            li.addEventListener('click', () => {
+                initiateChat(user.id, `${user.vorname} (${user.rolle})`);
+            });
+
+            elems.sidebarList.appendChild(li);
+        });
+
+    } catch (error) {
+        console.error('Fehler beim Laden der Sidebar:', error);
+        elems.sidebarList.innerHTML = '<li class="error-item">Fehler beim Laden der Kontakte.</li>';
+    }
+}
+
+/**
+ * Ruft die Chat ID für das 1:1 Paar ab oder erstellt sie und aktiviert dann den Chat.
+ * @param {number} targetUserId - Die ID des Gesprächspartners.
+ * @param {string} chatName - Der anzuzeigende Name.
+ */
+async function initiateChat(targetUserId, chatName) {
+    showLoading(); // Ladeanzeige starten
+
+    try {
+        const tokens = await ensureCsrfToken();
+        
+        const res = await fetch(`/api/chat/init/${targetUserId}`, {
+            method: 'POST',
+            headers: { 
+                'Authorization': `Bearer ${tokens.accessToken}`,
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': tokens.csrfToken // CSRF-Token senden
+            },
+            credentials: 'include'
+        });
+        
+        if (!res.ok) throw new Error('Chat-Initialisierung fehlgeschlagen.');
+
+        const data = await res.json();
+        
+        if (data.chatId) {
+            // UI-Wechsel (Muss zu Ihrer Haupt-App-Logik passen)
+            document.getElementById('chat-list-section').classList.remove('active'); // Wenn Sie eine Listenansicht haben
+            document.getElementById('chat-main').classList.add('active'); // Wenn Sie eine Chat-Ansicht haben
+            
+            // 4. Chat aktivieren mit der echten ID
+            activateChat(data.chatId, chatName);
+        } else {
+            throw new Error('Keine Chat ID erhalten.');
+        }
+
+    } catch (error) {
+        console.error('Fehler beim Starten des Chats:', error);
+        alert('Der Chat konnte nicht gestartet werden: ' + error.message);
+    } finally {
+        hideLoading(); // Ladeanzeige beenden
+    }
+}
+  
 // ===================================
 // 4.2 Nachricht senden (mit Optimistic Update)
 // ===================================
@@ -1769,7 +1863,10 @@ async function login(email, passwort) {
       console.log('Vorarbeiter eingeloggt → QR-Skip aktiv');
     }
 
-    await updateUIAfterLogin(res.user);
+   await updateUIAfterLogin(res.user);
+        
+        // 🆕 NEU: Chat-Sidebar nach erfolgreichem Login laden
+        await loadChatSidebar(currentUserId);
 
   } catch (err) {
     if (err?.code === 'EMAIL_NOT_VERIFIED') {
