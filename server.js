@@ -486,9 +486,43 @@ await pool.query(`
       )
     `);
 
+// 1. CHATS: Speichert die 1:1-Beziehung zwischen zwei Benutzern
+await pool.query(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id SERIAL PRIMARY KEY,
+      user1_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      user2_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT, -- Optionaler Name für den Chat (z.B. "1:1 Chat")
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+      -- Stellt sicher, dass es nur einen Chat pro Benutzerpaar gibt
+      UNIQUE(user1_id, user2_id) 
+    )
+`);
+
+// 2. CHAT_MESSAGES: Speichert die Nachrichten
+await pool.query(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id SERIAL PRIMARY KEY,
+      chat_id INTEGER REFERENCES chats(id) ON DELETE CASCADE,
+      sender_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      message TEXT NOT NULL,
+      read_status BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )
+`);
+
+// 3. SYSTEM_MESSAGES: (Falls Sie diese beibehalten wollen, wie besprochen)
+await pool.query(`
+    CREATE TABLE IF NOT EXISTS system_messages (
+      id SERIAL PRIMARY KEY,
+      recipient_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      message_type TEXT NOT NULL,
+      payload JSONB, 
+      is_read BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )
+`);
    
-
-
     // QR-Passwort in settings, falls nicht vorhanden
     const res = await pool.query(`SELECT 1 FROM settings WHERE key = 'qr_password'`);
     if (res.rowCount === 0) {
@@ -1631,72 +1665,72 @@ app.get('/api/zeiten', authMiddleware, csrfMiddleware, adminOnlyMiddleware, asyn
     }
 });
 
-// ===============================
-// 🔧 ADMIN – Registrierungsfreigabe + System-Chat
-// ===============================
+// ====================================================================
+// SYSTEM- & ADMIN-ROUTEN (KEIN ROUTING-KONFLIKT MIT CHAT)
+// ====================================================================
 
 // 🔹 Systemnachrichten abrufen (für Polling)
 app.get('/api/system-messages', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT * FROM system_messages ORDER BY created_at DESC LIMIT 50`
-    );
-    res.json(rows);
-  } catch (err) {
-    console.error('Fehler beim Abrufen der Systemnachrichten:', err);
-    sendError(res, 500, 'Serverfehler beim Abrufen der Systemnachrichten.');
-  }
+    try {
+        const { rows } = await pool.query(
+            `SELECT * FROM system_messages ORDER BY created_at DESC LIMIT 50`
+        );
+        res.json(rows);
+    } catch (err) {
+        console.error('Fehler beim Abrufen der Systemnachrichten:', err);
+        sendError(res, 500, 'Serverfehler beim Abrufen der Systemnachrichten.');
+    }
 });
 
 // 🔹 Neue Systemnachricht hinzufügen (intern genutzt)
 app.post('/api/system-messages', async (req, res) => {
-  const schema = Joi.object({
-    type: Joi.string().required(),
-    payload: Joi.object().required()
-  });
+    const schema = Joi.object({
+        type: Joi.string().required(),
+        payload: Joi.object().required()
+    });
 
-  const { error, value } = schema.validate(req.body);
-  if (error) return res.status(400).json({ error: error.details[0].message });
+    const { error, value } = schema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
 
-  try {
-    const { type, payload } = value;
-    await pool.query(
-      `INSERT INTO system_messages (type, payload)
-       VALUES ($1, $2)`,
-      [type, payload]
-    );
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Fehler beim Speichern der Systemnachricht:', err);
-    res.status(500).json({ error: 'Serverfehler beim Speichern der Nachricht.' });
-  }
+    try {
+        const { type, payload } = value;
+        await pool.query(
+            `INSERT INTO system_messages (type, payload)
+             VALUES ($1, $2)`,
+            [type, payload]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Fehler beim Speichern der Systemnachricht:', err);
+        res.status(500).json({ error: 'Serverfehler beim Speichern der Nachricht.' });
+    }
 });
 
 // 🔹 Systemnachricht als gelesen markieren
 app.post('/api/system-messages/:id/read', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  try {
-    await pool.query('UPDATE system_messages SET read = true WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Fehler beim Markieren als gelesen:', err);
-    sendError(res, 500, 'Fehler beim Markieren als gelesen.');
-  }
+    try {
+        await pool.query('UPDATE system_messages SET is_read = true WHERE id = $1', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Fehler beim Markieren als gelesen:', err);
+        sendError(res, 500, 'Fehler beim Markieren als gelesen.');
+    }
 });
 
 // 🔹 Offene Benutzeranträge abrufen
 app.get('/api/admin/pending-users', authMiddleware, csrfMiddleware, adminOnlyMiddleware, async (req, res) => {
-  try {
-    const result = await pool.query(`
-      SELECT id, vorname, nachname, email, erstellt_am
-      FROM users
-      WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
-      ORDER BY erstellt_am ASC
-    `);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('Fehler beim Abrufen der wartenden Benutzer:', err);
-    sendError(res, 500, 'Fehler beim Abrufen der wartenden Benutzer.');
-  }
+    try {
+        const result = await pool.query(`
+            SELECT id, vorname, nachname, email, created_at
+            FROM users
+            WHERE verifiziert = TRUE AND freigabe_status = 'wartend'
+            ORDER BY created_at ASC
+        `);
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Fehler beim Abrufen der wartenden Benutzer:', err);
+        sendError(res, 500, 'Fehler beim Abrufen der wartenden Benutzer.');
+    }
 });
 
 // 🔹 Benutzerantrag annehmen oder ablehnen
@@ -1719,19 +1753,19 @@ app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMid
             WHERE id = $2
         `, [action, id]);
 
-        // 2. ⚠️ KORREKTUR: Ursprüngliche ANFRAGE-Nachricht als gelesen/erledigt markieren
+        // 2. KORREKTUR: Ursprüngliche ANFRAGE-Nachricht als gelesen/erledigt markieren
         await pool.query(
             `UPDATE system_messages 
-             SET read = true 
-             WHERE type = 'registration_request' AND payload->>'id' = $1`, 
-            [id.toString()]
+            SET is_read = true 
+            WHERE message_type = 'registration_request' AND (payload->>'id')::INT = $1`, // Verwende ::INT, falls id als Zahl gespeichert
+            [id]
         );
 
         // 3. Neue Nachricht über das ERGEBNIS in System-Chat hinzufügen
         await pool.query(
-            `INSERT INTO system_messages (type, payload)
-             VALUES ($1, $2)`,
-            ['approval_result', { id, action, email: user.email, vorname: user.vorname }]
+            `INSERT INTO system_messages (recipient_user_id, message_type, payload)
+             VALUES ($1, $2, $3)`,
+            [id, 'approval_result', { action, email: user.email, vorname: user.vorname }]
         );
 
         // 4. E-Mail senden (falls genehmigt)
@@ -1739,8 +1773,7 @@ app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMid
             await sendEmail({
                 to: user.email,
                 subject: 'Dein Konto wurde freigegeben',
-                html: `<p>Hallo ${user.vorname},</p>
-                       <p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
+                html: `<p>Hallo ${user.vorname},</p><p>Dein Konto wurde von der Verwaltung freigegeben. Du kannst dich jetzt einloggen.</p>`
             });
         }
 
@@ -1754,26 +1787,57 @@ app.post('/api/admin/approve-user', authMiddleware, csrfMiddleware, adminOnlyMid
 
 // 🔹 Nutzer suchen
 app.get('/api/users/search', authMiddleware, async (req, res) => {
-  const term = req.query.term?.toLowerCase();
-  if (!term) return res.json([]);
+    const term = req.query.term?.toLowerCase();
+    if (!term) return res.json([]);
 
-  try {
-    const result = await pool.query(`
-      SELECT id, vorname, nachname, email
-      FROM users
-      WHERE verifiziert = TRUE AND 
-            (LOWER(vorname) LIKE $1 OR LOWER(nachname) LIKE $1 OR LOWER(email) LIKE $1)
-      LIMIT 20
-    `, [`%${term}%`]);
-    res.json(result.rows);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Serverfehler' });
-  }
+    try {
+        const result = await pool.query(`
+            SELECT id, vorname, nachname, email
+            FROM users
+            WHERE verifiziert = TRUE AND 
+                  (LOWER(vorname) LIKE $1 OR LOWER(nachname) LIKE $1 OR LOWER(email) LIKE $1)
+            LIMIT 20
+        `, [`%${term}%`]);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Serverfehler' });
+    }
 });
 
-// 🔹 Chat mit spezifischem Nutzer starten/abrufen (Peer-to-Peer)
-app.post('/api/chat/init/:userId', authMiddleware, async (req, res) => {
+
+// ====================================================================
+// CHAT-ROUTEN (KRITISCHE REIHENFOLGE)
+// ====================================================================
+
+// 1. Spezifische Route: Alle Admin- und Vorarbeiter-Kontakte abrufen
+// DIES MUSS VOR /api/chat/:chatId KOMMEN, um den Routing-Fehler zu vermeiden!
+app.get('/api/chat/contacts', authMiddleware, csrfMiddleware, async (req, res) => {
+    // Schließe den eingeloggten Benutzer selbst aus
+    const userId = req.user.id;
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                id, 
+                vorname, 
+                nachname, 
+                rolle
+            FROM users
+            WHERE rolle IN ('admin', 'vorarbeiter') AND id != $1
+            ORDER BY rolle DESC, nachname ASC
+        `, [userId]);
+        
+        res.json(result.rows);
+    } catch (err) {
+        // Falls hier ein 500er auftritt, liegt es an der DB-Abfrage (z.B. falsche Spaltennamen)
+        console.error('Fehler beim Abrufen der Chat-Kontakte:', err);
+        sendError(res, 500, 'Serverfehler beim Laden der Kontakte.');
+    }
+});
+
+// 2. Spezifische Route: Chat mit spezifischem Nutzer starten/abrufen (Peer-to-Peer)
+app.post('/api/chat/init/:userId', authMiddleware, csrfMiddleware, async (req, res) => {
     const targetUserId = req.params.userId;
     const currentUserId = req.user.id; // Dein eingeloggter User
 
@@ -1807,11 +1871,28 @@ app.post('/api/chat/init/:userId', authMiddleware, async (req, res) => {
     }
 });
 
-// 🔹 Chat-Nachrichten abrufen (Rolle des Senders inklusive)
+
+// 3. Generische Route: Chat-Nachrichten abrufen
+// DIES MUSS NACH ALLEN SPEZIFISCHEN /api/chat/...-Routen KOMMEN.
 app.get('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) => {
     const { chatId } = req.params;
 
+    // Nur zum Debuggen: Eigentlich sollte der Router diesen Fall jetzt ausschließen.
+    if (isNaN(parseInt(chatId))) {
+        return sendError(res, 404, "Ungültige Chat-ID.");
+    }
+    
     try {
+        // Stelle sicher, dass der Benutzer Teil dieses Chats ist, bevor Nachrichten abgerufen werden (Sicherheitsprüfung)
+        const chatCheck = await pool.query(
+            `SELECT id FROM chats WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
+            [chatId, req.user.id]
+        );
+
+        if (chatCheck.rows.length === 0) {
+            return sendError(res, 403, "Zugriff auf diesen Chat verweigert.");
+        }
+
         const result = await pool.query(`
             SELECT 
                 m.id, 
@@ -1834,49 +1915,36 @@ app.get('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) =>
     }
 });
 
+// 4. Generische Route: Nachricht senden
 app.post('/api/chat/:chatId', authMiddleware, csrfMiddleware, async (req, res) => {
-  const { chatId } = req.params;
-  const { message } = req.body;
-  const senderId = req.user.id;
+    const { chatId } = req.params;
+    const { message } = req.body;
+    const senderId = req.user.id;
 
-  if (!message) return sendError(res, 400, "Nachricht darf nicht leer sein.");
+    if (!message) return sendError(res, 400, "Nachricht darf nicht leer sein.");
 
-  try {
-    const result = await pool.query(`
-      INSERT INTO chat_messages (chat_id, sender_id, message)
-      VALUES ($1, $2, $3)
-      RETURNING id, chat_id, sender_id, message AS text, created_at
-    `, [chatId, senderId, message]);
-
-    res.json(result.rows[0]);
-
-  } catch (err) {
-    console.error("Fehler beim Senden der Nachricht:", err);
-    sendError(res, 500, "Fehler beim Senden der Nachricht.");
-  }
-});
-
-// 🔹 Alle Admin- und Vorarbeiter-Kontakte abrufen
-app.get('/api/chat/contacts', authMiddleware, async (req, res) => {
-    // Schließe den eingeloggten Benutzer selbst aus
-    const userId = req.user.id; 
-    
     try {
+         // Stelle sicher, dass der Benutzer Teil dieses Chats ist (Sicherheitsprüfung)
+        const chatCheck = await pool.query(
+            `SELECT id FROM chats WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)`,
+            [chatId, senderId]
+        );
+
+        if (chatCheck.rows.length === 0) {
+            return sendError(res, 403, "Zugriff auf diesen Chat verweigert.");
+        }
+
         const result = await pool.query(`
-            SELECT 
-                id, 
-                vorname, 
-                nachname, 
-                rolle
-            FROM users
-            WHERE rolle IN ('admin', 'vorarbeiter') AND id != $1
-            ORDER BY rolle DESC, nachname ASC
-        `, [userId]);
-        
-        res.json(result.rows);
+            INSERT INTO chat_messages (chat_id, sender_id, message)
+            VALUES ($1, $2, $3)
+            RETURNING id, chat_id, sender_id, message AS text, created_at
+        `, [chatId, senderId, message]);
+
+        res.json(result.rows[0]);
+
     } catch (err) {
-        console.error('Fehler beim Abrufen der Chat-Kontakte:', err);
-        sendError(res, 500, 'Serverfehler beim Laden der Kontakte.');
+        console.error("Fehler beim Senden der Nachricht:", err);
+        sendError(res, 500, "Fehler beim Senden der Nachricht.");
     }
 });
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2423,6 +2491,7 @@ async function startServer() {
 }
 
 startServer();
+
 
 
 
